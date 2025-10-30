@@ -1,0 +1,525 @@
+﻿/* ===== Layout - 新設計 ===== */
+
+/* 整體佈局 */
+.app-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--bg-gray);
+  overflow-x: hidden;
+}
+
+/* ===== 最上方標題列 ===== */
+.top-header {
+  width: 100%;
+  height: 124px;
+  background: #A18DDD;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--spacing-2xl);
+  box-shadow: var(--shadow-md);
+  z-index: 100;
+  flex-shrink: 0;
+}
+
+.site-title {
+  font-family: 'Italianno', cursive;
+  font-size: 96px;
+  line-height: 1.2;
+  color: #FFFFFF;
+  margin: 0;
+  text-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
+}
+
+/* 頂部右側功能區 */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+/* 漢堡選單按鈕（手機版） */
+.hamburger-btn {
+  display: none; /* 桌面版隱藏 */
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: #FFFFFF;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  flex-shrink: 0;
+}
+
+.hamburger-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.05);
+}
+
+.hamburger-btn svg {
+  width: 24px;
+  height: 24px;
+  stroke: currentColor;
+  stroke-width: 2;
+}
+
+
+/* 圖標按鈕（鈴鐺、訊息） */
+.header-icon-btn {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.header-icon-btn svg {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+}
+
+.header-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.05);
+}
+
+.notification-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  background: #FF4444;
+  color: #FFFFFF;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+}
+
+/* 登入/註冊按鈕 */
+.header-btn {
+  padding: var(--spacing-sm) var(--spacing-xl);
+  border-radius: var(--radius-full);
+  font-weight: 600;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  border: none;
+}
+
+.register-btn {
+  background: #FFFFFF;
+  color: var(--primary-purple);
+}
+
+.register-btn:hover {
+  background: #F5F5F5;
+  transform: scale(1.05);
+}
+
+.login-btn {
+  background: transparent;
+  color: #FFFFFF;
+  border: 2px solid #FFFFFF;
+}
+
+.login-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: scale(1.05);
+}
+
+/* 使用者選單 */
+.user-menu-container {
+  position: relative;
+}
+
+.user-menu-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xs) var(--spacing-md);
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  border-radius: var(--radius-full);
+  color: #FFFFFF;
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.user-menu-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  color: var(--primary-purple);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.user-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.user-menu-btn svg.rotate {
+  transform: rotate(180deg);
+}
+
+/* 下拉選單 */
+.user-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: #FFFFFF;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  min-width: 180px;
+  overflow: hidden;
+  z-index: 1000;
+  animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md) var(--spacing-lg);
+  color: var(--gray-700);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  transition: all var(--transition-base);
+}
+
+.dropdown-item:hover {
+  background: var(--gray-50);
+  color: var(--primary-purple);
+}
+
+.dropdown-item.logout {
+  color: #FF4444;
+  border-top: 1px solid var(--gray-200);
+}
+
+.dropdown-item.logout:hover {
+  background: #FFF5F5;
+  color: #FF0000;
+}
+
+/* ===== 內容包裝器 ===== */
+.content-wrapper {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ===== 左側導航欄 - 固定 240px ===== */
+.sidebar {
+  position: fixed;
+  left: 0;
+  top: 124px;
+  width: 240px;
+  height: calc(100vh - 124px);
+  background: #FFFFFF;
+  border-right: 1px solid var(--border-gray);
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-lg);
+  box-shadow: var(--shadow-sm);
+  z-index: 50;
+  overflow-y: auto;
+}
+
+/* 導航選單 */
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-radius: var(--radius-lg);
+  text-decoration: none;
+  color: var(--gray-700);
+  font-weight: 500;
+  font-size: 0.9375rem;
+  transition: all var(--transition-base);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+}
+
+.nav-item:hover {
+  background: var(--gray-50);
+  color: var(--primary-purple);
+  transform: translateX(4px);
+}
+
+.nav-item.active {
+  background: linear-gradient(135deg, rgba(205, 121, 213, 0.1), rgba(225, 177, 232, 0.1));
+  color: var(--primary-purple);
+  border-left: 3px solid var(--primary-purple);
+  font-weight: 600;
+}
+
+.nav-item svg {
+  flex-shrink: 0;
+}
+
+/* ===== 右側內容區 ===== */
+.main-content {
+  margin-left: 240px;
+  width: calc(100% - 240px);
+  max-width: calc(100vw - 240px);
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow-x: hidden;
+}
+
+/* 內容頂部工具列 */
+.content-topbar {
+  height: 62px;
+  background: #FFFFFF;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: 0 var(--spacing-xl);
+  border-bottom: 1px solid var(--border-gray);
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  box-shadow: var(--shadow-sm);
+  flex-shrink: 0;
+}
+
+/* 重新整理按鈕 */
+.refresh-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: transparent;
+  border: 1px solid var(--gray-300);
+  color: var(--gray-700);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  flex-shrink: 0;
+}
+
+.refresh-btn:hover {
+  background: var(--primary-purple);
+  color: #FFFFFF;
+  border-color: var(--primary-purple);
+  transform: rotate(180deg);
+}
+
+/* 搜尋圖示按鈕 */
+.search-icon-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: transparent;
+  border: 1px solid var(--gray-300);
+  color: var(--gray-700);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  flex-shrink: 0;
+}
+
+.search-icon-btn:hover {
+  background: var(--primary-purple);
+  color: #FFFFFF;
+  border-color: var(--primary-purple);
+}
+
+/* 搜尋表單 */
+.search-form {
+  flex: 1;
+  max-width: 600px;
+  display: flex;
+  align-items: center;
+  background: var(--gray-50);
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-full);
+  padding: 0 var(--spacing-sm);
+  transition: all var(--transition-base);
+}
+
+.search-form:focus-within {
+  background: #FFFFFF;
+  border-color: var(--primary-purple);
+  box-shadow: 0 0 0 3px rgba(205, 121, 213, 0.1);
+}
+
+.search-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: var(--spacing-sm);
+  font-size: 0.9375rem;
+  color: var(--gray-900);
+  outline: none;
+}
+
+.search-input::placeholder {
+  color: var(--gray-500);
+}
+
+.search-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--primary-purple);
+  color: #FFFFFF;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  flex-shrink: 0;
+}
+
+.search-btn:hover {
+  background: var(--dark-purple);
+  transform: scale(1.05);
+}
+
+/* 頁面內容區 */
+.page-content {
+  flex: 1;
+  background: transparent;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* ===== 響應式設計 ===== */
+
+/* 手機版遮罩層 */
+.mobile-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 90;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 768px) {
+  .top-header {
+    height: 80px;
+    padding: 0 var(--spacing-md);
+  }
+
+  .site-title {
+    font-size: 48px;
+  }
+
+  /* 顯示漢堡選單按鈕 */
+  .hamburger-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* 顯示遮罩層 */
+  .mobile-overlay {
+    display: block;
+  }
+
+  /* 預設隱藏側邊欄 */
+  .sidebar {
+    position: fixed;
+    left: -240px;
+    top: 80px;
+    height: calc(100vh - 80px);
+    z-index: 100;
+    transition: left 0.3s ease;
+  }
+
+  /* 手機版打開狀態 */
+  .sidebar.mobile-open {
+    left: 0;
+    box-shadow: var(--shadow-xl);
+  }
+
+  .main-content {
+    margin-left: 0;
+    width: 100%;
+    max-width: 100vw;
+  }
+
+  .content-topbar {
+    padding: 0 var(--spacing-md);
+  }
+
+  .search-form {
+    max-width: 100%;
+  }
+
+  /* 調整用戶選單位置 */
+  .user-menu-container {
+    position: static;
+  }
+
+  .user-dropdown {
+    right: var(--spacing-md);
+  }
+}

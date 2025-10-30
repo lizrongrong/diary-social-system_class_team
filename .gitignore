@@ -1,0 +1,56 @@
+# ==========================
+# 基本設定
+# ==========================
+.DS_Store
+Thumbs.db
+*.log
+.env
+.env.*
+!.env.example
+node_modules/
+dist/
+build/
+coverage/
+.vscode/
+.idea/
+tmp/
+cache/
+uploads/
+*.bak
+*.tmp
+
+# ==========================
+# 系統相關
+# ==========================
+*.swp
+*.swo
+
+# ==========================
+# 後端 (backend)
+# ==========================
+backend/node_modules/
+backend/uploads/
+backend/logs/
+backend/config/*.local.json
+backend/config/*.secret.json
+
+# ==========================
+# 前端 (frontend)
+# ==========================
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+
+# ==========================
+# 文件與中間產物
+# ==========================
+docs/**/*.pdf
+docs/**/*.docx
+docs/**/*.tmp
+
+# ==========================
+# 本地開發工具
+# ==========================
+.bmad/
+.bmad.json

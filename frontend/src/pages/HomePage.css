@@ -1,0 +1,332 @@
+﻿/* ===== HomePage - 公開日記動態 ===== */
+
+.home-page {
+  width: 100%;
+  min-height: 100%;
+  background: #F5F5F5;
+  padding: var(--spacing-xl);
+}
+
+/* 文章容器 */
+.posts-container {
+  max-width: 1000px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+}
+
+/* 文章卡片 */
+.post-card {
+  background: #FFFFFF;
+  border: 1px solid #E0E0E0;
+  border-radius: 16px;
+  padding: var(--spacing-xl);
+  transition: all var(--transition-base);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.post-card:hover {
+  box-shadow: 0 4px 16px rgba(205, 121, 213, 0.15);
+  transform: translateY(-2px);
+  border-color: var(--primary-purple);
+}
+
+/* 文章頭部 */
+.post-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 1px solid #F0F0F0;
+}
+
+.author-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.author-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 2px solid var(--primary-purple);
+  background-size: cover;
+  background-position: center;
+  background-color: var(--gray-200);
+  flex-shrink: 0;
+}
+
+.author-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.author-name {
+  font-family: "Inter", sans-serif;
+  font-weight: 600;
+  font-size: 18px;
+  color: #1F1F1F;
+  margin: 0;
+}
+
+.post-date {
+  font-family: "Inter", sans-serif;
+  font-weight: 400;
+  font-size: 14px;
+  color: #999999;
+}
+
+/* 加好友按鈕 */
+.follow-btn {
+  background: var(--primary-purple);
+  color: #FFFFFF;
+  border: none;
+  border-radius: var(--radius-full);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  font-family: "Inter", sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  cursor: pointer;
+  transition: all var(--transition-base);
+  height: 36px;
+}
+
+.follow-btn:hover:not(:disabled) {
+  background: var(--dark-purple);
+  transform: scale(1.05);
+}
+
+.follow-btn.is-friend {
+  background: var(--gray-400);
+  cursor: not-allowed;
+}
+
+.follow-btn.is-mutual {
+  background: linear-gradient(135deg, #FA8BFF 0%, #2BD2FF 100%);
+  cursor: not-allowed;
+  font-weight: 700;
+}
+
+.follow-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* 文章內容 */
+.post-content {
+  margin-bottom: var(--spacing-lg);
+}
+
+.post-title {
+  font-family: "Inter", "Noto Sans TC", sans-serif;
+  font-weight: 700;
+  font-size: 20px;
+  color: var(--gray-900);
+  margin: 0 0 var(--spacing-md) 0;
+  line-height: 1.4;
+}
+
+.post-title:hover {
+  color: var(--primary-purple);
+}
+
+.post-content p {
+  font-family: "Inter", "Noto Sans TC", sans-serif;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 1.6;
+  color: #333333;
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+/* 文章底部 - 互動按鈕 */
+.post-footer {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid #F0F0F0;
+}
+
+.post-action {
+  background: transparent;
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  cursor: pointer;
+  font-family: "Inter", sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  color: #666666;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-base);
+}
+
+.post-action:hover {
+  background: #F5F5F5;
+  color: var(--primary-purple);
+}
+
+.post-action svg {
+  flex-shrink: 0;
+}
+
+.post-action span {
+  min-width: 20px;
+}
+
+.post-action.share-btn {
+  background: #FFFFFF;
+  border: 1px solid #E0E0E0;
+  border-radius: var(--radius-md);
+  padding: var(--spacing-xs) var(--spacing-md);
+  margin-left: auto;
+}
+
+.post-action.share-btn:hover {
+  background: var(--primary-purple);
+  border-color: var(--primary-purple);
+  color: #FFFFFF;
+}
+
+/* 點讚按鈕激活狀態 */
+.post-action.liked {
+  color: var(--primary-purple);
+}
+
+.post-action.liked:hover {
+  color: var(--dark-purple);
+}
+
+/* Link樣式重置 */
+.post-action:is(a) {
+  text-decoration: none;
+}
+
+/* 訪客限制提示 */
+.guest-limit-notice {
+  background: linear-gradient(135deg, var(--primary-purple), var(--primary-pink));
+  color: #FFFFFF;
+  padding: var(--spacing-xl);
+  border-radius: 16px;
+  text-align: center;
+  margin-top: var(--spacing-xl);
+}
+
+.guest-limit-notice h3 {
+  font-size: 20px;
+  margin-bottom: var(--spacing-md);
+}
+
+.guest-limit-notice p {
+  font-size: 16px;
+  margin-bottom: var(--spacing-lg);
+  opacity: 0.9;
+}
+
+.guest-limit-notice .cta-buttons {
+  display: flex;
+  gap: var(--spacing-md);
+  justify-content: center;
+}
+
+.guest-limit-notice button {
+  padding: var(--spacing-sm) var(--spacing-xl);
+  border-radius: var(--radius-full);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.guest-limit-notice .register-btn {
+  background: #FFFFFF;
+  color: var(--primary-purple);
+  border: none;
+}
+
+.guest-limit-notice .login-btn {
+  background: transparent;
+  color: #FFFFFF;
+  border: 2px solid #FFFFFF;
+}
+
+/* 空狀態 */
+.empty-state {
+  text-align: center;
+  padding: var(--spacing-3xl);
+  color: var(--gray-500);
+}
+
+.empty-state h3 {
+  font-size: 20px;
+  margin-bottom: var(--spacing-md);
+  color: var(--gray-700);
+}
+
+/* 載入中 */
+.loading-state {
+  text-align: center;
+  padding: var(--spacing-3xl);
+  color: var(--primary-purple);
+}
+
+/* 響應式設計 */
+@media (max-width: 1200px) {
+  .posts-container {
+    max-width: 800px;
+  }
+}
+
+@media (max-width: 768px) {
+  .home-page {
+    padding: var(--spacing-md);
+  }
+
+  .posts-container {
+    gap: var(--spacing-md);
+  }
+
+  .post-card {
+    padding: var(--spacing-lg);
+  }
+
+  .author-avatar {
+    width: 40px;
+    height: 40px;
+  }
+
+  .author-name {
+    font-size: 16px;
+  }
+
+  .post-date {
+    font-size: 12px;
+  }
+
+  .post-content p {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .post-action {
+    font-size: 12px;
+    padding: 6px 8px;
+  }
+
+  .follow-btn {
+    font-size: 12px;
+    padding: 6px 12px;
+    height: 32px;
+  }
+}
