@@ -5,8 +5,9 @@ require('dotenv').config();
 const pool = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || 'lizrong1017',  // 暫時使用預設密碼
-  database: process.env.DB_NAME || 'resonote',
+  password: process.env.DB_PASSWORD || 'Emma0612@',  // 暫時使用預設密碼
+  port: process.env.DB_PORT || 3307,  //檢查這裡
+  database: process.env.DB_DATABASE || 'my_diary_app',
   charset: 'utf8mb4',
   waitForConnections: true,
   connectionLimit: 10,
@@ -19,7 +20,7 @@ const pool = mysql.createPool({
 const initializeFriendsTable = async () => {
   try {
     const connection = await pool.getConnection();
-    
+
     await connection.query(`
       CREATE TABLE IF NOT EXISTS friends (
         friend_id CHAR(36) NOT NULL COMMENT 'UUID',
@@ -36,7 +37,7 @@ const initializeFriendsTable = async () => {
         CONSTRAINT chk_no_self_friend CHECK (user_id != friend_user_id)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='好友關係表'
     `);
-    
+
     console.log('✅ Friends table initialized');
     connection.release();
   } catch (error) {
