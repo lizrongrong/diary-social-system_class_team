@@ -1,0 +1,8 @@
+.messages-page {
+  /* minimal layout */
+  --spacing-md: 12px;
+}
+
+.messages-page .message-list {
+  padding: var(--spacing-md);
+}

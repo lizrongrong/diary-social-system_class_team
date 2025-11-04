@@ -21,8 +21,8 @@ exports.toggleLike = async (req, res) => {
         await Notification.create(
           diary.user_id,
           'like',
-          '¦³¤H«öÆg¤F§Aªº¤é°O',
-          `${req.user.username} «öÆg¤F§Aªº¤é°O`,
+          'æ–°çš„æŒ‰è®š',
+          `${req.user.username} å°ä½ çš„æ—¥è¨˜æŒ‰äº†è®š`,
           userId,
           targetId
         );
