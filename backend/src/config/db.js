@@ -3,9 +3,9 @@ const mysql = require('mysql2/promise');
 require('dotenv').config();
 
 const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'localhost',
+  host: process.env.DB_HOST || 'lizrong1017',
   user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || 'your_password',  // 暫時使用預設密碼
+  password: process.env.DB_PASSWORD || '',  // 暫時使用預設密碼
   database: process.env.DB_NAME || 'resonote',
   charset: 'utf8mb4',
   waitForConnections: true,
