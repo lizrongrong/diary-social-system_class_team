@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { userAPI, diaryAPI } from '../services/api'
 import useAuthStore from '../store/authStore'
 import { friendAPI } from '../services/api'
-import { UserPlus, UserMinus, Calendar, Heart, MessageCircle, Eye } from 'lucide-react'
+import { UserPlus, UserMinus, Calendar, Heart, MessageCircle, Eye, MessageSquare } from 'lucide-react'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 
@@ -140,23 +140,31 @@ function UserProfilePage() {
           
           {/* Follow Button */}
           {!isOwnProfile && currentUser && (
-            <Button
-              variant={followStatus.isFollowing ? 'outline' : 'primary'}
-              onClick={handleToggleFollow}
-              disabled={toggling}
-            >
-              {followStatus.isFollowing ? (
-                <>
-                  <UserMinus size={16} />
-                  取消追蹤
-                </>
-              ) : (
-                <>
-                  <UserPlus size={16} />
-                  追蹤
-                </>
-              )}
-            </Button>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <Link to={`/messages/${userId}`} state={{ friend: user }} style={{ textDecoration: 'none' }}>
+                <Button variant="outline">
+                  <MessageSquare size={16} /> 聊天
+                </Button>
+              </Link>
+
+              <Button
+                variant={followStatus.isFollowing ? 'outline' : 'primary'}
+                onClick={handleToggleFollow}
+                disabled={toggling}
+              >
+                {followStatus.isFollowing ? (
+                  <>
+                    <UserMinus size={16} />
+                    取消追蹤
+                  </>
+                ) : (
+                  <>
+                    <UserPlus size={16} />
+                    追蹤
+                  </>
+                )}
+              </Button>
+            </div>
           )}
 
           {isOwnProfile && (

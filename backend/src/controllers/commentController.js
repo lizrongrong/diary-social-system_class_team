@@ -21,8 +21,8 @@ exports.createComment = async (req, res) => {
       await Notification.create(
         diary.user_id,
         'comment',
-        '¦³¤H¯d¨¥¤F§Aªº¤é°O',
-        `${req.user.username} ¯d¨¥¡G${content.substring(0, 50)}...`,
+        'æ–°çš„ç•™è¨€',
+        `${req.user.username} ç•™è¨€äº†ï¼š${content.substring(0, 50)}...`,
         userId,
         diaryId
       );
@@ -35,8 +35,8 @@ exports.createComment = async (req, res) => {
         await Notification.create(
           parentComment.user_id,
           'comment',
-          '¦³¤H¦^ÂÐ¤F§Aªº¯d¨¥',
-          `${req.user.username} ¦^ÂÐ¡G${content.substring(0, 50)}...`,
+          'æ–°çš„å›žè¦†',
+          `${req.user.username} å›žè¦†äº†ä½ çš„ç•™è¨€ï¼š${content.substring(0, 50)}...`,
           userId,
           diaryId
         );

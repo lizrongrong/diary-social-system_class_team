@@ -130,6 +130,15 @@ function FriendsPage() {
                     查看資料
                   </Button>
                 </Link>
+
+                {/* Chat button: navigates to messages page for this friend. Pass friend in state so MessagesPage can show name without extra fetch. */}
+                <Link to={`/messages/${friend.friend_user_id}`} state={{ friend }}>
+                  <Button variant="outline" size="small">
+                    <Mail size={16} />
+                    聊天
+                  </Button>
+                </Link>
+
                 <Button 
                   variant="outline" 
                   size="small"

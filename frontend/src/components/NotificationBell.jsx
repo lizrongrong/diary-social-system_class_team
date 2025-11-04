@@ -19,6 +19,8 @@ function NotificationBell() {
   const dropdownRef = useRef(null)
   const [announcements, setAnnouncements] = useState([])
   const [annCount, setAnnCount] = useState(0)
+  const [recentChats, setRecentChats] = useState([])
+  const [showOriginalFor, setShowOriginalFor] = useState(new Set())
 
   useEffect(() => {
   if (!user) return
@@ -45,6 +47,34 @@ function NotificationBell() {
 
   fetchNotifications()
   fetchFollowing()
+  // preload recent chats from localStorage
+  const loadRecentChats = () => {
+    try {
+      const chats = []
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (!key || !key.startsWith('chat_')) continue
+        try {
+          const arr = JSON.parse(localStorage.getItem(key)) || []
+          if (!Array.isArray(arr) || arr.length === 0) continue
+          // messages may be stored newest-first; pick the first as latest
+          const latest = arr[0] || arr[arr.length - 1]
+          const ids = key.replace(/^chat_/, '').split('_')
+          // other participant id (not current user)
+          const otherId = ids.find(id => id !== String(user.id)) || ids[0]
+          chats.push({ key, otherId, latest })
+        } catch (e) {
+          // ignore parse errors
+        }
+      }
+      // sort by latest message time desc
+      chats.sort((a, b) => new Date(b.latest.created_at) - new Date(a.latest.created_at))
+      setRecentChats(chats)
+    } catch (e) {
+      setRecentChats([])
+    }
+  }
+  loadRecentChats()
     const fetchAnnouncements = async () => {
       try {
         const data = await announcementAPI.getActive(10, 0)
@@ -79,6 +109,70 @@ function NotificationBell() {
 
     return () => {}
   }, [showDropdown, showAnnDropdown])
+
+  // Try to repair common mojibake/encoding issues in incoming strings.
+  const tryFixEncoding = (s) => {
+    if (!s || typeof s !== 'string') return s
+    // quick check: if s already contains CJK characters, return as-is
+    if (/[\u4e00-\u9fff]/.test(s)) return s
+
+    // 1) classic latin1->utf8 fix
+    try {
+      const fixed = decodeURIComponent(escape(s))
+      if (/[\u4e00-\u9fff]/.test(fixed)) return fixed
+    } catch (e) {
+      // ignore
+    }
+
+    // 2) try TextDecoder with big5 (some browsers support it)
+    try {
+      if (typeof TextDecoder !== 'undefined') {
+        const bytes = new Uint8Array(Array.from(s, c => c.charCodeAt(0) & 0xff))
+        const td = new TextDecoder('big5')
+        const out = td.decode(bytes)
+        if (/[\u4e00-\u9fff]/.test(out)) return out
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    return s
+  }
+
+  const isDifferentAndHasCJK = (orig, fixed) => {
+    if (!fixed || fixed === orig) return false
+    return /[\u4e00-\u9fff]/.test(fixed)
+  }
+
+  const toggleShowOriginal = (id) => {
+    setShowOriginalFor(prev => {
+      const copy = new Set(prev)
+      if (copy.has(id)) copy.delete(id)
+      else copy.add(id)
+      return copy
+    })
+  }
+
+  const renderMaybeFixed = (id, orig, fixed) => {
+    const showOrig = showOriginalFor.has(id)
+    // If fixed seems better (has CJK) default to fixed, else show original
+    const defaultPreferFixed = isDifferentAndHasCJK(orig, fixed)
+    const display = showOrig ? orig : (defaultPreferFixed ? fixed : orig)
+
+    return (
+      <div>
+        <div style={{ whiteSpace: 'pre-wrap' }}>{display}</div>
+        {isDifferentAndHasCJK(orig, fixed) && (
+          <button
+            onClick={() => toggleShowOriginal(id)}
+            style={{ marginTop: 6, background: 'none', border: 'none', color: '#CD79D5', cursor: 'pointer', padding: 0, fontSize: 12 }}
+          >
+            {showOrig ? '顯示修復' : '顯示原文'}
+          </button>
+        )}
+      </div>
+    )
+  }
 
   const handleMarkAsRead = async (notificationId) => {
     try {
@@ -156,7 +250,7 @@ function NotificationBell() {
         )}
       </button>
 
-      {/* 訊息按鈕（原通知） */}
+      {/* 訊息按鈕（聊天） - 顯示最近對話清單（從 localStorage 讀取 chat_*） */}
       <button
         onClick={() => { setShowDropdown(!showDropdown); if (!showDropdown) setShowAnnDropdown(false) }}
         style={{
@@ -174,15 +268,14 @@ function NotificationBell() {
         <MessageSquare size={20} color="#666" />
       </button>
 
-      {/* 訊息（聊天）暫無，先顯示占位 */}
       {showDropdown && (
         <div style={{
           position: 'absolute',
           top: '100%',
           right: 0,
           marginTop: 8,
-          width: 300,
-          maxHeight: 320,
+          width: 320,
+          maxHeight: 420,
           background: '#fff',
           border: '1px solid #ddd',
           borderRadius: 8,
@@ -200,8 +293,31 @@ function NotificationBell() {
           }}>
             <strong style={{ fontSize: 16 }}>訊息</strong>
           </div>
-          <div style={{ padding: 20, color: '#666', fontSize: 14 }}>
-            聊天功能即將推出，敬請期待。
+
+          <div style={{ maxHeight: 360, overflowY: 'auto' }}>
+            {recentChats.length === 0 ? (
+              <div style={{ padding: 20, color: '#666', fontSize: 14 }}>尚無對話，或請先在好友頁打開對話。</div>
+            ) : (
+              recentChats.map(c => (
+                <Link
+                  key={c.key}
+                  to={`/messages/${c.otherId}`}
+                  state={{}}
+                  onClick={() => setShowDropdown(false)}
+                  style={{ display: 'block', padding: '12px 16px', borderBottom: '1px solid #f5f5f5', color: '#333', textDecoration: 'none' }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontSize: 14, fontWeight: 600 }}>
+                      {c.latest && c.latest.from === user.id ? '我' : `使用者 ${c.otherId}`}
+                    </div>
+                    <div style={{ fontSize: 12, color: '#999' }}>{new Date(c.latest.created_at).toLocaleString()}</div>
+                  </div>
+                  <div style={{ marginTop: 6, fontSize: 13, color: '#666', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {c.latest.text}
+                  </div>
+                </Link>
+              ))
+            )}
           </div>
         </div>
       )}
@@ -239,20 +355,20 @@ function NotificationBell() {
                 目前沒有公告
               </div>
             ) : (
-              announcements.map(a => (
-                <div key={a.announcement_id} style={{ padding: '12px 16px', borderBottom: '1px solid #f0f0f0' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <strong style={{ fontSize: 14, color: '#333' }}>{a.title}</strong>
-                    {a.priority === 'high' && (
-                      <span style={{ fontSize: 11, color: '#fff', background: '#e74c3c', padding: '2px 6px', borderRadius: 10 }}>重要</span>
-                    )}
-                  </div>
-                  <div style={{ fontSize: 13, color: '#555', marginTop: 6, whiteSpace: 'pre-wrap' }}>{a.content}</div>
-                  <div style={{ fontSize: 11, color: '#999', marginTop: 8 }}>
-                    {a.published_at ? new Date(a.published_at).toLocaleString() : new Date(a.created_at).toLocaleString()}
-                  </div>
-                </div>
-              ))
+                  announcements.map(a => (
+                    <div key={a.announcement_id} style={{ padding: '12px 16px', borderBottom: '1px solid #f0f0f0' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <strong style={{ fontSize: 14, color: '#333' }}>{tryFixEncoding(a.title)}</strong>
+                        {a.priority === 'high' && (
+                          <span style={{ fontSize: 11, color: '#fff', background: '#e74c3c', padding: '2px 6px', borderRadius: 10 }}>重要</span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 13, color: '#555', marginTop: 6, whiteSpace: 'pre-wrap' }}>{renderMaybeFixed(a.announcement_id, a.content, tryFixEncoding(a.content))}</div>
+                      <div style={{ fontSize: 11, color: '#999', marginTop: 8 }}>
+                        {a.published_at ? new Date(a.published_at).toLocaleString() : new Date(a.created_at).toLocaleString()}
+                      </div>
+                    </div>
+                  ))
             )}
             {/* 系統通知區塊 */}
             <div style={{ padding: '12px 16px', borderTop: '1px solid #eee', background: '#fafafa', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -326,7 +442,7 @@ function NotificationBell() {
                               )}
                             </div>
                             <div style={{ fontSize: 13, color: '#666', marginTop: 6 }}>
-                              {n.content}
+                              {renderMaybeFixed(n.notification_id, n.content, tryFixEncoding(n.content))}
                             </div>
                           </div>
                         </div>
@@ -383,7 +499,7 @@ function NotificationBell() {
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                           <strong style={{ fontSize: 14, color: n.is_read ? '#666' : '#333' }}>
-                            {n.title}
+                            {tryFixEncoding(n.title)}
                           </strong>
                           {!n.is_read && (
                             <div style={{
@@ -396,9 +512,9 @@ function NotificationBell() {
                             }} />
                           )}
                         </div>
-                        <div style={{ fontSize: 13, color: '#666', marginBottom: 6 }}>
-                          {n.content}
-                        </div>
+                              <div style={{ fontSize: 13, color: '#666', marginBottom: 6 }}>
+                                {renderMaybeFixed(n.notification_id, n.content, tryFixEncoding(n.content))}
+                              </div>
                         <div style={{ fontSize: 11, color: '#999' }}>
                           {new Date(n.created_at).toLocaleString()}
                         </div>

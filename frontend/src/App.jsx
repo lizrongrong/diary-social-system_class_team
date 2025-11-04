@@ -13,6 +13,7 @@ import DiaryEditor from './pages/diaries/DiaryEditor'
 import ProfilePage from './pages/ProfilePage'
 import UserProfilePage from './pages/UserProfilePage'
 import FriendsPage from './pages/FriendsPage'
+import MessagesPage from './pages/messages/MessagesPage'
 import LuckyCardPage from './pages/lucky/LuckyCardPage'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -46,6 +47,7 @@ function App() {
               <Route path="/diaries/new" element={<DiaryEditor />} />
               <Route path="/diaries/:id/edit" element={<DiaryEditor />} />
               <Route path="/friends" element={<FriendsPage />} />
+              <Route path="/messages/:userId" element={<MessagesPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/lucky-card" element={<LuckyCardPage />} />
               <Route path="/admin" element={<AdminDashboard />} />
