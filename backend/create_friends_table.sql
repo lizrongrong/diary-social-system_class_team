@@ -1,10 +1,10 @@
--- ¦n¤ÍÃö«Yªí
+-- å¥½å‹é—œä¿‚è¡¨
 CREATE TABLE IF NOT EXISTS `friends` (
   `friend_id` CHAR(36) NOT NULL COMMENT 'UUID',
-  `user_id` CHAR(36) NOT NULL COMMENT '¥Î¤áID',
-  `friend_user_id` CHAR(36) NOT NULL COMMENT '¦n¤Í¥Î¤áID',
-  `status` ENUM('pending', 'accepted', 'blocked') NOT NULL DEFAULT 'accepted' COMMENT '¦n¤Íª¬ºA',
-  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '«Ø¥ß®É¶¡',
+  `user_id` CHAR(36) NOT NULL COMMENT 'ä½¿ç”¨è€… ID',
+  `friend_user_id` CHAR(36) NOT NULL COMMENT 'å¥½å‹ä½¿ç”¨è€… ID',
+  `status` ENUM('pending', 'accepted', 'blocked') NOT NULL DEFAULT 'accepted' COMMENT 'å¥½å‹ç‹€æ…‹',
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'å»ºç«‹æ™‚é–“',
   PRIMARY KEY (`friend_id`),
   KEY `idx_user_id` (`user_id`),
   KEY `idx_friend_user_id` (`friend_user_id`),
@@ -12,4 +12,4 @@ CREATE TABLE IF NOT EXISTS `friends` (
   CONSTRAINT `fk_friends_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE,
   CONSTRAINT `fk_friends_friend` FOREIGN KEY (`friend_user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE,
   CONSTRAINT `chk_no_self_friend` CHECK (`user_id` != `friend_user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='¦n¤ÍÃö«Yªí';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='å¥½å‹é—œä¿‚è¡¨';
