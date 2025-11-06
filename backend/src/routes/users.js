@@ -24,7 +24,7 @@ router.get('/my-info', authMiddleware, async (req, res) => {
   try {
     const userId = req.user.user_id;
     const [rows] = await db.execute(
-      'SELECT user_id, username, email, display_name, role, status, created_at FROM users WHERE user_id = ?',
+      'SELECT user_id, username, email, role, status, created_at FROM users WHERE user_id = ?',
       [userId]
     );
     res.json({ user: rows[0] });

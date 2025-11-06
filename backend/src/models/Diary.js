@@ -48,7 +48,7 @@ class Diary {
    */
   static async findById(diaryId) {
     const query = `
-      SELECT d.*, u.username, u.display_name, u.avatar_url
+  SELECT d.*, u.username
       FROM diaries d
       JOIN users u ON d.user_id = u.user_id
       WHERE d.diary_id = ? AND d.status != 'deleted'
@@ -75,7 +75,7 @@ class Diary {
     } = options;
     
     let query = `
-      SELECT d.*, u.username, u.display_name, u.avatar_url
+  SELECT d.*, u.username
       FROM diaries d
       JOIN users u ON d.user_id = u.user_id
       WHERE d.user_id = ?
@@ -120,7 +120,7 @@ class Diary {
     } = options;
     
     const query = `
-      SELECT d.*, u.username, u.display_name, u.avatar_url
+      SELECT d.*, u.username
       FROM diaries d
       JOIN users u ON d.user_id = u.user_id
       WHERE d.visibility = 'public' AND d.status = 'published'
@@ -342,7 +342,7 @@ class Diary {
     } = filters;
 
     let query = `
-      SELECT DISTINCT d.*, u.username, u.display_name, u.avatar_url
+      SELECT DISTINCT d.*, u.username
       FROM diaries d
       JOIN users u ON d.user_id = u.user_id
       LEFT JOIN diary_tags dt ON d.diary_id = dt.diary_id
@@ -415,7 +415,7 @@ class Diary {
    */
   static async findPublicByUser(userId, limit = 20, offset = 0) {
     const query = `
-      SELECT d.*, u.username, u.display_name, u.avatar_url
+      SELECT d.*, u.username
       FROM diaries d
       JOIN users u ON d.user_id = u.user_id
       WHERE d.user_id = ? AND d.visibility = 'public' AND d.status = 'published'

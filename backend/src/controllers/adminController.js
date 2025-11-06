@@ -31,9 +31,9 @@ exports.getStats = async (req, res) => {
     );
     const newDiariesToday = newDiariesTodayResult[0].count;
 
-    // 活躍用戶（最近7天有登入）
+    // 活躍用戶（最近7天有活動，使用 updated_at 作為代理）
     const [activeUsersResult] = await db.execute(
-      'SELECT COUNT(*) as count FROM users WHERE last_login >= DATE_SUB(NOW(), INTERVAL 7 DAY)'
+      'SELECT COUNT(*) as count FROM users WHERE updated_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)'
     );
     const activeUsers = activeUsersResult[0].count;
 
@@ -68,15 +68,15 @@ exports.getUsers = async (req, res) => {
     const search = req.query.search || '';
 
     let query = `
-      SELECT user_id, username, display_name, email, role, status, created_at, last_login
+      SELECT user_id, username, email, role, status, created_at
       FROM users
     `;
     const params = [];
 
     if (search) {
-      query += ' WHERE username LIKE ? OR display_name LIKE ? OR email LIKE ?';
+      query += ' WHERE username LIKE ? OR email LIKE ?';
       const searchPattern = `%${search}%`;
-      params.push(searchPattern, searchPattern, searchPattern);
+      params.push(searchPattern, searchPattern);
     }
 
     query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
@@ -87,9 +87,8 @@ exports.getUsers = async (req, res) => {
     // 獲取總數
     let countQuery = 'SELECT COUNT(*) as count FROM users';
     if (search) {
-      countQuery += ' WHERE username LIKE ? OR display_name LIKE ? OR email LIKE ?';
+      countQuery += ' WHERE username LIKE ? OR email LIKE ?';
       const [countResult] = await db.execute(countQuery, [
-        `%${search}%`,
         `%${search}%`,
         `%${search}%`
       ]);
@@ -112,7 +111,7 @@ exports.getDiaries = async (req, res) => {
 
     const [diaries] = await db.execute(
       `SELECT d.diary_id, d.title, d.visibility, d.status, d.created_at, 
-              u.username, u.display_name
+              u.username
        FROM diaries d
        JOIN users u ON d.user_id = u.user_id
        ORDER BY d.created_at DESC

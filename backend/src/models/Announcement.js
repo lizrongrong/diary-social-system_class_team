@@ -3,7 +3,7 @@ const db = require('../config/db');
 class Announcement {
   static async findActive(limit = 10, offset = 0) {
     const [rows] = await db.query(
-      `SELECT a.*, u.display_name AS admin_display_name
+      `SELECT a.*, u.username AS admin_username
        FROM announcements a
        JOIN users u ON a.admin_id = u.user_id
        WHERE a.is_active = TRUE

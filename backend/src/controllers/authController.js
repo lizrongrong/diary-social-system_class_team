@@ -9,7 +9,7 @@ const User = require('../models/User');
  */
 exports.register = async (req, res) => {
   try {
-  const { email, password, username, display_name, gender, birth_date, user_id } = req.body;
+  const { email, password, username, gender, birth_date, user_id } = req.body;
     
     // 1. 檢查 Email 是否已存在
     const emailExists = await User.emailExists(email);
@@ -62,7 +62,6 @@ exports.register = async (req, res) => {
       email,
       password_hash: hashedPassword,
       username,
-      display_name,
       gender,
       birth_date
     });
@@ -88,7 +87,6 @@ exports.register = async (req, res) => {
         user_id: userId,
         email,
         username,
-        display_name,
         role: 'member'
       }
     });
@@ -189,8 +187,6 @@ exports.login = async (req, res) => {
         user_id: user.user_id,
         email: user.email,
         username: user.username,
-        display_name: user.display_name,
-        avatar_url: user.avatar_url,
         role: user.role
       }
     });
@@ -252,14 +248,11 @@ exports.getCurrentUser = async (req, res) => {
         user_id: user.user_id,
         email: user.email,
         username: user.username,
-        display_name: user.display_name,
-        avatar_url: user.avatar_url,
         gender: user.gender,
         birth_date: user.birth_date,
         role: user.role,
         status: user.status,
-        created_at: user.created_at,
-        last_login: user.last_login
+        created_at: user.created_at
       }
     });
     

@@ -71,8 +71,6 @@ exports.authMiddleware = async (req, res, next) => {
       user_id: user.user_id,
       email: user.email,
       username: user.username,
-      display_name: user.display_name,
-      avatar_url: user.avatar_url,
       role: user.role,
       status: user.status
     };
@@ -135,8 +133,6 @@ exports.optionalAuth = async (req, res, next) => {
         user_id: user.user_id,
         email: user.email,
         username: user.username,
-        display_name: user.display_name,
-        avatar_url: user.avatar_url,
         role: user.role
       };
     }

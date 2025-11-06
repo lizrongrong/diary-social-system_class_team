@@ -19,9 +19,7 @@ exports.getAll = async (req, res) => {
         f.following_id as friend_user_id,
         f.status,
         f.created_at,
-        u.username,
-        u.display_name,
-        u.avatar_url
+  u.username
       FROM followers f
       JOIN users u ON f.following_id = u.user_id
       WHERE f.follower_id = ? AND f.status = 'active'
@@ -111,12 +109,12 @@ exports.add = async (req, res) => {
     
     // 獲取當前用戶資訊
     const [currentUser] = await db.query(
-      'SELECT username, display_name FROM users WHERE user_id = ?',
+      'SELECT username FROM users WHERE user_id = ?',
       [userId]
     );
-    
+
     // 發送通知給被追蹤的用戶
-    const displayName = currentUser[0]?.display_name || currentUser[0]?.username || '某位用戶';
+    const displayName = currentUser[0]?.username || '某位用戶';
     const notificationTitle = isMutual ? '新的互相追蹤' : '新的追蹤者';
     const notificationContent = isMutual 
       ? `${displayName} 也追蹤了你，你們現在互相追蹤了！`
@@ -243,9 +241,7 @@ exports.getFollowingByUser = async (req, res) => {
         f.following_id as friend_user_id,
         f.status,
         f.created_at,
-        u.username,
-        u.display_name,
-        u.avatar_url
+  u.username
        FROM followers f
        JOIN users u ON f.following_id = u.user_id
        WHERE f.follower_id = ? AND f.status = 'active'
@@ -276,9 +272,7 @@ exports.getFollowersByUser = async (req, res) => {
         f.following_id as friend_user_id,
         f.status,
         f.created_at,
-        u.username,
-        u.display_name,
-        u.avatar_url
+  u.username
        FROM followers f
        JOIN users u ON f.follower_id = u.user_id
        WHERE f.following_id = ? AND f.status = 'active'
