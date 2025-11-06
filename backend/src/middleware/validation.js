@@ -48,7 +48,7 @@ const isValidDate = (dateString) => {
  * 註冊驗證
  */
 exports.validateRegister = (req, res, next) => {
-  const { email, password, username, display_name, gender, birth_date } = req.body;
+  const { email, password, username, display_name, gender, birth_date, user_id } = req.body;
   const errors = {};
   
   // Email 驗證
@@ -70,6 +70,16 @@ exports.validateRegister = (req, res, next) => {
     errors.username = 'Username is required';
   } else if (!isValidUsername(username)) {
     errors.username = 'Username must be 3-50 characters (letters, numbers, underscores only)';
+  }
+
+  // User ID 驗證 (前端填寫的短 ID)
+  if (!user_id) {
+    errors.user_id = 'User ID is required';
+  } else {
+    const userIdRegex = /^[a-zA-Z0-9_]{3,10}$/;
+    if (!userIdRegex.test(user_id)) {
+      errors.user_id = 'User ID must be 3-10 characters (letters, numbers, underscores only)';
+    }
   }
   
   // Display Name 驗證
@@ -231,9 +241,9 @@ exports.validateDiary = (req, res, next) => {
   }
   
   // 可見性驗證
-  const validVisibility = ['private', 'public'];
+  const validVisibility = ['private', 'followers', 'public'];
   if (visibility && !validVisibility.includes(visibility)) {
-    errors.visibility = 'Invalid visibility value (private/public)';
+    errors.visibility = "Invalid visibility value (private/followers/public)";
   }
   
   // 如果有錯誤，返回 400

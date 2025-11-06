@@ -9,7 +9,7 @@ const User = require('../models/User');
  */
 exports.register = async (req, res) => {
   try {
-    const { email, password, username, display_name, gender, birth_date } = req.body;
+  const { email, password, username, display_name, gender, birth_date, user_id } = req.body;
     
     // 1. 檢查 Email 是否已存在
     const emailExists = await User.emailExists(email);
@@ -21,8 +21,8 @@ exports.register = async (req, res) => {
       });
     }
     
-    // 2. 檢查 Username 是否已存在
-    const usernameExists = await User.usernameExists(username);
+  // 2. 檢查 Username 是否已存在
+  const usernameExists = await User.usernameExists(username);
     if (usernameExists) {
       return res.status(400).json({
         error: 'Username already taken',
@@ -31,7 +31,16 @@ exports.register = async (req, res) => {
       });
     }
     
-    // 3. 驗證年齡 (必須 >= 13 歲)
+    // 3. 檢查前端提供的 user_id 是否已存在
+    if (user_id && await User.userIdExists(user_id)) {
+      return res.status(400).json({
+        error: 'User ID already taken',
+        code: 'USERID_EXISTS',
+        message: '此使用者代號已被使用'
+      });
+    }
+
+    // 4. 驗證年齡 (必須 >= 13 歲)
     const birthDate = new Date(birth_date);
     const today = new Date();
     const age = Math.floor((today - birthDate) / (365.25 * 24 * 60 * 60 * 1000));
@@ -47,8 +56,9 @@ exports.register = async (req, res) => {
     // 4. 密碼加密 (bcrypt, cost factor 10)
     const hashedPassword = await bcrypt.hash(password, 10);
     
-    // 5. 建立使用者
+    // 5. 建立使用者 (接受前端提供的 user_id)
     const userId = await User.create({
+      user_id,
       email,
       password_hash: hashedPassword,
       username,

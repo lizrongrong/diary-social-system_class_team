@@ -10,20 +10,21 @@ const Notification = require('../models/Notification');
 exports.getAll = async (req, res) => {
   try {
     const userId = req.user.user_id;
-    
+
+    // 取得目前使用者追蹤中的清單 (following)
     const [rows] = await db.query(
       `SELECT 
-        f.friend_id,
-        f.user_id,
-        f.friend_user_id,
+        f.follow_id as friend_id,
+        f.follower_id as user_id,
+        f.following_id as friend_user_id,
         f.status,
         f.created_at,
         u.username,
         u.display_name,
         u.avatar_url
-      FROM friends f
-      JOIN users u ON f.friend_user_id = u.user_id
-      WHERE f.user_id = ? AND f.status = 'accepted'
+      FROM followers f
+      JOIN users u ON f.following_id = u.user_id
+      WHERE f.follower_id = ? AND f.status = 'active'
       ORDER BY f.created_at DESC`,
       [userId]
     );
@@ -48,8 +49,8 @@ exports.getAll = async (req, res) => {
  */
 exports.add = async (req, res) => {
   try {
-    const userId = req.user.user_id;
-    const { friend_id } = req.body;
+  const userId = req.user.user_id;
+  const { friend_id } = req.body; // friend_id 表示被追蹤者的 user_id (following_id)
     
     console.log('=====================================');
     console.log('📝 ADD FRIEND REQUEST');
@@ -71,8 +72,8 @@ exports.add = async (req, res) => {
     
     // 檢查是否已經追蹤此用戶（單向檢查）
     const [existing] = await db.query(
-      `SELECT * FROM friends 
-       WHERE user_id = ? AND friend_user_id = ?`,
+      `SELECT * FROM followers 
+       WHERE follower_id = ? AND following_id = ?`,
       [userId, friend_id]
     );
     
@@ -86,13 +87,13 @@ exports.add = async (req, res) => {
     }
     
     // 添加單向好友關係
-    const friendshipId = uuidv4();
+  const friendshipId = uuidv4();
     
     console.log('✅ 插入新追蹤關係:', userId, '-->', friend_id);
     
     await db.execute(
-      `INSERT INTO friends (friend_id, user_id, friend_user_id, status)
-       VALUES (?, ?, ?, 'accepted')`,
+      `INSERT INTO followers (follow_id, follower_id, following_id, status)
+       VALUES (?, ?, ?, 'active')`,
       [friendshipId, userId, friend_id]
     );
     
@@ -101,8 +102,8 @@ exports.add = async (req, res) => {
     
     // 檢查對方是否也追蹤了你（互相追蹤）
     const [reverseFollow] = await db.query(
-      `SELECT * FROM friends 
-       WHERE user_id = ? AND friend_user_id = ?`,
+      `SELECT * FROM followers 
+       WHERE follower_id = ? AND following_id = ?`,
       [friend_id, userId]
     );
     
@@ -152,12 +153,12 @@ exports.add = async (req, res) => {
 exports.remove = async (req, res) => {
   try {
     const userId = req.user.user_id;
-    const { friendId } = req.params;
-    
-    // 刪除單向關係
+    const { friendId } = req.params; // friendId 代表被移除的使用者 id (following_id)
+
+    // 刪除單向追蹤關係
     await db.execute(
-      `DELETE FROM friends 
-       WHERE user_id = ? AND friend_user_id = ?`,
+      `DELETE FROM followers 
+       WHERE follower_id = ? AND following_id = ?`,
       [userId, friendId]
     );
     
@@ -180,8 +181,8 @@ exports.remove = async (req, res) => {
  */
 exports.checkStatus = async (req, res) => {
   try {
-    const userId = req.user.user_id;
-    const { userId: targetUserId } = req.params;
+  const userId = req.user.user_id;
+  const { userId: targetUserId } = req.params;
     
     console.log('=== checkStatus ===');
     console.log('當前用戶:', userId);
@@ -189,8 +190,8 @@ exports.checkStatus = async (req, res) => {
     
     // 檢查你是否追蹤對方
     const [youFollow] = await db.query(
-      `SELECT * FROM friends 
-       WHERE user_id = ? AND friend_user_id = ?`,
+      `SELECT * FROM followers 
+       WHERE follower_id = ? AND following_id = ?`,
       [userId, targetUserId]
     );
     
@@ -198,8 +199,8 @@ exports.checkStatus = async (req, res) => {
     
     // 檢查對方是否追蹤你
     const [theyFollow] = await db.query(
-      `SELECT * FROM friends 
-       WHERE user_id = ? AND friend_user_id = ?`,
+      `SELECT * FROM followers 
+       WHERE follower_id = ? AND following_id = ?`,
       [targetUserId, userId]
     );
     
@@ -237,17 +238,17 @@ exports.getFollowingByUser = async (req, res) => {
 
     const [rows] = await db.query(
       `SELECT 
-        f.friend_id,
-        f.user_id,
-        f.friend_user_id,
+        f.follow_id as friend_id,
+        f.follower_id as user_id,
+        f.following_id as friend_user_id,
         f.status,
         f.created_at,
         u.username,
         u.display_name,
         u.avatar_url
-       FROM friends f
-       JOIN users u ON f.friend_user_id = u.user_id
-       WHERE f.user_id = ? AND f.status = 'accepted'
+       FROM followers f
+       JOIN users u ON f.following_id = u.user_id
+       WHERE f.follower_id = ? AND f.status = 'active'
        ORDER BY f.created_at DESC`,
       [userId]
     );
@@ -270,17 +271,17 @@ exports.getFollowersByUser = async (req, res) => {
 
     const [rows] = await db.query(
       `SELECT 
-        f.friend_id,
-        f.user_id,
-        f.friend_user_id,
+        f.follow_id as friend_id,
+        f.follower_id as user_id,
+        f.following_id as friend_user_id,
         f.status,
         f.created_at,
         u.username,
         u.display_name,
         u.avatar_url
-       FROM friends f
-       JOIN users u ON f.user_id = u.user_id
-       WHERE f.friend_user_id = ? AND f.status = 'accepted'
+       FROM followers f
+       JOIN users u ON f.follower_id = u.user_id
+       WHERE f.following_id = ? AND f.status = 'active'
        ORDER BY f.created_at DESC`,
       [userId]
     );
@@ -302,11 +303,11 @@ exports.getCounts = async (req, res) => {
     const { userId } = req.params;
 
     const [[{ count: followingCount }]] = await db.query(
-      `SELECT COUNT(*) AS count FROM friends WHERE user_id = ?`,
+      `SELECT COUNT(*) AS count FROM followers WHERE follower_id = ?`,
       [userId]
     );
     const [[{ count: followerCount }]] = await db.query(
-      `SELECT COUNT(*) AS count FROM friends WHERE friend_user_id = ?`,
+      `SELECT COUNT(*) AS count FROM followers WHERE following_id = ?`,
       [userId]
     );
 
