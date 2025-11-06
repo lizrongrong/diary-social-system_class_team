@@ -26,8 +26,8 @@ CREATE TABLE IF NOT EXISTS `users` (
   `email_verified` BOOLEAN NOT NULL DEFAULT FALSE COMMENT 'Email 是否驗證',
   PRIMARY KEY (`user_id`),
   UNIQUE KEY `uk_email` (`email`),
-  KEY `idx_created_at` (`created_at`),
-  CONSTRAINT `chk_age` CHECK (TIMESTAMPDIFF(YEAR, `birth_date`, CURDATE()) >= 13)
+  KEY `idx_created_at` (`created_at`)
+  /* CONSTRAINT `chk_age` CHECK (TIMESTAMPDIFF(YEAR, `birth_date`, CURDATE()) >= 13) */
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='使用者資料表';
 
 
