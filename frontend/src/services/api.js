@@ -28,8 +28,32 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('token')
-      window.location.href = '/login'
+      // Don't force-redirect for auth-related endpoints (login/register/etc.) to avoid
+      // race-conditions where a 401 from an auth endpoint would immediately send the
+      // user back to the login page.
+      const url = error.config?.url || '';
+      const authPaths = [
+        '/auth/login',
+        '/auth/register',
+        '/auth/check-email',
+        '/auth/send-verification',
+        '/auth/verify-email',
+        '/auth/forgot-password',
+        '/auth/verify-reset',
+        '/auth/reset-password'
+      ];
+
+      const isAuthEndpoint = authPaths.some(p => url.includes(p));
+
+      // Only clear token / redirect for non-auth endpoints. For auth endpoints
+      // we keep the token so transient 401s during auth flows don't immediately
+      // log the user out.
+      if (!isAuthEndpoint) {
+        localStorage.removeItem('token');
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
+      }
     }
     return Promise.reject(error)
   }

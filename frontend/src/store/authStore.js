@@ -115,13 +115,28 @@ export const useAuthStore = create((set) => ({
         error: null
       });
     } catch (error) {
-      localStorage.removeItem('token');
-      set({
-        user: null,
-        token: null,
-        isAuthenticated: false,
-        isLoading: false
-      });
+      // Only clear token / force logout for explicit auth failures.
+      const code = error.response?.data?.code;
+      const authFailureCodes = ['TOKEN_EXPIRED', 'INVALID_TOKEN', 'NO_TOKEN', 'USER_NOT_FOUND'];
+      if (code && authFailureCodes.includes(code)) {
+        localStorage.removeItem('token');
+        set({
+          user: null,
+          token: null,
+          isAuthenticated: false,
+          isLoading: false
+        });
+      } else {
+        // For transient errors (network, 5xx, or unknown 401 without clear code),
+        // keep the token and treat the user as still authenticated to avoid
+        // immediate redirect-to-login on page navigation. We still clear the
+        // loading flag and keep user=null until a successful fetch.
+        set({
+          user: null,
+          isLoading: false,
+          error: null
+        });
+      }
     }
   },
 
