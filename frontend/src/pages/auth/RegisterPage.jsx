@@ -30,6 +30,11 @@ function RegisterPage() {
   const [checkingUserId, setCheckingUserId] = useState(false);
   const [userIdAvailable, setUserIdAvailable] = useState(null); // null=unknown, true/false
   const [userIdCheckError, setUserIdCheckError] = useState(null);
+  // email verification
+  const [emailVerified, setEmailVerified] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
+  const [sendingCode, setSendingCode] = useState(false);
+  const [verifyingCode, setVerifyingCode] = useState(false);
 
   // 密碼強度計算
   const calculatePasswordStrength = (password) => {
@@ -152,6 +157,13 @@ function RegisterPage() {
     setIsLoading(true);
     
     try {
+      // require email verification before allowing registration
+      if (!emailVerified) {
+        setErrors(prev => ({ ...prev, email: '請先驗證 Email' }));
+        addToast('請先完成 Email 驗證', 'error');
+        setIsLoading(false);
+        return;
+      }
       const { password_confirm, ...registerData } = formData;
       await register(registerData);
       addToast('註冊成功！歡迎加入 Resonote', 'success');
@@ -172,6 +184,43 @@ function RegisterPage() {
       }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSendCode = async () => {
+    // validate email format first
+    if (!formData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      setErrors(prev => ({ ...prev, email: '請輸入有效的 Email' }));
+      addToast('請輸入有效的 Email', 'error');
+      return;
+    }
+    setSendingCode(true);
+    try {
+      await authAPI.sendVerification(formData.email);
+      addToast('驗證碼已寄出，請到信箱查看', 'success');
+    } catch (err) {
+      console.error('Send verification error', err);
+      addToast(err.response?.data?.message || '寄送驗證碼失敗', 'error');
+    } finally {
+      setSendingCode(false);
+    }
+  };
+
+  const handleVerifyCode = async () => {
+    if (!verificationCode) {
+      addToast('請輸入驗證碼', 'error');
+      return;
+    }
+    setVerifyingCode(true);
+    try {
+      await authAPI.verifyEmailCode(formData.email, verificationCode);
+      setEmailVerified(true);
+      addToast('Email 驗證成功', 'success');
+    } catch (err) {
+      console.error('Verify code error', err);
+      addToast(err.response?.data?.message || '驗證失敗或已過期', 'error');
+    } finally {
+      setVerifyingCode(false);
     }
   };
 
@@ -297,6 +346,44 @@ function RegisterPage() {
                 disabled={isLoading}
                 autoComplete="email"
               />
+
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '6px' }}>
+                <Input
+                  type="text"
+                  label="驗證碼"
+                  name="verificationCode"
+                  placeholder="輸入驗證碼"
+                  value={verificationCode}
+                  onChange={(e) => setVerificationCode(e.target.value)}
+                  error={''}
+                  disabled={isLoading || verifyingCode || emailVerified}
+                  style={{ flex: 1 }}
+                />
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="medium"
+                    onClick={handleSendCode}
+                    disabled={sendingCode || isLoading}
+                    style={{ width: 100 }}
+                  >
+                    {sendingCode ? '寄送中…' : '寄驗證信'}
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="medium"
+                    onClick={handleVerifyCode}
+                    disabled={verifyingCode || isLoading || emailVerified}
+                    style={{ width: 100 }}
+                  >
+                    {verifyingCode ? '驗證中…' : (emailVerified ? '已驗證' : '確認')}
+                  </Button>
+                </div>
+              </div>
 
               {/* Password */}
               <div>

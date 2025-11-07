@@ -53,6 +53,17 @@ export const authAPI = {
     return response.data
   },
   
+  // Email verification (send code / verify code)
+  sendVerification: async (email) => {
+    const response = await api.post('/auth/send-verification', { email })
+    return response.data
+  },
+
+  verifyEmailCode: async (email, code) => {
+    const response = await api.post('/auth/verify-email', { email, code })
+    return response.data
+  },
+  
   checkUserId: async (user_id) => {
     const response = await api.post('/auth/check-userid', { user_id })
     return response.data

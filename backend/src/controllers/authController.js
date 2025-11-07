@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const emailVerification = require('../services/emailVerification');
 
 /**
  * 使用者註冊
@@ -10,6 +11,11 @@ const User = require('../models/User');
 exports.register = async (req, res) => {
   try {
   const { email, password, username, gender, birth_date, user_id } = req.body;
+    // Require that email has been verified recently
+    const isVerified = await emailVerification.isEmailVerified(email);
+    if (!isVerified) {
+      return res.status(400).json({ error: 'Email not verified', code: 'EMAIL_NOT_VERIFIED', message: '請先完成 Email 驗證' });
+    }
     
     // 1. 檢查 Email 是否已存在
     const emailExists = await User.emailExists(email);
@@ -113,6 +119,49 @@ exports.register = async (req, res) => {
       code: 'SERVER_ERROR',
       message: '註冊失敗，請稍後再試'
     });
+  }
+};
+
+/**
+ * 發送驗證碼到 Email
+ * @route POST /api/v1/auth/send-verification
+ * @access Public
+ */
+exports.sendVerificationCode = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: 'Email required' });
+    }
+
+    // Could validate email format here
+    await emailVerification.sendVerificationCode(email);
+    res.json({ message: 'Verification code sent' });
+  } catch (error) {
+    console.error('Send verification code error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+/**
+ * 驗證 Email 驗證碼
+ * @route POST /api/v1/auth/verify-email
+ * @access Public
+ */
+exports.verifyEmailCode = async (req, res) => {
+  try {
+    const { email, code } = req.body;
+    if (!email || !code) {
+      return res.status(400).json({ error: 'Email and code required' });
+    }
+
+    const ok = await emailVerification.verifyCode(email, code);
+    if (!ok) return res.status(400).json({ error: 'Invalid or expired code' });
+
+    res.json({ message: 'Email verified' });
+  } catch (error) {
+    console.error('Verify email code error:', error);
+    res.status(500).json({ error: 'Server error' });
   }
 };
 
