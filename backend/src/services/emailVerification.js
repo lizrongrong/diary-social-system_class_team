@@ -5,6 +5,8 @@
 const store = new Map();
 // Map email -> verifiedUntil (timestamp)
 const verified = new Map();
+// reset codes store
+const resetStore = new Map();
 
 // TTL in milliseconds (10 minutes)
 const TTL = 10 * 60 * 1000;
@@ -42,6 +44,34 @@ async function verifyCode(email, code) {
   return false;
 }
 
+// Password reset code functions (separate store)
+async function sendResetCode(email) {
+  const code = generateCode();
+  const expiresAt = Date.now() + TTL;
+  resetStore.set(email, { code, expiresAt });
+  const ts = new Date().toISOString();
+  console.log(`[emailVerification][RESET] [${ts}] code=${code} -> ${email} (expires in ${Math.round(TTL/60000)}m)`);
+  return { ok: true };
+}
+
+async function verifyResetCode(email, code) {
+  const entry = resetStore.get(email);
+  if (!entry) return false;
+  if (Date.now() > entry.expiresAt) {
+    resetStore.delete(email);
+    return false;
+  }
+  if (String(code) === String(entry.code)) {
+    // do NOT delete here so the same code can be used to perform the reset
+    return true;
+  }
+  return false;
+}
+
+function consumeResetCode(email) {
+  resetStore.delete(email);
+}
+
 function isEmailVerified(email) {
   const exp = verified.get(email);
   if (!exp) return false;
@@ -55,5 +85,9 @@ function isEmailVerified(email) {
 module.exports = {
   sendVerificationCode,
   verifyCode,
-  isEmailVerified
+  isEmailVerified,
+  sendResetCode,
+  verifyResetCode
+  , consumeResetCode
 };
+
