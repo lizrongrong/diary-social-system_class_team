@@ -30,6 +30,10 @@ function RegisterPage() {
   const [checkingUserId, setCheckingUserId] = useState(false);
   const [userIdAvailable, setUserIdAvailable] = useState(null); // null=unknown, true/false
   const [userIdCheckError, setUserIdCheckError] = useState(null);
+  // email 即時檢查
+  const [emailChecking, setEmailChecking] = useState(false);
+  const [emailExists, setEmailExists] = useState(null); // null=unknown, true/false
+  const [emailCheckError, setEmailCheckError] = useState(null);
   // email verification
   const [emailVerified, setEmailVerified] = useState(false);
   const [verificationCode, setVerificationCode] = useState('');
@@ -194,13 +198,25 @@ function RegisterPage() {
       addToast('請輸入有效的 Email', 'error');
       return;
     }
+    // 若已知此 email 已被註冊，阻止寄驗證碼（前端快速檢查）
+    if (emailExists === true) {
+      setErrors(prev => ({ ...prev, email: '此 Email 已被註冊' }));
+      addToast('此 Email 已被註冊，請改用忘記密碼或更換 Email', 'error');
+      return;
+    }
     setSendingCode(true);
     try {
       await authAPI.sendVerification(formData.email);
       addToast('驗證碼已寄出，請到信箱查看', 'success');
     } catch (err) {
       console.error('Send verification error', err);
-      addToast(err.response?.data?.message || '寄送驗證碼失敗', 'error');
+      // 若後端回傳 EMAIL_EXISTS（race condition），給予友善提示
+      if (err.response?.data?.code === 'EMAIL_EXISTS') {
+        setErrors(prev => ({ ...prev, email: '此 Email 已被註冊' }));
+        addToast('此 Email 已被註冊，請改用忘記密碼或更換 Email', 'error');
+      } else {
+        addToast(err.response?.data?.message || '寄送驗證碼失敗', 'error');
+      }
     } finally {
       setSendingCode(false);
     }
@@ -252,6 +268,35 @@ function RegisterPage() {
 
     return () => { mounted = false; clearTimeout(timer); };
   }, [formData.user_id]);
+
+  // 即時檢查 email 是否已被註冊（debounce）
+  useEffect(() => {
+    let mounted = true;
+    if (!formData.email) {
+      setEmailExists(null);
+      setEmailCheckError(null);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setEmailChecking(true);
+      setEmailCheckError(null);
+      try {
+        const res = await authAPI.checkEmail(formData.email);
+        if (!mounted) return;
+        setEmailExists(!!res.exists);
+        // 若已存在，顯示 field error
+        setErrors(prev => ({ ...prev, email: res.exists ? '此 Email 已被註冊' : '' }));
+      } catch (err) {
+        if (!mounted) return;
+        setEmailCheckError('檢查失敗，請稍後再試');
+      } finally {
+        if (mounted) setEmailChecking(false);
+      }
+    }, 500);
+
+    return () => { mounted = false; clearTimeout(timer); };
+  }, [formData.email]);
 
   const getPasswordStrengthText = () => {
     switch (passwordStrength) {
@@ -347,6 +392,13 @@ function RegisterPage() {
                 autoComplete="email"
               />
 
+              <div className="email-status" style={{ marginTop: 6 }}>
+                {emailChecking && <small>檢查中…</small>}
+                {emailExists === true && <small style={{ color: 'red' }}>✕ 此 Email 已被註冊</small>}
+                {emailExists === false && <small style={{ color: 'green' }}>✓ 可以使用</small>}
+                {emailCheckError && <small style={{ color: 'red' }}>{emailCheckError}</small>}
+              </div>
+
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '6px' }}>
                 <Input
                   type="text"
@@ -366,7 +418,7 @@ function RegisterPage() {
                     variant="primary"
                     size="medium"
                     onClick={handleSendCode}
-                    disabled={sendingCode || isLoading}
+                    disabled={sendingCode || isLoading || emailExists === true}
                     style={{ width: 100 }}
                   >
                     {sendingCode ? '寄送中…' : '寄驗證信'}

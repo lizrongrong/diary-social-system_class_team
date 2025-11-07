@@ -64,8 +64,30 @@ export const authAPI = {
     return response.data
   },
   
+  // 忘記密碼流程
+  sendResetCode: async (email) => {
+    const response = await api.post('/auth/forgot-password', { email })
+    return response.data
+  },
+
+  verifyResetCode: async (email, code) => {
+    const response = await api.post('/auth/verify-reset', { email, code })
+    return response.data
+  },
+
+  resetPassword: async (email, code, new_password) => {
+    const response = await api.post('/auth/reset-password', { email, code, new_password })
+    return response.data
+  },
+  
   checkUserId: async (user_id) => {
     const response = await api.post('/auth/check-userid', { user_id })
+    return response.data
+  },
+
+  // 即時檢查 email 是否已被註冊
+  checkEmail: async (email) => {
+    const response = await api.post('/auth/check-email', { email })
     return response.data
   },
   
