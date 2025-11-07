@@ -70,7 +70,7 @@ const diaryRoutes = safeRequire('./routes/diaries');
 const uploadRoutes = safeRequire('./routes/upload');
 const likeRoutes = safeRequire('./routes/like');
 const commentRoutes = safeRequire('./routes/comment');
-const friendRoutes = safeRequire('./routes/friendRoutes');
+const followRoutes = safeRequire('./routes/follow');
 const notificationRoutes = safeRequire('./routes/notification');
 const announcementRoutes = safeRequire('./routes/announcement');
 const cardRoutes = safeRequire('./routes/card');
@@ -83,7 +83,7 @@ app.use('/api/v1/upload', uploadRoutes);
 app.use('/api/v1/likes', likeRoutes);
 app.use('/api/v1/comments', commentRoutes);
 // Mount followers routes (previously exposed under /api/v1/friends)
-app.use('/api/v1/followers', friendRoutes);
+app.use('/api/v1/followers', followRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1/announcements', announcementRoutes);
 app.use('/api/v1/cards', cardRoutes);
