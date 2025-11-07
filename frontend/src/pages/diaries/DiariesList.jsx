@@ -267,11 +267,11 @@ function DiariesList() {
                       fontSize: '1rem',
                       fontWeight: 700
                     }}>
-                      {(diary.display_name || diary.username || 'U').charAt(0).toUpperCase()}
+                      {(diary.username || 'U').charAt(0).toUpperCase()}
                     </div>
                     <div>
                       <div className="text-small" style={{ fontWeight: 600, color: 'var(--gray-900)' }}>
-                        {diary.display_name || diary.username || '匿名用戶'}
+                        {diary.username || '匿名用戶'}
                       </div>
                     </div>
                   </div>

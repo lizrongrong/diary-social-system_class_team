@@ -425,7 +425,7 @@ function NotificationBell() {
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                               <div>
                                 <div style={{ fontSize: 15, fontWeight: 600, color: '#333' }}>
-                                  {n.display_name || n.username || '未知用戶'}
+                                  {n.username || '未知用戶'}
                                 </div>
                                 <div style={{ fontSize: 12, color: '#999' }}>
                                   @{n.username}

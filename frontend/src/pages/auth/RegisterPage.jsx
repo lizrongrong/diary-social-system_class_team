@@ -20,7 +20,6 @@ function RegisterPage() {
     password: '',
     password_confirm: '',
     username: '',
-    display_name: '',
     gender: '',
     birth_date: ''
   });
@@ -44,10 +43,18 @@ function RegisterPage() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData(prev => {
+      const next = { ...prev, [name]: value };
+      // 當使用者在填寫短 user_id 時，若 username 尚未設定或與之前的 user_id 相同，預設同步 username
+      if (name === 'user_id') {
+        const prevUserId = prev.user_id || '';
+        const shouldSyncUsername = !prev.username || prev.username === prevUserId;
+        if (shouldSyncUsername) {
+          next.username = value;
+        }
+      }
+      return next;
+    });
     // 即時密碼強度檢查
     if (name === 'password') {
       setPasswordStrength(calculatePasswordStrength(value));
@@ -103,12 +110,7 @@ function RegisterPage() {
       newErrors.username = '使用者名稱需 3-50 字元';
     }
     
-    // Display Name 驗證
-    if (!formData.display_name) {
-      newErrors.display_name = '請輸入用戶名稱';
-    } else if (formData.display_name.length < 2 || formData.display_name.length > 100) {
-      newErrors.display_name = '用戶名稱需 2-100 字元';
-    }
+    // (display_name 已移除，使用 username 作為顯示名稱)
     
     // Gender 驗證
     if (!formData.gender) {
@@ -246,24 +248,11 @@ function RegisterPage() {
           )}
 
           <form onSubmit={handleSubmit} className="register-form">
-            {/* Display Name */}
-            <Input
-              type="text"
-              label="用戶名稱"
-              name="display_name"
-              placeholder="請輸入用戶名稱 (2-100 字)"
-              value={formData.display_name}
-              onChange={handleChange}
-              error={errors.display_name}
-              required
-              disabled={isLoading}
-            />
-
-            {/* Username */}
+            {/* Username (顯示名稱) */}
             {/* Short user_id (由使用者填寫，儲存在 users.user_id) */}
             <Input
               type="text"
-              label="使用者識別 ID"
+              label="使用者識別 ID（短 ID）"
               name="user_id"
               placeholder="請輸入短 ID (3-10 字，英數字與底線)"
               value={formData.user_id}
@@ -272,6 +261,7 @@ function RegisterPage() {
               required
               disabled={isLoading}
               helperText="短 ID 將作為系統內的唯一識別，不可重複"
+              autoComplete="username"
             />
             <div className="user-id-status">
               {checkingUserId && <small>檢查中…</small>}
@@ -282,7 +272,7 @@ function RegisterPage() {
 
             <Input
               type="text"
-              label="使用者 ID"
+              label="登入帳號 / 個人頁面名稱（可修改）"
               name="username"
               placeholder="請輸入使用者 ID (3-50 字，英數字與底線)"
               value={formData.username}
@@ -290,7 +280,8 @@ function RegisterPage() {
               error={errors.username}
               required
               disabled={isLoading}
-              helperText="用於登入和個人頁面網址"
+              helperText="用於登入與個人頁面網址；可與使用者識別 ID 不同"
+              autoComplete="nickname"
             />
 
             {/* Email */}
@@ -304,6 +295,7 @@ function RegisterPage() {
                 error={errors.email}
                 required
                 disabled={isLoading}
+                autoComplete="email"
               />
 
               {/* Password */}
@@ -318,6 +310,7 @@ function RegisterPage() {
                   error={errors.password}
                   required
                   disabled={isLoading}
+                  autoComplete="new-password"
                 />
                 {formData.password && (
                   <div style={{ 
@@ -370,6 +363,7 @@ function RegisterPage() {
                 error={errors.password_confirm}
                 required
                 disabled={isLoading}
+                autoComplete="new-password"
               />
 
               {/* Gender */}
@@ -401,6 +395,7 @@ function RegisterPage() {
                 required
                 disabled={isLoading}
                 helperText="必須年滿 13 歲"
+                autoComplete="bday"
               />
 
               <Button 

@@ -100,11 +100,11 @@ function FriendsPage() {
                   fontSize: '1.5rem',
                   fontWeight: 700
                 }}>
-                  {!friend.avatar_url && (friend.display_name || friend.username).charAt(0).toUpperCase()}
+                  {!friend.avatar_url && (friend.username || '').charAt(0).toUpperCase()}
                 </div>
                 <div style={{ flex: 1 }}>
                   <h3 className="text-h4" style={{ marginBottom: 'var(--spacing-xs)' }}>
-                    {friend.display_name || friend.username}
+                    {friend.username}
                   </h3>
                   <p className="text-tiny" style={{ color: 'var(--gray-600)' }}>
                     @{friend.username}

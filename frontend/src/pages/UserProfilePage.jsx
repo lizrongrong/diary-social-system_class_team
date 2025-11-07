@@ -125,12 +125,12 @@ function UserProfilePage() {
               fontWeight: 700,
               boxShadow: 'var(--shadow-lg)'
             }}>
-              {(user.display_name || user.username || 'U').charAt(0).toUpperCase()}
+              {(user.username || 'U').charAt(0).toUpperCase()}
             </div>
             
             <div>
               <h2 className="text-h2" style={{ marginBottom: 'var(--spacing-xs)' }}>
-                {user.display_name || user.username}
+                {user.username}
               </h2>
               <p className="text-body" style={{ color: 'var(--gray-600)' }}>
                 @{user.username}

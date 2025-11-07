@@ -12,7 +12,7 @@ function ProfilePage() {
   const { user } = useAuthStore()
   const { showToast } = useToast()
   const [profile, setProfile] = useState({ 
-    display_name: '', 
+    username: '', 
     gender: 'prefer_not_to_say',
     birth_date: ''
   })
@@ -34,7 +34,7 @@ function ProfilePage() {
     try {
       const data = await userAPI.getProfile()
       setProfile({
-        display_name: data?.user?.display_name || '',
+        username: data?.user?.username || '',
         gender: data?.user?.gender || 'prefer_not_to_say',
         birth_date: data?.user?.birth_date || ''
       })
@@ -156,7 +156,7 @@ function ProfilePage() {
               fontWeight: 700,
               border: '4px solid var(--gray-200)'
             }}>
-              {(profile.display_name || user?.username || 'U').charAt(0).toUpperCase()}
+              {(profile.username || user?.username || 'U').charAt(0).toUpperCase()}
             </div>
             <button
               style={{
@@ -182,7 +182,7 @@ function ProfilePage() {
           
           <div>
             <h3 className="text-h3" style={{ marginBottom: 'var(--spacing-xs)' }}>
-              {profile.display_name || user?.username || '用戶'}
+              {profile.username || user?.username || '用戶'}
             </h3>
             <div className="text-small" style={{ color: 'var(--gray-600)', display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)' }}>
               <Mail size={14} />
@@ -207,12 +207,12 @@ function ProfilePage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
             <Input
               type="text"
-              label="顯示名稱"
-              name="display_name"
-              value={profile.display_name}
+              label="使用者名稱"
+              name="username"
+              value={profile.username}
               onChange={handleProfileChange}
-              error={errors.display_name}
-              placeholder="請輸入您的顯示名稱"
+              error={errors.username}
+              placeholder="請輸入您的使用者名稱"
               disabled={saving}
             />
 
@@ -276,6 +276,7 @@ function ProfilePage() {
               placeholder="請輸入目前密碼"
               disabled={changing}
               required
+              autoComplete="current-password"
             />
 
             <Input
@@ -289,6 +290,7 @@ function ProfilePage() {
               disabled={changing}
               required
               helperText="密碼長度至少 6 個字元"
+              autoComplete="new-password"
             />
 
             <Input
@@ -301,6 +303,7 @@ function ProfilePage() {
               placeholder="再次輸入新密碼"
               disabled={changing}
               required
+              autoComplete="new-password"
             />
           </div>
 

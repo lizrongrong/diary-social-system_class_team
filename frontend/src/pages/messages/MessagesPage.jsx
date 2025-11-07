@@ -36,7 +36,7 @@ function MessagesPage() {
           setFriend(res.data?.user || res.data || null)
         } catch (err) {
           console.error('Failed to load friend profile', err)
-          setFriend({ display_name: '未知使用者', username: userId })
+          setFriend({ username: userId })
         } finally {
           setLoading(false)
         }
@@ -98,7 +98,7 @@ function MessagesPage() {
         <Link to="/friends">
           <Button variant="ghost"><ArrowLeft size={16} /> 返回好友</Button>
         </Link>
-        <h2 className="text-h3">與 {friend?.display_name || friend?.username}</h2>
+  <h2 className="text-h3">與 {friend?.username}</h2>
       </div>
 
       <Card style={{ padding: 0, display: 'flex', flexDirection: 'column', height: 500 }}>
@@ -119,10 +119,13 @@ function MessagesPage() {
 
         <div style={{ display: 'flex', gap: 'var(--spacing-xs)', padding: 'var(--spacing-md)', borderTop: '1px solid var(--gray-100)' }}>
           <input
+            name="message"
+            id="chat-input"
+            autoComplete="off"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') handleSend() }}
-            placeholder={`傳送訊息給 ${friend?.display_name || friend?.username}`}
+            placeholder={`傳送訊息給 ${friend?.username}`}
             style={{ flex: 1, padding: 'var(--spacing-sm)', borderRadius: 6, border: '1px solid var(--gray-200)' }}
           />
           <Button variant="primary" onClick={handleSend}>送出</Button>
