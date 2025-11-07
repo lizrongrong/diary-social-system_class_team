@@ -5,11 +5,17 @@ async function testConnection() {
   try {
     console.log('🔍 測試 MySQL 連線...\n');
     
-    // 直接使用密碼連線
+    // 以環境變數讀取密碼，避免把憑證硬編碼到程式碼中
+    const dbPassword = process.env.DB_PASSWORD;
+    if (!dbPassword) {
+      console.error('❌ 未設定 DB_PASSWORD 環境變數。請在本機建立 backend/.env 並設定 DB_PASSWORD，或在執行時以環境變數傳入。');
+      process.exit(1);
+    }
+
     const connection = await mysql.createConnection({
-      host: 'localhost',
-      user: 'root',
-      password: 'lizrong1017'
+      host: process.env.DB_HOST || 'localhost',
+      user: process.env.DB_USER || 'root',
+      password: dbPassword
     });
     
     console.log('✅ MySQL 連線成功！\n');
