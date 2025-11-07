@@ -3,7 +3,7 @@ module.exports = {
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || '<REDACTED>',
   password: process.env.DB_PASSWORD || '<REDACTED>',
-  database: process.env.DB_NAME || 'resonote',
+  database: process.env.DB_NAME || 'diary_app',
   // other config fields omitted for brevity
 };
 
