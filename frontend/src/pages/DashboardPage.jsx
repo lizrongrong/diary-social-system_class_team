@@ -1,6 +1,6 @@
 ﻿import { useEffect, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
-import { diaryAPI, friendAPI } from '../services/api'
+import { diaryAPI, followAPI } from '../services/api'
 import useAuthStore from '../store/authStore'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
@@ -37,10 +37,11 @@ function DashboardPage() {
         // 獲取好友列表
         let friendsCount = 0
         try {
-          const friendsData = await friendAPI.getAll()
-          friendsCount = friendsData?.friends?.length || 0
+          const friendsData = await followAPI.getAll()
+          const list = friendsData?.following || friendsData?.friends || []
+          friendsCount = list.length || 0
         } catch (err) {
-          console.error('Error loading friends:', err)
+          console.error('Error loading follows:', err)
         }
         
         // 計算統計數據

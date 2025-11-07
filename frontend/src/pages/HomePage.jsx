@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { Heart, MessageCircle, Share2, UserPlus, UserCheck, Users } from 'lucide-react'
 import useAuthStore from '../store/authStore'
-import { diaryAPI, likeAPI, friendAPI } from '../services/api'
+import { diaryAPI, likeAPI, followAPI } from '../services/api'
 import { useToast } from '../components/ui/Toast'
 import './HomePage.css'
 
@@ -12,14 +12,14 @@ function HomePage() {
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [friends, setFriends] = useState([])
+  const [follows, setFollows] = useState([])
   const [mutualFollows, setMutualFollows] = useState(new Set()) // 儲存互相追蹤的用戶ID
 
   // 獲取公開日記
   useEffect(() => {
     fetchPublicDiaries()
     if (user) {
-      fetchFriends()
+      fetchFollows()
     }
   }, [user])
 
@@ -52,25 +52,27 @@ function HomePage() {
     }
   }
 
-  const fetchFriends = async () => {
+  const fetchFollows = async () => {
     try {
-      const data = await friendAPI.getAll()
+      const data = await followAPI.getAll()
+      const list = data.following || data.friends || []
       console.log('=== 我追蹤的人 ===')
       console.log('當前用戶:', user?.username, user?.user_id)
-      console.log('追蹤列表:', data.friends)
-      data.friends?.forEach(f => {
-        console.log(`  → 我追蹤: ${f.username} (${f.friend_user_id})`)
+      console.log('追蹤列表:', list)
+      list.forEach(f => {
+        console.log(`  → 我追蹤: ${f.username} (${f.friend_user_id || f.following_user_id})`)
       })
-      setFriends(data.friends || [])
-      
+      setFollows(list)
+
       // 檢查每個好友是否互相追蹤
       const mutuals = new Set()
-      for (const friend of data.friends || []) {
+      for (const friend of list) {
         try {
-          const status = await friendAPI.checkStatus(friend.friend_user_id)
+          const targetId = friend.friend_user_id || friend.following_user_id
+          const status = await followAPI.checkStatus(targetId)
           console.log(`檢查 ${friend.username}: isFriend=${status.isFriend}, followsYou=${status.followsYou}, isMutual=${status.isMutual}`)
           if (status.isMutual) {
-            mutuals.add(friend.friend_user_id)
+            mutuals.add(targetId)
           }
         } catch (err) {
           console.error('Error checking mutual status:', err)
@@ -79,13 +81,13 @@ function HomePage() {
       console.log('互相追蹤的用戶:', Array.from(mutuals))
       setMutualFollows(mutuals)
     } catch (err) {
-      console.error('Error fetching friends:', err)
+      console.error('Error fetching follows:', err)
     }
   }
 
   const isFriend = (userId) => {
-    const result = friends.some(f => f.friend_user_id === userId)
-    console.log(`Checking if ${userId} is friend:`, result, 'Friends:', friends)
+    const result = follows.some(f => (f.friend_user_id || f.following_user_id) === userId)
+    console.log(`Checking if ${userId} is friend:`, result, 'Follows:', follows)
     return result
   }
 
@@ -130,8 +132,8 @@ function HomePage() {
     }
     
     try {
-      console.log('Adding friend:', userId)
-      const result = await friendAPI.add(userId)
+    console.log('Adding follow:', userId)
+    const result = await followAPI.add(userId)
       
       // 如果是互相追蹤，顯示特別訊息
       if (result.is_mutual) {
@@ -140,7 +142,7 @@ function HomePage() {
         addToast('追蹤成功', 'success')
       }
       
-      await fetchFriends() // 重新獲取好友列表和互相追蹤狀態
+  await fetchFollows() // 重新獲取追蹤列表和互相追蹤狀態
       console.log('Friends updated after adding')
     } catch (err) {
       console.error('Error adding friend:', err)

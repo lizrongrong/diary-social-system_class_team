@@ -1,5 +1,5 @@
 const db = require('../config/db');
-const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
 
 /**
  * User 資料模型
@@ -11,47 +11,89 @@ class User {
    * @param {Object} userData - 使用者資料
    * @param {string} userData.email - Email
    * @param {string} userData.password_hash - 加密後的密碼
-   * @param {string} userData.username - 使用者 ID
-   * @param {string} userData.display_name - 顯示名稱
+   * @param {string} userData.username - 使用者名稱 (短 ID)
    * @param {string} userData.gender - 性別 (male/female/other/prefer_not_to_say)
    * @param {string} userData.birth_date - 生日 (YYYY-MM-DD)
    * @returns {Promise<string>} 使用者 ID
    */
   static async create(userData) {
-    const userId = uuidv4();
-    
+    // 若前端有提供短 user_id，使用之；否則產生短 ID (10 個 hex 字元)
+    const genShortId = () => crypto.randomBytes(5).toString('hex');
+
+    let userId = null;
+    if (userData.user_id) {
+      // 允許英數與底線，長度 3~10
+      const userIdRegex = /^[a-zA-Z0-9_]{3,10}$/;
+      if (!userIdRegex.test(userData.user_id)) {
+        throw new Error('INVALID_USER_ID');
+      }
+      userId = userData.user_id;
+    } else {
+      userId = genShortId();
+    }
     const query = `
       INSERT INTO users (
-        user_id, email, password_hash, username, display_name, 
-        gender, birth_date, role, status, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'member', 'active', NOW())
+        user_id, email, password_hash, username, gender, birth_date, role, status, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, 'member', 'active', NOW())
     `;
-    
+
     const values = [
       userId,
       userData.email,
       userData.password_hash,
       userData.username,
-      userData.display_name,
       userData.gender,
       userData.birth_date,
     ];
     
-    try {
-      await db.execute(query, values);
-      return userId;
-    } catch (error) {
-      // 檢查是否是重複鍵錯誤
-      if (error.code === 'ER_DUP_ENTRY') {
-        if (error.message.includes('email')) {
-          throw new Error('EMAIL_EXISTS');
-        }
-        if (error.message.includes('username')) {
-          throw new Error('USERNAME_EXISTS');
-        }
-      }
-      throw error;
+    // 先檢查 email/username/user_id 是否已存在以提供即時錯誤
+    if (await User.emailExists(userData.email)) {
+      throw new Error('EMAIL_EXISTS');
     }
+    if (await User.usernameExists(userData.username)) {
+      throw new Error('USERNAME_EXISTS');
+    }
+    // 若 user_id 為前端提供，檢查是否存在
+    if (userData.user_id && await User.userIdExists(userId)) {
+      throw new Error('USERID_EXISTS');
+    }
+
+    // 嘗試插入，若 user_id 衝突且是系統生成的 id，則重試幾次
+    const maxAttempts = 5;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        await db.execute(query, values);
+        return userId;
+      } catch (error) {
+        if (error.code === 'ER_DUP_ENTRY') {
+          // 針對 email/username 的重複回報友善錯誤
+          if (error.message.includes('email')) {
+            throw new Error('EMAIL_EXISTS');
+          }
+          if (error.message.includes('username')) {
+            throw new Error('USERNAME_EXISTS');
+          }
+          // 如果是 user_id (PK) 衝突，且是系統生成的 id，重試
+          if (!userData.user_id && (error.message.includes('user_id') || error.message.includes('PRIMARY'))) {
+            if (attempt < maxAttempts) {
+              userId = genShortId();
+              continue; // 重試
+            }
+          }
+        }
+        throw error;
+      }
+    }
+    throw new Error('Failed to create user after multiple attempts');
+  }
+
+  /**
+   * 檢查 user_id 是否存在
+   */
+  static async userIdExists(userId) {
+    const query = `SELECT COUNT(*) as count FROM users WHERE user_id = ? AND status != 'deleted'`;
+    const [rows] = await db.execute(query, [userId]);
+    return rows[0].count > 0;
   }
   
   /**
@@ -77,8 +119,8 @@ class User {
   static async findById(userId) {
     const query = `
       SELECT 
-        user_id, email, username, display_name, avatar_url,
-        gender, birth_date, role, status, created_at, updated_at, last_login
+        user_id, email, username,
+        gender, birth_date, role, status, created_at, updated_at
       FROM users 
       WHERE user_id = ? AND status != 'deleted'
     `;
@@ -108,12 +150,13 @@ class User {
    * @returns {Promise<void>}
    */
   static async updateLastLogin(userId) {
+    // schema does not include last_login; update updated_at instead
     const query = `
       UPDATE users 
-      SET last_login = NOW() 
+      SET updated_at = NOW() 
       WHERE user_id = ?
     `;
-    
+
     await db.execute(query, [userId]);
   }
   
@@ -124,7 +167,7 @@ class User {
    * @returns {Promise<boolean>} 是否更新成功
    */
   static async update(userId, updates) {
-    const allowedFields = ['display_name', 'avatar_url', 'gender'];
+  const allowedFields = ['username', 'gender', 'birth_date'];
     const updateFields = [];
     const values = [];
     

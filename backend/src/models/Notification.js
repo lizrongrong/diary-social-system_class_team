@@ -13,7 +13,7 @@ class Notification {
 
   static async findByUser(userId, limit = 20, offset = 0) {
     const [rows] = await db.query(
-      'SELECT n.*, u.username, u.display_name, u.avatar_url FROM notifications n LEFT JOIN users u ON n.source_user_id = u.user_id WHERE n.user_id = ? ORDER BY n.created_at DESC LIMIT ? OFFSET ?',
+      'SELECT n.*, u.username FROM notifications n LEFT JOIN users u ON n.source_user_id = u.user_id WHERE n.user_id = ? ORDER BY n.created_at DESC LIMIT ? OFFSET ?',
       [userId, limit, offset]
     );
     return rows;

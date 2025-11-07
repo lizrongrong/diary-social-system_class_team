@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import useAuthStore from '../../store/authStore';
+import { authAPI } from '../../services/api';
 import { useToast } from '../../components/ui/Toast';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -14,11 +15,11 @@ function RegisterPage() {
   const { addToast } = useToast();
   
   const [formData, setFormData] = useState({
+    user_id: '',
     email: '',
     password: '',
     password_confirm: '',
     username: '',
-    display_name: '',
     gender: '',
     birth_date: ''
   });
@@ -26,6 +27,18 @@ function RegisterPage() {
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState(0);
+  const [checkingUserId, setCheckingUserId] = useState(false);
+  const [userIdAvailable, setUserIdAvailable] = useState(null); // null=unknown, true/false
+  const [userIdCheckError, setUserIdCheckError] = useState(null);
+  // email 即時檢查
+  const [emailChecking, setEmailChecking] = useState(false);
+  const [emailExists, setEmailExists] = useState(null); // null=unknown, true/false
+  const [emailCheckError, setEmailCheckError] = useState(null);
+  // email verification
+  const [emailVerified, setEmailVerified] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
+  const [sendingCode, setSendingCode] = useState(false);
+  const [verifyingCode, setVerifyingCode] = useState(false);
 
   // 密碼強度計算
   const calculatePasswordStrength = (password) => {
@@ -39,10 +52,18 @@ function RegisterPage() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData(prev => {
+      const next = { ...prev, [name]: value };
+      // 當使用者在填寫短 user_id 時，若 username 尚未設定或與之前的 user_id 相同，預設同步 username
+      if (name === 'user_id') {
+        const prevUserId = prev.user_id || '';
+        const shouldSyncUsername = !prev.username || prev.username === prevUserId;
+        if (shouldSyncUsername) {
+          next.username = value;
+        }
+      }
+      return next;
+    });
     // 即時密碼強度檢查
     if (name === 'password') {
       setPasswordStrength(calculatePasswordStrength(value));
@@ -84,18 +105,21 @@ function RegisterPage() {
     }
     
     // Username 驗證
+    // user_id (short id) 驗證 — 前端可填寫短 ID，儲存在 users.user_id
+    if (!formData.user_id) {
+      newErrors.user_id = '請輸入使用者識別 ID';
+    } else if (!/^[a-zA-Z0-9_]{3,10}$/.test(formData.user_id)) {
+      newErrors.user_id = '使用者識別 ID 需 3-10 字元 (英數字與底線)';
+    }
+
+    // Username 驗證 (顯示名稱或登入名稱，可較長)
     if (!formData.username) {
-      newErrors.username = '請輸入使用者 ID';
-    } else if (!/^[a-zA-Z0-9_]{3,50}$/.test(formData.username)) {
-      newErrors.username = '使用者 ID 需 3-50 字元 (僅限英數字與底線)';
+      newErrors.username = '請輸入使用者名稱';
+    } else if (!/^[\w\-\s]{3,50}$/.test(formData.username)) {
+      newErrors.username = '使用者名稱需 3-50 字元';
     }
     
-    // Display Name 驗證
-    if (!formData.display_name) {
-      newErrors.display_name = '請輸入用戶名稱';
-    } else if (formData.display_name.length < 2 || formData.display_name.length > 100) {
-      newErrors.display_name = '用戶名稱需 2-100 字元';
-    }
+    // (display_name 已移除，使用 username 作為顯示名稱)
     
     // Gender 驗證
     if (!formData.gender) {
@@ -126,10 +150,24 @@ function RegisterPage() {
       addToast('請檢查表單內容', 'error');
       return;
     }
+
+    // 若即時檢查已得知不可用，阻止送出
+    if (userIdAvailable === false) {
+      setErrors(prev => ({ ...prev, user_id: '此 ID 已被使用' }));
+      addToast('請檢查使用者識別 ID', 'error');
+      return;
+    }
     
     setIsLoading(true);
     
     try {
+      // require email verification before allowing registration
+      if (!emailVerified) {
+        setErrors(prev => ({ ...prev, email: '請先驗證 Email' }));
+        addToast('請先完成 Email 驗證', 'error');
+        setIsLoading(false);
+        return;
+      }
       const { password_confirm, ...registerData } = formData;
       await register(registerData);
       addToast('註冊成功！歡迎加入 Resonote', 'success');
@@ -152,6 +190,113 @@ function RegisterPage() {
       setIsLoading(false);
     }
   };
+
+  const handleSendCode = async () => {
+    // validate email format first
+    if (!formData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      setErrors(prev => ({ ...prev, email: '請輸入有效的 Email' }));
+      addToast('請輸入有效的 Email', 'error');
+      return;
+    }
+    // 若已知此 email 已被註冊，阻止寄驗證碼（前端快速檢查）
+    if (emailExists === true) {
+      setErrors(prev => ({ ...prev, email: '此 Email 已被註冊' }));
+      addToast('此 Email 已被註冊，請改用忘記密碼或更換 Email', 'error');
+      return;
+    }
+    setSendingCode(true);
+    try {
+      await authAPI.sendVerification(formData.email);
+      addToast('驗證碼已寄出，請到信箱查看', 'success');
+    } catch (err) {
+      console.error('Send verification error', err);
+      // 若後端回傳 EMAIL_EXISTS（race condition），給予友善提示
+      if (err.response?.data?.code === 'EMAIL_EXISTS') {
+        setErrors(prev => ({ ...prev, email: '此 Email 已被註冊' }));
+        addToast('此 Email 已被註冊，請改用忘記密碼或更換 Email', 'error');
+      } else {
+        addToast(err.response?.data?.message || '寄送驗證碼失敗', 'error');
+      }
+    } finally {
+      setSendingCode(false);
+    }
+  };
+
+  const handleVerifyCode = async () => {
+    if (!verificationCode) {
+      addToast('請輸入驗證碼', 'error');
+      return;
+    }
+    setVerifyingCode(true);
+    try {
+      await authAPI.verifyEmailCode(formData.email, verificationCode);
+      setEmailVerified(true);
+      addToast('Email 驗證成功', 'success');
+    } catch (err) {
+      console.error('Verify code error', err);
+      addToast(err.response?.data?.message || '驗證失敗或已過期', 'error');
+    } finally {
+      setVerifyingCode(false);
+    }
+  };
+
+  // 即時檢查 user_id 可用性（debounce）
+  useEffect(() => {
+    let mounted = true;
+    if (!formData.user_id) {
+      setUserIdAvailable(null);
+      setUserIdCheckError(null);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setCheckingUserId(true);
+      setUserIdCheckError(null);
+      try {
+        const res = await authAPI.checkUserId(formData.user_id);
+        if (!mounted) return;
+        setUserIdAvailable(!!res.available);
+        // 若不可用，設定 field error 提醒
+        setErrors(prev => ({ ...prev, user_id: res.available ? '' : '此 ID 已被使用' }));
+      } catch (err) {
+        if (!mounted) return;
+        setUserIdCheckError('檢查失敗，請稍後再試');
+      } finally {
+        if (mounted) setCheckingUserId(false);
+      }
+    }, 500);
+
+    return () => { mounted = false; clearTimeout(timer); };
+  }, [formData.user_id]);
+
+  // 即時檢查 email 是否已被註冊（debounce）
+  useEffect(() => {
+    let mounted = true;
+    if (!formData.email) {
+      setEmailExists(null);
+      setEmailCheckError(null);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setEmailChecking(true);
+      setEmailCheckError(null);
+      try {
+        const res = await authAPI.checkEmail(formData.email);
+        if (!mounted) return;
+        setEmailExists(!!res.exists);
+        // 若已存在，顯示 field error
+        setErrors(prev => ({ ...prev, email: res.exists ? '此 Email 已被註冊' : '' }));
+      } catch (err) {
+        if (!mounted) return;
+        setEmailCheckError('檢查失敗，請稍後再試');
+      } finally {
+        if (mounted) setEmailChecking(false);
+      }
+    }, 500);
+
+    return () => { mounted = false; clearTimeout(timer); };
+  }, [formData.email]);
 
   const getPasswordStrengthText = () => {
     switch (passwordStrength) {
@@ -197,23 +342,31 @@ function RegisterPage() {
           )}
 
           <form onSubmit={handleSubmit} className="register-form">
-            {/* Display Name */}
+            {/* Username (顯示名稱) */}
+            {/* Short user_id (由使用者填寫，儲存在 users.user_id) */}
             <Input
               type="text"
-              label="用戶名稱"
-              name="display_name"
-              placeholder="請輸入用戶名稱 (2-100 字)"
-              value={formData.display_name}
+              label="使用者識別 ID（短 ID）"
+              name="user_id"
+              placeholder="請輸入短 ID (3-10 字，英數字與底線)"
+              value={formData.user_id}
               onChange={handleChange}
-              error={errors.display_name}
+              error={errors.user_id}
               required
               disabled={isLoading}
+              helperText="短 ID 將作為系統內的唯一識別，不可重複"
+              autoComplete="username"
             />
+            <div className="user-id-status">
+              {checkingUserId && <small>檢查中…</small>}
+              {userIdAvailable === true && <small style={{ color: 'green' }}>✓ 可用</small>}
+              {userIdAvailable === false && <small style={{ color: 'red' }}>✕ 已被使用</small>}
+              {userIdCheckError && <small style={{ color: 'red' }}>{userIdCheckError}</small>}
+            </div>
 
-            {/* Username */}
             <Input
               type="text"
-              label="使用者 ID"
+              label="登入帳號 / 個人頁面名稱（可修改）"
               name="username"
               placeholder="請輸入使用者 ID (3-50 字，英數字與底線)"
               value={formData.username}
@@ -221,7 +374,8 @@ function RegisterPage() {
               error={errors.username}
               required
               disabled={isLoading}
-              helperText="用於登入和個人頁面網址"
+              helperText="用於登入與個人頁面網址；可與使用者識別 ID 不同"
+              autoComplete="nickname"
             />
 
             {/* Email */}
@@ -235,7 +389,53 @@ function RegisterPage() {
                 error={errors.email}
                 required
                 disabled={isLoading}
+                autoComplete="email"
               />
+
+              <div className="email-status" style={{ marginTop: 6 }}>
+                {emailChecking && <small>檢查中…</small>}
+                {emailExists === true && <small style={{ color: 'red' }}>✕ 此 Email 已被註冊</small>}
+                {emailExists === false && <small style={{ color: 'green' }}>✓ 可以使用</small>}
+                {emailCheckError && <small style={{ color: 'red' }}>{emailCheckError}</small>}
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '6px' }}>
+                <Input
+                  type="text"
+                  label="驗證碼"
+                  name="verificationCode"
+                  placeholder="輸入驗證碼"
+                  value={verificationCode}
+                  onChange={(e) => setVerificationCode(e.target.value)}
+                  error={''}
+                  disabled={isLoading || verifyingCode || emailVerified}
+                  style={{ flex: 1 }}
+                />
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="medium"
+                    onClick={handleSendCode}
+                    disabled={sendingCode || isLoading || emailExists === true}
+                    style={{ width: 100 }}
+                  >
+                    {sendingCode ? '寄送中…' : '寄驗證信'}
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="medium"
+                    onClick={handleVerifyCode}
+                    disabled={verifyingCode || isLoading || emailVerified}
+                    style={{ width: 100 }}
+                  >
+                    {verifyingCode ? '驗證中…' : (emailVerified ? '已驗證' : '確認')}
+                  </Button>
+                </div>
+              </div>
 
               {/* Password */}
               <div>
@@ -249,6 +449,7 @@ function RegisterPage() {
                   error={errors.password}
                   required
                   disabled={isLoading}
+                  autoComplete="new-password"
                 />
                 {formData.password && (
                   <div style={{ 
@@ -301,6 +502,7 @@ function RegisterPage() {
                 error={errors.password_confirm}
                 required
                 disabled={isLoading}
+                autoComplete="new-password"
               />
 
               {/* Gender */}
@@ -332,6 +534,7 @@ function RegisterPage() {
                 required
                 disabled={isLoading}
                 helperText="必須年滿 13 歲"
+                autoComplete="bday"
               />
 
               <Button 

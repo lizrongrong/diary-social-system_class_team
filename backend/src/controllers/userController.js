@@ -22,15 +22,12 @@ exports.getProfile = async (req, res) => {
         user_id: user.user_id,
         email: user.email,
         username: user.username,
-        display_name: user.display_name,
-        avatar_url: user.avatar_url,
         gender: user.gender,
         birth_date: user.birth_date,
         role: user.role,
         status: user.status,
         created_at: user.created_at,
-        updated_at: user.updated_at,
-        last_login: user.last_login
+        updated_at: user.updated_at
       }
     });
   } catch (error) {
@@ -49,12 +46,12 @@ exports.getProfile = async (req, res) => {
  */
 exports.updateProfile = async (req, res) => {
   try {
-    const { display_name, gender, avatar_url } = req.body;
-    
-    const updates = {};
-    if (display_name !== undefined) updates.display_name = display_name;
-    if (gender !== undefined) updates.gender = gender;
-    if (avatar_url !== undefined) updates.avatar_url = avatar_url;
+  const { username, gender, birth_date } = req.body;
+
+  const updates = {};
+  if (username !== undefined) updates.username = username;
+  if (gender !== undefined) updates.gender = gender;
+  if (birth_date !== undefined) updates.birth_date = birth_date;
     
     const success = await User.update(req.user.user_id, updates);
     
@@ -74,8 +71,6 @@ exports.updateProfile = async (req, res) => {
         user_id: updatedUser.user_id,
         email: updatedUser.email,
         username: updatedUser.username,
-        display_name: updatedUser.display_name,
-        avatar_url: updatedUser.avatar_url,
         gender: updatedUser.gender,
         birth_date: updatedUser.birth_date,
         role: updatedUser.role
@@ -169,8 +164,6 @@ exports.getUserByUsername = async (req, res) => {
       user: {
         user_id: user.user_id,
         username: user.username,
-        display_name: user.display_name,
-        avatar_url: user.avatar_url,
         created_at: user.created_at
       }
     });

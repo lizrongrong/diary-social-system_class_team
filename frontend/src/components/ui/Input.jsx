@@ -1,4 +1,7 @@
-﻿import React, { forwardRef } from 'react';
+﻿import React, { forwardRef, useRef } from 'react';
+
+// module-level counter to ensure generated ids are unique across instances
+let __inputIdCounter = 0;
 
 const Input = forwardRef(({
   type = 'text',
@@ -10,7 +13,9 @@ const Input = forwardRef(({
   className = '',
   ...props
 }, ref) => {
-  const inputId = props.id || `input-${Math.random().toString(36).substr(2, 9)}`;
+  // Persist a stable id for this input instance to avoid duplicate ids
+  const idRef = useRef(props.id || `input-${props.name || 'fld'}-${++__inputIdCounter}`);
+  const inputId = idRef.current;
 
   return (
     <div className={`input-wrapper ${className}`}>

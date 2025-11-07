@@ -323,7 +323,7 @@ function AdminDashboard() {
                     </div>
                     <div>
                       <div className="text-body" style={{ fontWeight: 500 }}>
-                        {u.display_name || u.username}
+                        {u.username}
                       </div>
                       <div className="text-tiny" style={{ color: 'var(--gray-500)' }}>
                         @{u.username}

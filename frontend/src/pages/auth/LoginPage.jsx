@@ -68,6 +68,7 @@ function LoginPage() {
               onChange={handleChange}
               required
               disabled={isLoading}
+              autoComplete="email"
             />
 
             {/* Password Input */}
@@ -80,6 +81,7 @@ function LoginPage() {
               onChange={handleChange}
               required
               disabled={isLoading}
+              autoComplete="current-password"
             />
 
             {/* Login Button (use shared Button component for consistent styles) */}

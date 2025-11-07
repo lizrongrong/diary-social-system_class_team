@@ -112,7 +112,7 @@ function ExplorePage() {
                       fontWeight: 700,
                       border: '2px solid var(--gray-200)'
                     }}>
-                      {(diary.display_name || diary.username || 'U').charAt(0).toUpperCase()}
+                      {(diary.username || 'U').charAt(0).toUpperCase()}
                     </div>
                   </Link>
                   <div>
@@ -122,7 +122,7 @@ function ExplorePage() {
                       className="hover-lift"
                     >
                       <div className="text-body" style={{ fontWeight: 600, color: 'var(--gray-900)' }}>
-                        {diary.display_name || diary.username || '匿名用戶'}
+                        {diary.username || '匿名用戶'}
                       </div>
                     </Link>
                     <div className="text-small" style={{ color: 'var(--gray-600)' }}>

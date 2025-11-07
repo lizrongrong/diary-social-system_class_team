@@ -1,4 +1,6 @@
-﻿import React, { forwardRef } from 'react';
+﻿import React, { forwardRef, useRef } from 'react';
+
+let __selectIdCounter = 0;
 import { ChevronDown } from 'lucide-react';
 
 const Select = forwardRef(({
@@ -12,7 +14,8 @@ const Select = forwardRef(({
   placeholder = '請選擇',
   ...props
 }, ref) => {
-  const selectId = props.id || `select-${Math.random().toString(36).substr(2, 9)}`;
+  const idRef = useRef(props.id || `select-${props.name || 's'}-${++__selectIdCounter}`);
+  const selectId = idRef.current;
 
   return (
     <div className={`input-wrapper ${className}`}>

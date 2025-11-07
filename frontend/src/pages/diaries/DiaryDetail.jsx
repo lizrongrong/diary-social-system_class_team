@@ -51,16 +51,20 @@ function DiaryDetail() {
     const load = async () => {
       try {
         const data = await diaryAPI.getById(id)
-        const diaryData = data?.item || data
+        // 支援多種後端回傳 shape：{ diary: {...} }、{ item: {...} }、或直接 diary 物件
+        const diaryData = data?.diary || data?.item || data
+        if (!diaryData) throw new Error('找不到日記資料')
         setDiary(diaryData)
         setLikeCount(diaryData.like_count || 0)
         setIsLiked(diaryData.is_liked || false)
-        
-        // Load comments
+
+        // Load comments（後端可能回傳陣列或包在物件內）
         const commentsData = await commentAPI.getComments(id)
-        setComments(commentsData)
+        setComments(commentsData?.comments || commentsData || [])
       } catch (e) {
-        setError(e.response?.data?.message || '找不到這篇日記或沒有權限')
+        // 印出原始錯誤以利除錯
+        console.error('DiaryDetail load error:', e)
+        setError(e.response?.data?.message || e.message || '找不到這篇日記或沒有權限')
       } finally {
         setLoading(false)
       }
@@ -325,6 +329,9 @@ function DiaryDetail() {
             )}
             <div style={{ display: 'flex', gap: 8 }}>
               <input
+                name="comment"
+                id="comment-input"
+                autoComplete="off"
                 type="text"
                 value={commentInput}
                 onChange={(e) => setCommentInput(e.target.value)}
@@ -374,13 +381,13 @@ function DiaryDetail() {
                     to={`/users/${comment.user_id}`} 
                     style={{ textDecoration: 'none', color: '#333', fontWeight: 600, fontSize: 14 }}
                   >
-                    {comment.display_name || comment.username}
+                    {comment.username}
                   </Link>
                   <span style={{ fontSize: 12, color: '#999' }}>
                     {new Date(comment.created_at).toLocaleString()}
                   </span>
                 </div>
-                {user && user.userId === comment.user_id && (
+                {user && user.user_id === comment.user_id && (
                   <button
                     onClick={() => handleDeleteComment(comment.comment_id)}
                     style={{ padding: '2px 8px', background: 'none', border: '1px solid #ccc', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}
@@ -434,13 +441,13 @@ function DiaryDetail() {
                             to={`/users/${reply.user_id}`} 
                             style={{ textDecoration: 'none', color: '#333', fontWeight: 600, fontSize: 13 }}
                           >
-                            {reply.display_name || reply.username}
+                            {reply.username}
                           </Link>
                           <span style={{ fontSize: 11, color: '#999' }}>
                             {new Date(reply.created_at).toLocaleString()}
                           </span>
                         </div>
-                        {user && user.userId === reply.user_id && (
+                        {user && user.user_id === reply.user_id && (
                           <button
                             onClick={() => handleDeleteComment(reply.comment_id, comment.comment_id)}
                             style={{ padding: '2px 6px', background: 'none', border: '1px solid #ccc', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}

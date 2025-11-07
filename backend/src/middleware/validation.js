@@ -29,10 +29,10 @@ const isValidPassword = (password) => {
 
 /**
  * 驗證 Username
- * 3-50 字元，僅允許英數字與底線
+ * schema: VARCHAR(10) => 3-10 字元，僅允許英數字與底線
  */
 const isValidUsername = (username) => {
-  const usernameRegex = /^[a-zA-Z0-9_]{3,50}$/;
+  const usernameRegex = /^[a-zA-Z0-9_]{3,10}$/;
   return usernameRegex.test(username);
 };
 
@@ -48,7 +48,7 @@ const isValidDate = (dateString) => {
  * 註冊驗證
  */
 exports.validateRegister = (req, res, next) => {
-  const { email, password, username, display_name, gender, birth_date } = req.body;
+  const { email, password, username, gender, birth_date, user_id } = req.body;
   const errors = {};
   
   // Email 驗證
@@ -71,13 +71,18 @@ exports.validateRegister = (req, res, next) => {
   } else if (!isValidUsername(username)) {
     errors.username = 'Username must be 3-50 characters (letters, numbers, underscores only)';
   }
-  
-  // Display Name 驗證
-  if (!display_name) {
-    errors.display_name = 'Display name is required';
-  } else if (display_name.length < 2 || display_name.length > 100) {
-    errors.display_name = 'Display name must be 2-100 characters';
+
+  // User ID 驗證 (前端填寫的短 ID)
+  if (!user_id) {
+    errors.user_id = 'User ID is required';
+  } else {
+    const userIdRegex = /^[a-zA-Z0-9_]{3,10}$/;
+    if (!userIdRegex.test(user_id)) {
+      errors.user_id = 'User ID must be 3-10 characters (letters, numbers, underscores only)';
+    }
   }
+  
+  // Username 已在上方驗證，schema 中沒有 display_name 欄位
   
   // Gender 驗證
   const validGenders = ['male', 'female', 'other', 'prefer_not_to_say'];
@@ -179,13 +184,13 @@ exports.validateChangePassword = (req, res, next) => {
  * 更新個人資料驗證
  */
 exports.validateUpdateProfile = (req, res, next) => {
-  const { display_name, gender } = req.body;
+  const { username, gender, birth_date } = req.body;
   const errors = {};
-  
-  // Display Name 驗證 (選填，但如果提供則需符合規則)
-  if (display_name !== undefined) {
-    if (display_name.length < 2 || display_name.length > 100) {
-      errors.display_name = 'Display name must be 2-100 characters';
+
+  // Username 驗證 (選填)
+  if (username !== undefined) {
+    if (!isValidUsername(username)) {
+      errors.username = 'Username must be 3-10 characters (letters, numbers, underscores only)';
     }
   }
   
@@ -194,6 +199,13 @@ exports.validateUpdateProfile = (req, res, next) => {
     const validGenders = ['male', 'female', 'other', 'prefer_not_to_say'];
     if (!validGenders.includes(gender)) {
       errors.gender = 'Invalid gender value';
+    }
+  }
+
+  // Birth date 驗證 (選填)
+  if (birth_date !== undefined) {
+    if (!isValidDate(birth_date)) {
+      errors.birth_date = 'Invalid date format';
     }
   }
   
@@ -231,9 +243,9 @@ exports.validateDiary = (req, res, next) => {
   }
   
   // 可見性驗證
-  const validVisibility = ['private', 'public'];
+  const validVisibility = ['private', 'followers', 'public'];
   if (visibility && !validVisibility.includes(visibility)) {
-    errors.visibility = 'Invalid visibility value (private/public)';
+    errors.visibility = "Invalid visibility value (private/followers/public)";
   }
   
   // 如果有錯誤，返回 400

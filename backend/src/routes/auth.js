@@ -11,6 +11,23 @@ const { authMiddleware } = require('../middleware/auth');
  */
 router.post('/register', validateRegister, authController.register);
 
+// POST /api/v1/auth/check-userid - 即時檢查 user_id 可用性
+router.post('/check-userid', authController.checkUserId);
+
+// POST /api/v1/auth/check-email - 即時檢查 email 是否已被註冊 (用於註冊頁面)
+router.post('/check-email', authController.checkEmail);
+
+// 發送驗證碼
+router.post('/send-verification', authController.sendVerificationCode);
+
+// 驗證驗證碼
+router.post('/verify-email', authController.verifyEmailCode);
+
+// 忘記密碼流程
+router.post('/forgot-password', authController.forgotPassword);
+router.post('/verify-reset', authController.verifyResetCode);
+router.post('/reset-password', authController.resetPassword);
+
 /**
  * @route   POST /api/v1/auth/login
  * @desc    使用者登入

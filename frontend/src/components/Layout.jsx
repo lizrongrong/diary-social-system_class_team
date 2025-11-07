@@ -64,7 +64,7 @@ function Layout({ children }) {
     { path: '/lucky-card', label: '幸運小卡', icon: Sparkles },
     { path: '/diaries', label: '專屬日記', icon: BookOpen },
     { path: '/dashboard', label: '圖表分析', icon: TrendingUp },
-    { path: '/friends', label: '好友管理', icon: Users },
+    { path: '/follows', label: '好友管理', icon: Users },
     { path: '/search', label: '搜尋', icon: SearchIcon },
   ]
 

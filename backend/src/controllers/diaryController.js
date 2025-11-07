@@ -115,7 +115,7 @@ exports.getDiaries = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Get diaries error:', error);
+    console.error('Get diaries error:', error && error.stack ? error.stack : error);
     res.status(500).json({
       error: 'Server error',
       code: 'SERVER_ERROR'
@@ -256,7 +256,7 @@ exports.updateDiary = async (req, res) => {
 };
 
 /**
- * ?�除?��?
+ * 
  * @route DELETE /api/v1/diaries/:id
  * @access Private
  */
@@ -274,7 +274,7 @@ exports.deleteDiary = async (req, res) => {
       });
     }
     
-    // 軟刪?�日�?
+    // 
     const success = await Diary.delete(id);
     
     if (!success) {
@@ -346,7 +346,8 @@ exports.exploreDiaries = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Explore diaries error:', error);
+    // log full stack locally but don't leak details to clients
+    console.error('Explore diaries error:', error && error.stack ? error.stack : error);
     res.status(500).json({
       error: 'Server error',
       code: 'SERVER_ERROR'
@@ -355,7 +356,7 @@ exports.exploreDiaries = async (req, res) => {
 };
 
 /**
- * ?��??��?
+ * 
  * @route GET /api/v1/diaries/search
  * @access Public
  */
@@ -385,7 +386,7 @@ exports.searchDiaries = async (req, res) => {
       offset: parseInt(offset)
     });
     
-    // ?��?篇日記�??��?籤、�?件�?社交?��?
+    
     const diariesWithDetails = await Promise.all(
       diaries.map(async (diary) => {
         const tags = await Diary.getTags(diary.diary_id);

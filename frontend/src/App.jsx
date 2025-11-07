@@ -4,6 +4,7 @@ import useAuthStore from './store/authStore'
 import HomePage from './pages/HomePage'
 import LoginPage from './pages/auth/LoginPage'
 import RegisterPage from './pages/auth/RegisterPage'
+import ForgotPasswordPage from './pages/auth/ForgotPasswordPage'
 import DashboardPage from './pages/DashboardPage'
 import ExplorePage from './pages/ExplorePage'
 import SearchPage from './pages/SearchPage'
@@ -12,7 +13,7 @@ import DiaryDetail from './pages/diaries/DiaryDetail'
 import DiaryEditor from './pages/diaries/DiaryEditor'
 import ProfilePage from './pages/ProfilePage'
 import UserProfilePage from './pages/UserProfilePage'
-import FriendsPage from './pages/FriendsPage'
+import FollowPage from './pages/FollowPage'
 import MessagesPage from './pages/messages/MessagesPage'
 import LuckyCardPage from './pages/lucky/LuckyCardPage'
 import AdminDashboard from './pages/admin/AdminDashboard'
@@ -36,6 +37,7 @@ function App() {
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/explore" element={<ExplorePage />} />
             <Route path="/search" element={<SearchPage />} />
@@ -46,7 +48,7 @@ function App() {
               <Route path="/diaries" element={<DiariesList />} />
               <Route path="/diaries/new" element={<DiaryEditor />} />
               <Route path="/diaries/:id/edit" element={<DiaryEditor />} />
-              <Route path="/friends" element={<FriendsPage />} />
+              <Route path="/follows" element={<FollowPage />} />
               <Route path="/messages/:userId" element={<MessagesPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/lucky-card" element={<LuckyCardPage />} />

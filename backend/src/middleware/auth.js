@@ -23,7 +23,9 @@ exports.authMiddleware = async (req, res, next) => {
     // 3. 驗證 Token
     let decoded;
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_super_secret_key_change_this_in_production');
+      // Use the same default dev secret as the auth controller to avoid
+      // invalid-token 401s in development when JWT_SECRET is not set.
+      decoded = jwt.verify(token, process.env.JWT_SECRET || 'dev_secret');
     } catch (error) {
       if (error.name === 'TokenExpiredError') {
         return res.status(401).json({
@@ -71,8 +73,6 @@ exports.authMiddleware = async (req, res, next) => {
       user_id: user.user_id,
       email: user.email,
       username: user.username,
-      display_name: user.display_name,
-      avatar_url: user.avatar_url,
       role: user.role,
       status: user.status
     };
@@ -135,8 +135,6 @@ exports.optionalAuth = async (req, res, next) => {
         user_id: user.user_id,
         email: user.email,
         username: user.username,
-        display_name: user.display_name,
-        avatar_url: user.avatar_url,
         role: user.role
       };
     }

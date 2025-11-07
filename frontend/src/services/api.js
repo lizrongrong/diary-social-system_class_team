@@ -28,8 +28,32 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('token')
-      window.location.href = '/login'
+      // Don't force-redirect for auth-related endpoints (login/register/etc.) to avoid
+      // race-conditions where a 401 from an auth endpoint would immediately send the
+      // user back to the login page.
+      const url = error.config?.url || '';
+      const authPaths = [
+        '/auth/login',
+        '/auth/register',
+        '/auth/check-email',
+        '/auth/send-verification',
+        '/auth/verify-email',
+        '/auth/forgot-password',
+        '/auth/verify-reset',
+        '/auth/reset-password'
+      ];
+
+      const isAuthEndpoint = authPaths.some(p => url.includes(p));
+
+      // Only clear token / redirect for non-auth endpoints. For auth endpoints
+      // we keep the token so transient 401s during auth flows don't immediately
+      // log the user out.
+      if (!isAuthEndpoint) {
+        localStorage.removeItem('token');
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
+      }
     }
     return Promise.reject(error)
   }
@@ -50,6 +74,44 @@ export const authAPI = {
     if (response.data.token) {
       localStorage.setItem('token', response.data.token)
     }
+    return response.data
+  },
+  
+  // Email verification (send code / verify code)
+  sendVerification: async (email) => {
+    const response = await api.post('/auth/send-verification', { email })
+    return response.data
+  },
+
+  verifyEmailCode: async (email, code) => {
+    const response = await api.post('/auth/verify-email', { email, code })
+    return response.data
+  },
+  
+  // 忘記密碼流程
+  sendResetCode: async (email) => {
+    const response = await api.post('/auth/forgot-password', { email })
+    return response.data
+  },
+
+  verifyResetCode: async (email, code) => {
+    const response = await api.post('/auth/verify-reset', { email, code })
+    return response.data
+  },
+
+  resetPassword: async (email, code, new_password) => {
+    const response = await api.post('/auth/reset-password', { email, code, new_password })
+    return response.data
+  },
+  
+  checkUserId: async (user_id) => {
+    const response = await api.post('/auth/check-userid', { user_id })
+    return response.data
+  },
+
+  // 即時檢查 email 是否已被註冊
+  checkEmail: async (email) => {
+    const response = await api.post('/auth/check-email', { email })
     return response.data
   },
   
@@ -176,39 +238,42 @@ export const commentAPI = {
   }
 }
 
-// 好友 API
-export const friendAPI = {
+// 追蹤 / followers API
+export const followAPI = {
   getAll: async () => {
-    const response = await api.get('/friends')
+    const response = await api.get('/followers')
     return response.data
   },
-  
-  add: async (friendId) => {
-    const response = await api.post('/friends', { friend_id: friendId })
+
+  add: async (targetUserId) => {
+    // backend accepts following_id (preferred) or friend_id (legacy)
+    const response = await api.post('/followers', { following_id: targetUserId })
     return response.data
   },
-  
-  remove: async (friendId) => {
-    const response = await api.delete(`/friends/${friendId}`)
+
+  remove: async (targetUserId) => {
+    const response = await api.delete(`/followers/${targetUserId}`)
     return response.data
   },
-  
+
   checkStatus: async (userId) => {
-    const response = await api.get(`/friends/status/${userId}`)
+    const response = await api.get(`/followers/status/${userId}`)
     return response.data
   },
   getFollowing: async (userId) => {
-    const response = await api.get(`/friends/${userId}/following`)
+    const response = await api.get(`/followers/${userId}/following`)
     return response.data
   },
   getFollowers: async (userId) => {
-    const response = await api.get(`/friends/${userId}/followers`)
+    const response = await api.get(`/followers/${userId}/followers`)
     return response.data
   },
   getCounts: async (userId) => {
-    const response = await api.get(`/friends/${userId}/counts`)
+    const response = await api.get(`/followers/${userId}/counts`)
     return response.data
   }
 }
+
+// 已統一使用 followAPI
 
 export default api

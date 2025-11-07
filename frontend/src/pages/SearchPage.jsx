@@ -1,4 +1,7 @@
 ﻿import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import useAuthStore from '../store/authStore'
+import { useToast } from '../components/ui/Toast'
 import { Link, useSearchParams } from 'react-router-dom'
 import axios from 'axios'
 import Card from '../components/ui/Card'
@@ -38,6 +41,33 @@ function SearchPage() {
       }, 100)
     }
   }, [searchParams])
+
+  // 若為訪客，強制跳轉至登入頁（不在此處顯示提示，由 ProtectedRoute 處理或其他共通邏輯負責提示）
+  const navigate = useNavigate()
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
+  const isAuthLoading = useAuthStore((state) => state.isLoading)
+  const { addToast } = useToast()
+
+  useEffect(() => {
+    if (!isAuthLoading && !isAuthenticated) {
+      // 顯示一次登入提示（和 ProtectedRoute 使用相同去重機制）
+      try {
+        const key = 'loginRedirectToastShown'
+        const last = sessionStorage.getItem(key)
+        const now = Date.now()
+        const threshold = 3000
+        if (!last || (now - Number(last)) > threshold) {
+          addToast('請先登入以訪問此頁面', 'warning', 3000)
+          sessionStorage.setItem(key, String(now))
+        }
+      } catch (e) {
+        addToast('請先登入以訪問此頁面', 'warning', 3000)
+      }
+
+      // 導向登入頁，保留來源位置
+      navigate('/login', { replace: true, state: { from: '/search' } })
+    }
+  }, [isAuthLoading, isAuthenticated, navigate])
 
   const handleSearch = async (e) => {
     if (e) e.preventDefault()
@@ -93,11 +123,13 @@ function SearchPage() {
             <div style={{ flex: 1, minWidth: 300 }}>
               <Input
                 type="text"
+                name="keyword"
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
                 placeholder="搜尋標題或內容..."
                 leftIcon={<Search size={20} />}
                 disabled={loading}
+                autoComplete="off"
               />
             </div>
             <Button
@@ -148,40 +180,49 @@ function SearchPage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 'var(--spacing-md)' }}>
             <Select
               label="情緒"
+              name="emotion"
               value={emotion}
               onChange={(e) => setEmotion(e.target.value)}
               options={[
                 { value: '', label: '全部' },
                 ...EMOTIONS.map(e => ({ value: e, label: e }))
               ]}
+              autoComplete="off"
             />
 
             <Select
               label="天氣"
+              name="weather"
               value={weather}
               onChange={(e) => setWeather(e.target.value)}
               options={[
                 { value: '', label: '全部' },
                 ...WEATHERS.map(w => ({ value: w, label: w }))
               ]}
+              autoComplete="off"
             />
 
             <Input
               type="date"
+              name="dateFrom"
               label="開始日期"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
+              autoComplete="off"
             />
 
             <Input
               type="date"
+              name="dateTo"
               label="結束日期"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
+              autoComplete="off"
             />
 
             <Select
               label="排序方式"
+              name="sortBy"
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
               options={[
@@ -189,6 +230,7 @@ function SearchPage() {
                 { value: 'like_count', label: '最多讚' },
                 { value: 'comment_count', label: '最多留言' }
               ]}
+              autoComplete="off"
             />
           </div>
 
@@ -264,7 +306,7 @@ function SearchPage() {
                     fontWeight: 700,
                     marginRight: 'var(--spacing-sm)'
                   }}>
-                    {(diary.display_name || diary.username || 'U').charAt(0).toUpperCase()}
+                    {(diary.username || 'U').charAt(0).toUpperCase()}
                   </div>
                 </Link>
                 <div>
@@ -273,7 +315,7 @@ function SearchPage() {
                     style={{ textDecoration: 'none', color: 'inherit' }}
                   >
                     <div className="text-body" style={{ fontWeight: 600, color: 'var(--gray-900)' }}>
-                      {diary.display_name || diary.username || '匿名用戶'}
+                      {diary.username || '匿名用戶'}
                     </div>
                   </Link>
                   <div className="text-small" style={{ color: 'var(--gray-600)' }}>

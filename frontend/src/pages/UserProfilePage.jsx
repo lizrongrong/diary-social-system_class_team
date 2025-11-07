@@ -1,8 +1,7 @@
 ﻿import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { userAPI, diaryAPI } from '../services/api'
+import { userAPI, diaryAPI, followAPI } from '../services/api'
 import useAuthStore from '../store/authStore'
-import { friendAPI } from '../services/api'
 import { UserPlus, UserMinus, Calendar, Heart, MessageCircle, Eye, MessageSquare } from 'lucide-react'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
@@ -24,10 +23,10 @@ function UserProfilePage() {
         const userResponse = await userAPI.getProfile(userId)
         setUser(userResponse.data)
 
-        // Load follow status and counts via friends API
+        // Load follow status and counts via followers API
         const [status, counts] = await Promise.all([
-          friendAPI.checkStatus(userId),
-          friendAPI.getCounts(userId)
+          followAPI.checkStatus(userId),
+          followAPI.getCounts(userId)
         ])
         setFollowStatus({
           followerCount: counts.followerCount,
@@ -53,11 +52,11 @@ function UserProfilePage() {
     setToggling(true)
     try {
       if (followStatus.isFollowing) {
-        await friendAPI.remove(userId)
+        await followAPI.remove(userId)
       } else {
-        await friendAPI.add(userId)
+        await followAPI.add(userId)
       }
-      const counts = await friendAPI.getCounts(userId)
+      const counts = await followAPI.getCounts(userId)
       setFollowStatus({
         followerCount: counts.followerCount,
         followingCount: counts.followingCount,
@@ -125,12 +124,12 @@ function UserProfilePage() {
               fontWeight: 700,
               boxShadow: 'var(--shadow-lg)'
             }}>
-              {(user.display_name || user.username || 'U').charAt(0).toUpperCase()}
+              {(user.username || 'U').charAt(0).toUpperCase()}
             </div>
             
             <div>
               <h2 className="text-h2" style={{ marginBottom: 'var(--spacing-xs)' }}>
-                {user.display_name || user.username}
+                {user.username}
               </h2>
               <p className="text-body" style={{ color: 'var(--gray-600)' }}>
                 @{user.username}
@@ -141,7 +140,7 @@ function UserProfilePage() {
           {/* Follow Button */}
           {!isOwnProfile && currentUser && (
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <Link to={`/messages/${userId}`} state={{ friend: user }} style={{ textDecoration: 'none' }}>
+              <Link to={`/messages/${userId}`} state={{ follow: user }} style={{ textDecoration: 'none' }}>
                 <Button variant="outline">
                   <MessageSquare size={16} /> 聊天
                 </Button>

@@ -9,7 +9,7 @@ import { Heart, MessageCircle, Edit3, Trash2, Eye, EyeOff, PenTool } from 'lucid
 function DiariesList() {
   const { user } = useAuthStore()
   const [diaries, setDiaries] = useState([])
-  const [friendDiaries, setFriendDiaries] = useState([])
+  const [followDiaries, setFollowDiaries] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [filter, setFilter] = useState('all') // all, public, private, draft, friends
@@ -38,9 +38,11 @@ function DiariesList() {
       // 獲取好友的公開日記
       const data = await diaryAPI.explore({ limit: 100 })
       // 過濾掉自己的日記，只保留好友的
-      setFriendDiaries((data?.diaries || []).filter(d => d.user_id !== user?.user_id))
+      setFollowDiaries((data?.diaries || []).filter(d => d.user_id !== user?.user_id))
     } catch (e) {
-      console.error('無法取得好友日記:', e)
+      // 臨時容錯：若後端發生 500，避免在 console 印出大型 Axios 物件並維持 UI 空狀態
+      console.warn('無法取得好友日記:', e.message || e)
+      setFollowDiaries([])
     }
   }
 
@@ -55,8 +57,8 @@ function DiariesList() {
     }
   }
 
-  const filteredDiaries = filter === 'friends' 
-    ? friendDiaries 
+  const filteredDiaries = filter === 'follows' 
+    ? followDiaries 
     : diaries.filter(d => {
         if (filter === 'all') return true
         if (filter === 'public') return d.visibility === 'public'
@@ -125,7 +127,7 @@ function DiariesList() {
           { key: 'public', label: '公開', count: diaries.filter(d => d.visibility === 'public').length },
           { key: 'private', label: '私人', count: diaries.filter(d => d.visibility === 'private').length },
           { key: 'draft', label: '草稿', count: diaries.filter(d => d.status === 'draft').length },
-          { key: 'friends', label: '好友', count: friendDiaries.length }
+          { key: 'follows', label: '好友', count: followDiaries.length }
         ].map(tab => (
           <button
             key={tab.key}
@@ -169,10 +171,10 @@ function DiariesList() {
               {filter === 'public' && '沒有公開日記'}
               {filter === 'private' && '沒有私人日記'}
               {filter === 'draft' && '沒有草稿'}
-              {filter === 'friends' && '好友還沒有分享日記'}
+              {filter === 'follows' && '好友還沒有分享日記'}
             </h3>
             <p className="text-body" style={{ color: 'var(--gray-600)', marginBottom: 'var(--spacing-lg)' }}>
-              {filter === 'friends' ? '邀請好友開始寫日記吧！' : '開始記錄你的生活點滴吧！'}
+              {filter === 'follows' ? '邀請好友開始寫日記吧！' : '開始記錄你的生活點滴吧！'}
             </p>
             {filter !== 'friends' && (
               <Link to="/diaries/new" style={{ textDecoration: 'none' }}>
@@ -252,7 +254,7 @@ function DiariesList() {
                 </div>
 
                 {/* Action buttons or Author info */}
-                {filter === 'friends' ? (
+                {filter === 'follows' ? (
                   // 顯示作者資訊
                   <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
                     <div style={{
@@ -267,11 +269,11 @@ function DiariesList() {
                       fontSize: '1rem',
                       fontWeight: 700
                     }}>
-                      {(diary.display_name || diary.username || 'U').charAt(0).toUpperCase()}
+                      {(diary.username || 'U').charAt(0).toUpperCase()}
                     </div>
                     <div>
                       <div className="text-small" style={{ fontWeight: 600, color: 'var(--gray-900)' }}>
-                        {diary.display_name || diary.username || '匿名用戶'}
+                        {diary.username || '匿名用戶'}
                       </div>
                     </div>
                   </div>
