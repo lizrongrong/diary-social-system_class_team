@@ -14,6 +14,7 @@ function RegisterPage() {
   const { addToast } = useToast();
   
   const [formData, setFormData] = useState({
+    user_id: '',
     email: '',
     password: '',
     password_confirm: '',
@@ -84,10 +85,18 @@ function RegisterPage() {
     }
     
     // Username 驗證
+    // user_id (short id) 驗證 — 前端可填寫短 ID，儲存在 users.user_id
+    if (!formData.user_id) {
+      newErrors.user_id = '請輸入使用者識別 ID';
+    } else if (!/^[a-zA-Z0-9_]{3,10}$/.test(formData.user_id)) {
+      newErrors.user_id = '使用者識別 ID 需 3-10 字元 (英數字與底線)';
+    }
+
+    // Username 驗證 (顯示名稱或登入名稱，可較長)
     if (!formData.username) {
-      newErrors.username = '請輸入使用者 ID';
-    } else if (!/^[a-zA-Z0-9_]{3,50}$/.test(formData.username)) {
-      newErrors.username = '使用者 ID 需 3-50 字元 (僅限英數字與底線)';
+      newErrors.username = '請輸入使用者名稱';
+    } else if (!/^[\w\-\s]{3,50}$/.test(formData.username)) {
+      newErrors.username = '使用者名稱需 3-50 字元';
     }
     
     // Display Name 驗證
@@ -211,6 +220,20 @@ function RegisterPage() {
             />
 
             {/* Username */}
+            {/* Short user_id (由使用者填寫，儲存在 users.user_id) */}
+            <Input
+              type="text"
+              label="使用者識別 ID"
+              name="user_id"
+              placeholder="請輸入短 ID (3-10 字，英數字與底線)"
+              value={formData.user_id}
+              onChange={handleChange}
+              error={errors.user_id}
+              required
+              disabled={isLoading}
+              helperText="短 ID 將作為系統內的唯一識別，不可重複"
+            />
+
             <Input
               type="text"
               label="使用者 ID"
