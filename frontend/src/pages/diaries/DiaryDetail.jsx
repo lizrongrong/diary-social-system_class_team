@@ -325,6 +325,9 @@ function DiaryDetail() {
             )}
             <div style={{ display: 'flex', gap: 8 }}>
               <input
+                name="comment"
+                id="comment-input"
+                autoComplete="off"
                 type="text"
                 value={commentInput}
                 onChange={(e) => setCommentInput(e.target.value)}
@@ -374,7 +377,7 @@ function DiaryDetail() {
                     to={`/users/${comment.user_id}`} 
                     style={{ textDecoration: 'none', color: '#333', fontWeight: 600, fontSize: 14 }}
                   >
-                    {comment.display_name || comment.username}
+                    {comment.username}
                   </Link>
                   <span style={{ fontSize: 12, color: '#999' }}>
                     {new Date(comment.created_at).toLocaleString()}
@@ -434,7 +437,7 @@ function DiaryDetail() {
                             to={`/users/${reply.user_id}`} 
                             style={{ textDecoration: 'none', color: '#333', fontWeight: 600, fontSize: 13 }}
                           >
-                            {reply.display_name || reply.username}
+                            {reply.username}
                           </Link>
                           <span style={{ fontSize: 11, color: '#999' }}>
                             {new Date(reply.created_at).toLocaleString()}

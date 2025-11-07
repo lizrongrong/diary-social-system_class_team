@@ -315,7 +315,7 @@ function DiaryEditor() {
             圖片附件（最多 9 張，單檔 5MB）
           </h4>
           <div style={{ marginBottom: 'var(--spacing-md)' }}>
-            <label htmlFor="file-upload" style={{ cursor: media.length >= 9 || uploading ? 'not-allowed' : 'pointer' }}>
+            <label htmlFor="diary-file-upload" style={{ cursor: media.length >= 9 || uploading ? 'not-allowed' : 'pointer' }}>
               <div style={{
                 padding: 'var(--spacing-lg)',
                 border: '2px dashed var(--gray-300)',
@@ -331,7 +331,7 @@ function DiaryEditor() {
               </div>
             </label>
             <input 
-              id="file-upload"
+              id="diary-file-upload"
               type="file" 
               multiple 
               accept="image/*" 
