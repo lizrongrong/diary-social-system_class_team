@@ -1,52 +1,52 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { friendAPI } from '../services/api'
+import { followAPI } from '../services/api'
 import useAuthStore from '../store/authStore'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import { Users, UserMinus, Mail, Calendar } from 'lucide-react'
 import { useToast } from '../components/ui/Toast'
-import './FriendsPage.css'
+import './FollowPage.css'
 
-function FriendsPage() {
+function FollowPage() {
   const { user } = useAuthStore()
   const { addToast } = useToast()
-  const [friends, setFriends] = useState([])
+  const [follows, setFollows] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    loadFriends()
+    loadFollows()
   }, [])
 
-  const loadFriends = async () => {
+  const loadFollows = async () => {
     try {
       setLoading(true)
-      const data = await friendAPI.getAll()
-      setFriends(data.friends || [])
+      const data = await followAPI.getAll()
+      // backend may return { following: [...] } or legacy { friends: [...] }
+      setFollows(data.following || data.friends || [])
     } catch (err) {
-      console.error('Error loading friends:', err)
-      addToast('載入好友列表失敗', 'error')
+      console.error('Error loading follows:', err)
+      addToast('載入追蹤列表失敗', 'error')
     } finally {
       setLoading(false)
     }
   }
 
-  const handleRemoveFriend = async (friendId) => {
-    if (!confirm('確定要移除此好友嗎？')) return
-    
+  const handleRemoveFollow = async (targetUserId) => {
+    if (!confirm('確定要取消追蹤嗎？')) return
     try {
-      await friendAPI.remove(friendId)
-      addToast('已移除好友', 'success')
-      loadFriends()
+      await followAPI.remove(targetUserId)
+      addToast('已取消追蹤', 'success')
+      loadFollows()
     } catch (err) {
-      console.error('Error removing friend:', err)
-      addToast('移除好友失敗', 'error')
+      console.error('Error removing follow:', err)
+      addToast('取消追蹤失敗', 'error')
     }
   }
 
   if (loading) {
     return (
-      <div className="page friends-page" style={{ padding: 'var(--spacing-xl)' }}>
+      <div className="page follow-page" style={{ padding: 'var(--spacing-xl)' }}>
         <div style={{ textAlign: 'center', padding: 'var(--spacing-2xl)' }}>
           <p>載入中...</p>
         </div>
@@ -55,18 +55,18 @@ function FriendsPage() {
   }
 
   return (
-    <div className="page friends-page" style={{ padding: 'var(--spacing-xl)', maxWidth: 1200, margin: '0 auto' }}>
+    <div className="page follow-page" style={{ padding: 'var(--spacing-xl)', maxWidth: 1200, margin: '0 auto' }}>
       <div style={{ marginBottom: 'var(--spacing-xl)' }}>
         <h2 className="text-h2" style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
           <Users size={32} />
           好友管理
         </h2>
         <p className="text-small" style={{ color: 'var(--gray-600)', marginTop: 'var(--spacing-xs)' }}>
-          共 {friends.length} 位好友
+          共 {follows.length} 位好友
         </p>
       </div>
 
-      {friends.length === 0 ? (
+      {follows.length === 0 ? (
         <Card style={{ textAlign: 'center', padding: 'var(--spacing-2xl)' }}>
           <Users size={64} style={{ color: 'var(--gray-400)', margin: '0 auto var(--spacing-md)' }} />
           <h3 className="text-h3" style={{ color: 'var(--gray-700)' }}>還沒有好友</h3>
@@ -85,14 +85,14 @@ function FriendsPage() {
           gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
           gap: 'var(--spacing-lg)'
         }}>
-          {friends.map(friend => (
-            <Card key={friend.friend_id} hoverable style={{ padding: 'var(--spacing-lg)' }}>
+          {follows.map(follow => (
+            <Card key={(follow.friend_id || follow.follow_id)} hoverable style={{ padding: 'var(--spacing-lg)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-md)' }}>
                 <div style={{
                   width: 60,
                   height: 60,
                   borderRadius: '50%',
-                  background: friend.avatar_url ? `url(${friend.avatar_url}) center/cover` : 'linear-gradient(135deg, var(--primary-purple), var(--dark-purple))',
+                  background: follow.avatar_url ? `url(${follow.avatar_url}) center/cover` : 'linear-gradient(135deg, var(--primary-purple), var(--dark-purple))',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -100,14 +100,14 @@ function FriendsPage() {
                   fontSize: '1.5rem',
                   fontWeight: 700
                 }}>
-                  {!friend.avatar_url && (friend.username || '').charAt(0).toUpperCase()}
+                  {!follow.avatar_url && (follow.username || '').charAt(0).toUpperCase()}
                 </div>
                 <div style={{ flex: 1 }}>
                   <h3 className="text-h4" style={{ marginBottom: 'var(--spacing-xs)' }}>
-                    {friend.username}
+                    {follow.username}
                   </h3>
                   <p className="text-tiny" style={{ color: 'var(--gray-600)' }}>
-                    @{friend.username}
+                    @{follow.username}
                   </p>
                 </div>
               </div>
@@ -121,18 +121,17 @@ function FriendsPage() {
                 marginBottom: 'var(--spacing-md)'
               }}>
                 <Calendar size={14} />
-                <span>成為好友：{new Date(friend.created_at).toLocaleDateString('zh-TW')}</span>
+                <span>成為好友：{new Date(follow.created_at).toLocaleDateString('zh-TW')}</span>
               </div>
 
               <div style={{ display: 'flex', gap: 'var(--spacing-xs)' }}>
-                <Link to={`/user/${friend.friend_user_id}`} style={{ flex: 1 }}>
+                <Link to={`/user/${follow.friend_user_id || follow.following_user_id}`} style={{ flex: 1 }}>
                   <Button variant="outline" size="small" style={{ width: '100%' }}>
                     查看資料
                   </Button>
                 </Link>
 
-                {/* Chat button: navigates to messages page for this friend. Pass friend in state so MessagesPage can show name without extra fetch. */}
-                <Link to={`/messages/${friend.friend_user_id}`} state={{ friend }}>
+                <Link to={`/messages/${follow.friend_user_id || follow.following_user_id}`} state={{ follow }}>
                   <Button variant="outline" size="small">
                     <Mail size={16} />
                     聊天
@@ -142,7 +141,7 @@ function FriendsPage() {
                 <Button 
                   variant="outline" 
                   size="small"
-                  onClick={() => handleRemoveFriend(friend.friend_user_id)}
+                  onClick={() => handleRemoveFollow(follow.friend_user_id || follow.following_user_id)}
                   style={{ 
                     color: 'var(--danger-red)',
                     borderColor: 'var(--danger-red)'
@@ -160,4 +159,4 @@ function FriendsPage() {
   )
 }
 
-export default FriendsPage
+export default FollowPage

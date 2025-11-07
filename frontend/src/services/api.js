@@ -181,39 +181,42 @@ export const commentAPI = {
   }
 }
 
-// 好友 API
-export const friendAPI = {
+// 追蹤 / followers API
+export const followAPI = {
   getAll: async () => {
-    const response = await api.get('/friends')
+    const response = await api.get('/followers')
     return response.data
   },
-  
-  add: async (friendId) => {
-    const response = await api.post('/friends', { friend_id: friendId })
+
+  add: async (targetUserId) => {
+    // backend accepts following_id (preferred) or friend_id (legacy)
+    const response = await api.post('/followers', { following_id: targetUserId })
     return response.data
   },
-  
-  remove: async (friendId) => {
-    const response = await api.delete(`/friends/${friendId}`)
+
+  remove: async (targetUserId) => {
+    const response = await api.delete(`/followers/${targetUserId}`)
     return response.data
   },
-  
+
   checkStatus: async (userId) => {
-    const response = await api.get(`/friends/status/${userId}`)
+    const response = await api.get(`/followers/status/${userId}`)
     return response.data
   },
   getFollowing: async (userId) => {
-    const response = await api.get(`/friends/${userId}/following`)
+    const response = await api.get(`/followers/${userId}/following`)
     return response.data
   },
   getFollowers: async (userId) => {
-    const response = await api.get(`/friends/${userId}/followers`)
+    const response = await api.get(`/followers/${userId}/followers`)
     return response.data
   },
   getCounts: async (userId) => {
-    const response = await api.get(`/friends/${userId}/counts`)
+    const response = await api.get(`/followers/${userId}/counts`)
     return response.data
   }
 }
+
+// 已統一使用 followAPI
 
 export default api

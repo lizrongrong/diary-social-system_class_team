@@ -11,8 +11,8 @@ function MessagesPage() {
   const { user } = useAuthStore()
   const { userId } = useParams()
   const location = useLocation()
-  const friendFromState = location.state?.friend
-  const [friend, setFriend] = useState(friendFromState || null)
+  const followFromState = location.state?.follow
+  const [follow, setFollow] = useState(followFromState || null)
   const [loading, setLoading] = useState(!friendFromState)
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
@@ -28,15 +28,15 @@ function MessagesPage() {
 
   useEffect(() => {
     const load = async () => {
-      if (!friend) {
+      if (!follow) {
         try {
           setLoading(true)
           const res = await userAPI.getProfile(userId)
           // userAPI.getProfile returns axios response; try to get data
-          setFriend(res.data?.user || res.data || null)
+          setFollow(res.data?.user || res.data || null)
         } catch (err) {
           console.error('Failed to load friend profile', err)
-          setFriend({ username: userId })
+          setFollow({ username: userId })
         } finally {
           setLoading(false)
         }
@@ -95,10 +95,10 @@ function MessagesPage() {
   return (
     <div className="page messages-page" style={{ padding: 'var(--spacing-xl)', maxWidth: 900, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-md)' }}>
-        <Link to="/friends">
+            <Link to="/follows">
           <Button variant="ghost"><ArrowLeft size={16} /> 返回好友</Button>
         </Link>
-  <h2 className="text-h3">與 {friend?.username}</h2>
+  <h2 className="text-h3">與 {follow?.username}</h2>
       </div>
 
       <Card style={{ padding: 0, display: 'flex', flexDirection: 'column', height: 500 }}>
@@ -125,7 +125,7 @@ function MessagesPage() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') handleSend() }}
-            placeholder={`傳送訊息給 ${friend?.username}`}
+            placeholder={`傳送訊息給 ${follow?.username}`}
             style={{ flex: 1, padding: 'var(--spacing-sm)', borderRadius: 6, border: '1px solid var(--gray-200)' }}
           />
           <Button variant="primary" onClick={handleSend}>送出</Button>

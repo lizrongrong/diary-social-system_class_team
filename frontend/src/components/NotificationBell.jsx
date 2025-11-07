@@ -2,7 +2,7 @@
 import { Bell, MessageSquare, UserPlus } from 'lucide-react'
 import notificationAPI from '../services/notificationAPI'
 import announcementAPI from '../services/announcementAPI'
-import { friendAPI } from '../services/api'
+import { followAPI } from '../services/api'
 import useAuthStore from '../store/authStore'
 import { Link } from 'react-router-dom'
 import { useToast } from './ui/Toast'
@@ -37,8 +37,10 @@ function NotificationBell() {
 
     const fetchFollowing = async () => {
       try {
-        const data = await friendAPI.getAll()
-        const following = new Set((data.friends || []).map(f => f.friend_user_id))
+        const data = await followAPI.getAll()
+        // backend may return { following: [...] } or legacy { friends: [...] }
+        const list = data.following || data.friends || []
+        const following = new Set(list.map(f => f.friend_user_id || f.following_user_id))
         setFollowingUsers(following)
       } catch (e) {
         console.error('Failed to fetch following:', e)
@@ -201,7 +203,7 @@ function NotificationBell() {
 
   const handleFollowBack = async (sourceUserId) => {
     try {
-      await friendAPI.add(sourceUserId)
+        await followAPI.add(sourceUserId)
       setFollowingUsers(new Set([...followingUsers, sourceUserId]))
       addToast('追蹤成功', 'success')
     } catch (e) {
