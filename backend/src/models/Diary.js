@@ -1,6 +1,29 @@
 const db = require('../config/db');
 const { v4: uuidv4 } = require('uuid');
 
+// 輔助：對排序欄位與排序方向做白名單檢查，避免 SQL 注入或非法欄位導致查詢失敗
+const ALLOWED_ORDER_COLUMNS = new Set(['created_at', 'published_at', 'updated_at', 'diary_id', 'title']);
+const sanitizeOrderBy = (col) => (ALLOWED_ORDER_COLUMNS.has(col) ? col : 'created_at');
+const sanitizeOrder = (ord) => (String(ord).toUpperCase() === 'ASC' ? 'ASC' : 'DESC');
+const toSafeInt = (v, fallback) => {
+  const n = parseInt(v)
+  return Number.isNaN(n) ? fallback : n
+}
+
+// cached flag to check whether 'status' column exists in diaries table
+let HAS_STATUS_COLUMN = null
+const checkStatusColumn = async () => {
+  if (HAS_STATUS_COLUMN !== null) return HAS_STATUS_COLUMN
+  try {
+    const [rows] = await db.query("SHOW COLUMNS FROM diaries LIKE 'status'")
+    HAS_STATUS_COLUMN = Array.isArray(rows) && rows.length > 0
+  } catch (err) {
+    // if any error (e.g., table doesn't exist), assume column missing
+    HAS_STATUS_COLUMN = false
+  }
+  return HAS_STATUS_COLUMN
+}
+
 /**
  * Diary 資料模型
  * 處理日記相關的資料庫操作
@@ -14,30 +37,56 @@ class Diary {
   static async create(diaryData) {
     const diaryId = uuidv4();
     const now = new Date();
-    
-    const query = `
-      INSERT INTO diaries (
-        diary_id, user_id, title, content, visibility, status,
-        created_at, updated_at, published_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
-    
-    const status = diaryData.status || 'published';
-    const published_at = status === 'published' ? now : null;
-    
-    const values = [
-      diaryId,
-      diaryData.user_id,
-      diaryData.title,
-      diaryData.content,
-      diaryData.visibility || 'private',
-      status,
-      now,
-      now,
-      published_at
-    ];
-    
-    await db.execute(query, values);
+
+    // if the schema has status/published_at columns, include them; otherwise omit
+    const hasStatus = await checkStatusColumn();
+
+    if (hasStatus) {
+      const query = `
+        INSERT INTO diaries (
+          diary_id, user_id, title, content, visibility, status,
+          created_at, updated_at, published_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `;
+
+      const status = diaryData.status || 'published';
+      const published_at = status === 'published' ? now : null;
+
+      const values = [
+        diaryId,
+        diaryData.user_id,
+        diaryData.title,
+        diaryData.content,
+        diaryData.visibility || 'private',
+        status,
+        now,
+        now,
+        published_at
+      ];
+
+      await db.execute(query, values);
+    } else {
+      // older schema without status/published_at
+      const query = `
+        INSERT INTO diaries (
+          diary_id, user_id, title, content, visibility,
+          created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+      `;
+
+      const values = [
+        diaryId,
+        diaryData.user_id,
+        diaryData.title,
+        diaryData.content,
+        diaryData.visibility || 'private',
+        now,
+        now
+      ];
+
+      await db.execute(query, values);
+    }
+
     return diaryId;
   }
   
@@ -51,9 +100,16 @@ class Diary {
   SELECT d.*, u.username
       FROM diaries d
       JOIN users u ON d.user_id = u.user_id
-      WHERE d.diary_id = ? AND d.status != 'deleted'
-    `;
+      WHERE d.diary_id = ?`;
     
+    // if status column exists, filter out deleted
+    const hasStatus = await checkStatusColumn();
+    if (hasStatus) {
+      const queryWithStatus = query + " AND d.status != 'deleted'";
+      const [rows] = await db.execute(queryWithStatus, [diaryId]);
+      return rows[0] || null;
+    }
+
     const [rows] = await db.execute(query, [diaryId]);
     return rows[0] || null;
   }
@@ -73,35 +129,37 @@ class Diary {
       orderBy = 'created_at',
       order = 'DESC'
     } = options;
-    
+
+    // sanitize inputs
+    const safeOrderBy = sanitizeOrderBy(orderBy)
+    const safeOrder = sanitizeOrder(order)
+    const limitNum = Math.max(1, Math.min(100, toSafeInt(limit, 20)))
+    const offsetNum = Math.max(0, toSafeInt(offset, 0))
+
     let query = `
   SELECT d.*, u.username
       FROM diaries d
       JOIN users u ON d.user_id = u.user_id
       WHERE d.user_id = ?
     `;
-    
+
     const params = [userId];
-    
-    // 只有當 status 不為 null 時才添加狀態篩選
-    if (status !== null) {
+
+    // only add status filter if the column exists in schema
+    const hasStatus = await checkStatusColumn()
+    if (hasStatus && status !== null) {
       query += ` AND d.status = ?`;
       params.push(status);
     }
-    
+
     if (visibility) {
       query += ` AND d.visibility = ?`;
       params.push(visibility);
     }
-    
-    query += ` ORDER BY d.${orderBy} ${order} LIMIT ? OFFSET ?`;
-    params.push(limit, offset);
-    
-    console.log('SQL Query:', query);
-    console.log('Params:', params);
-    console.log('Params types:', params.map(p => typeof p));
-    
-    // Try using query() instead of execute() to test
+
+    query += ` ORDER BY d.${safeOrderBy} ${safeOrder} LIMIT ? OFFSET ?`;
+    params.push(limitNum, offsetNum);
+
     const [rows] = await db.query(query, params);
     return rows;
   }
@@ -112,24 +170,39 @@ class Diary {
    * @returns {Promise<Array>}
    */
   static async findPublic(options = {}) {
-    const {
-      limit = 20,
-      offset = 0,
-      orderBy = 'created_at',
-      order = 'DESC'
-    } = options;
-    
-    const query = `
-      SELECT d.*, u.username
-      FROM diaries d
-      JOIN users u ON d.user_id = u.user_id
-      WHERE d.visibility = 'public' AND d.status = 'published'
-      ORDER BY d.${orderBy} ${order}
-      LIMIT ? OFFSET ?
-    `;
-    
-    const [rows] = await db.query(query, [limit, offset]);
-    return rows;
+    try {
+      const {
+        limit = 20,
+        offset = 0,
+        orderBy = 'created_at',
+        order = 'DESC'
+      } = options;
+
+      // sanitize inputs
+      const safeOrderBy = sanitizeOrderBy(orderBy)
+      const safeOrder = sanitizeOrder(order)
+      const limitNum = Math.max(1, Math.min(100, toSafeInt(limit, 20)))
+      const offsetNum = Math.max(0, toSafeInt(offset, 0))
+
+      // only include status filter if the column exists
+      const hasStatus = await checkStatusColumn()
+      const statusClause = hasStatus ? " AND d.status = 'published'" : ''
+
+      const query = `
+        SELECT d.*, u.username
+        FROM diaries d
+        JOIN users u ON d.user_id = u.user_id
+        WHERE d.visibility = 'public'${statusClause}
+        ORDER BY d.${safeOrderBy} ${safeOrder}
+        LIMIT ? OFFSET ?
+      `;
+
+      const [rows] = await db.query(query, [limitNum, offsetNum]);
+      return rows;
+    } catch (err) {
+      console.error('Diary.findPublic error:', err && err.stack ? err.stack : err);
+      throw err;
+    }
   }
   
   /**
@@ -145,8 +218,15 @@ class Diary {
     
     for (const [key, value] of Object.entries(updates)) {
       if (allowedFields.includes(key) && value !== undefined) {
-        updateFields.push(`${key} = ?`);
-        values.push(value);
+        // status may not exist in older schema; we'll handle later
+        if (key === 'status') {
+          // add as a field for now; we'll remove if schema lacks status
+          updateFields.push(`${key} = ?`);
+          values.push(value);
+        } else {
+          updateFields.push(`${key} = ?`);
+          values.push(value);
+        }
       }
     }
     
@@ -154,19 +234,31 @@ class Diary {
       return false;
     }
     
-    // 如果狀態改為 published，更新 published_at
-    if (updates.status === 'published') {
-      updateFields.push('published_at = NOW()');
+    // If schema lacks status column, strip any status-related updates
+    const hasStatus = await checkStatusColumn();
+    if (!hasStatus) {
+      // remove any status assignments and published_at
+      for (let i = updateFields.length - 1; i >= 0; i--) {
+        if (updateFields[i].startsWith('status =')) {
+          updateFields.splice(i, 1);
+          values.splice(i, 1);
+        }
+      }
+    } else {
+      // 如果狀態改為 published，更新 published_at
+      if (updates.status === 'published') {
+        updateFields.push('published_at = NOW()');
+      }
     }
-    
+
     values.push(diaryId);
-    
+
     const query = `
       UPDATE diaries 
       SET ${updateFields.join(', ')}, updated_at = NOW()
       WHERE diary_id = ?
     `;
-    
+
     const [result] = await db.execute(query, values);
     return result.affectedRows > 0;
   }
@@ -177,12 +269,19 @@ class Diary {
    * @returns {Promise<boolean>}
    */
   static async delete(diaryId) {
-    const query = `
-      UPDATE diaries 
-      SET status = 'deleted', updated_at = NOW()
-      WHERE diary_id = ?
-    `;
-    
+    const hasStatus = await checkStatusColumn();
+    if (hasStatus) {
+      const query = `
+        UPDATE diaries 
+        SET status = 'deleted', updated_at = NOW()
+        WHERE diary_id = ?
+      `;
+      const [result] = await db.execute(query, [diaryId]);
+      return result.affectedRows > 0;
+    }
+
+    // older schema without status => fallback to hard delete
+    const query = `DELETE FROM diaries WHERE diary_id = ?`;
     const [result] = await db.execute(query, [diaryId]);
     return result.affectedRows > 0;
   }
@@ -210,12 +309,15 @@ class Diary {
    * @returns {Promise<number>}
    */
   static async countByUserId(userId) {
+    const hasStatus = await checkStatusColumn()
+    const statusClause = hasStatus ? " AND status = 'published'" : ''
+
     const query = `
       SELECT COUNT(*) as count 
       FROM diaries 
-      WHERE user_id = ? AND status = 'published'
+      WHERE user_id = ?${statusClause}
     `;
-    
+
     const [rows] = await db.execute(query, [userId]);
     return rows[0].count;
   }
@@ -341,12 +443,15 @@ class Diary {
       offset = 0
     } = filters;
 
+    const hasStatus = await checkStatusColumn()
+    const statusClause = hasStatus ? " AND d.status = 'published'" : ''
+
     let query = `
       SELECT DISTINCT d.*, u.username
       FROM diaries d
       JOIN users u ON d.user_id = u.user_id
       LEFT JOIN diary_tags dt ON d.diary_id = dt.diary_id
-      WHERE d.visibility = 'public' AND d.status = 'published'
+      WHERE d.visibility = 'public'${statusClause}
     `;
     
     const params = [];
@@ -390,17 +495,23 @@ class Diary {
       params.push(dateTo);
     }
 
-    // 排序
-    if (sortBy === 'like_count') {
+    // 排序（允許特殊排序 like_count / comment_count，否則依白名單欄位排序）
+    const safeLimit = Math.max(1, Math.min(100, toSafeInt(limit, 20)))
+    const safeOffset = Math.max(0, toSafeInt(offset, 0))
+    const safeSortBy = String(sortBy || 'created_at')
+
+    if (safeSortBy === 'like_count') {
       query += ` ORDER BY (SELECT COUNT(*) FROM likes WHERE target_type = 'diary' AND target_id = d.diary_id) DESC`;
-    } else if (sortBy === 'comment_count') {
+    } else if (safeSortBy === 'comment_count') {
       query += ` ORDER BY (SELECT COUNT(*) FROM comments WHERE diary_id = d.diary_id AND status = 'active') DESC`;
     } else {
-      query += ` ORDER BY d.created_at DESC`;
+      const safeOrderBy = sanitizeOrderBy('created_at')
+      const safeOrderDir = 'DESC'
+      query += ` ORDER BY d.${safeOrderBy} ${safeOrderDir}`;
     }
 
     query += ` LIMIT ? OFFSET ?`;
-    params.push(limit, offset);
+    params.push(safeLimit, safeOffset);
 
     const [rows] = await db.execute(query, params);
     return rows;
@@ -414,16 +525,22 @@ class Diary {
    * @returns {Promise<Array>}
    */
   static async findPublicByUser(userId, limit = 20, offset = 0) {
+    const limitNum = Math.max(1, Math.min(100, toSafeInt(limit, 20)))
+    const offsetNum = Math.max(0, toSafeInt(offset, 0))
+
+    const hasStatus = await checkStatusColumn()
+    const statusClause = hasStatus ? " AND d.status = 'published'" : ''
+
     const query = `
       SELECT d.*, u.username
       FROM diaries d
       JOIN users u ON d.user_id = u.user_id
-      WHERE d.user_id = ? AND d.visibility = 'public' AND d.status = 'published'
+      WHERE d.user_id = ? AND d.visibility = 'public'${statusClause}
       ORDER BY d.created_at DESC
       LIMIT ? OFFSET ?
     `;
-    
-    const [rows] = await db.execute(query, [userId, limit, offset]);
+
+    const [rows] = await db.execute(query, [userId, limitNum, offsetNum]);
     return rows;
   }
 }

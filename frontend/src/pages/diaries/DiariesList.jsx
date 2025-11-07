@@ -40,7 +40,9 @@ function DiariesList() {
       // 過濾掉自己的日記，只保留好友的
       setFollowDiaries((data?.diaries || []).filter(d => d.user_id !== user?.user_id))
     } catch (e) {
-      console.error('無法取得好友日記:', e)
+      // 臨時容錯：若後端發生 500，避免在 console 印出大型 Axios 物件並維持 UI 空狀態
+      console.warn('無法取得好友日記:', e.message || e)
+      setFollowDiaries([])
     }
   }
 
