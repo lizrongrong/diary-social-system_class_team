@@ -11,6 +11,9 @@ const { authMiddleware } = require('../middleware/auth');
  */
 router.post('/register', validateRegister, authController.register);
 
+// POST /api/v1/auth/check-userid - 即時檢查 user_id 可用性
+router.post('/check-userid', authController.checkUserId);
+
 /**
  * @route   POST /api/v1/auth/login
  * @desc    使用者登入

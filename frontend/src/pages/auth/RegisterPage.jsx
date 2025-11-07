@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import useAuthStore from '../../store/authStore';
+import { authAPI } from '../../services/api';
 import { useToast } from '../../components/ui/Toast';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -27,6 +28,9 @@ function RegisterPage() {
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState(0);
+  const [checkingUserId, setCheckingUserId] = useState(false);
+  const [userIdAvailable, setUserIdAvailable] = useState(null); // null=unknown, true/false
+  const [userIdCheckError, setUserIdCheckError] = useState(null);
 
   // 密碼強度計算
   const calculatePasswordStrength = (password) => {
@@ -135,6 +139,13 @@ function RegisterPage() {
       addToast('請檢查表單內容', 'error');
       return;
     }
+
+    // 若即時檢查已得知不可用，阻止送出
+    if (userIdAvailable === false) {
+      setErrors(prev => ({ ...prev, user_id: '此 ID 已被使用' }));
+      addToast('請檢查使用者識別 ID', 'error');
+      return;
+    }
     
     setIsLoading(true);
     
@@ -161,6 +172,35 @@ function RegisterPage() {
       setIsLoading(false);
     }
   };
+
+  // 即時檢查 user_id 可用性（debounce）
+  useEffect(() => {
+    let mounted = true;
+    if (!formData.user_id) {
+      setUserIdAvailable(null);
+      setUserIdCheckError(null);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setCheckingUserId(true);
+      setUserIdCheckError(null);
+      try {
+        const res = await authAPI.checkUserId(formData.user_id);
+        if (!mounted) return;
+        setUserIdAvailable(!!res.available);
+        // 若不可用，設定 field error 提醒
+        setErrors(prev => ({ ...prev, user_id: res.available ? '' : '此 ID 已被使用' }));
+      } catch (err) {
+        if (!mounted) return;
+        setUserIdCheckError('檢查失敗，請稍後再試');
+      } finally {
+        if (mounted) setCheckingUserId(false);
+      }
+    }, 500);
+
+    return () => { mounted = false; clearTimeout(timer); };
+  }, [formData.user_id]);
 
   const getPasswordStrengthText = () => {
     switch (passwordStrength) {
@@ -233,6 +273,12 @@ function RegisterPage() {
               disabled={isLoading}
               helperText="短 ID 將作為系統內的唯一識別，不可重複"
             />
+            <div className="user-id-status">
+              {checkingUserId && <small>檢查中…</small>}
+              {userIdAvailable === true && <small style={{ color: 'green' }}>✓ 可用</small>}
+              {userIdAvailable === false && <small style={{ color: 'red' }}>✕ 已被使用</small>}
+              {userIdCheckError && <small style={{ color: 'red' }}>{userIdCheckError}</small>}
+            </div>
 
             <Input
               type="text"

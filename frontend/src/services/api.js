@@ -53,6 +53,11 @@ export const authAPI = {
     return response.data
   },
   
+  checkUserId: async (user_id) => {
+    const response = await api.post('/auth/check-userid', { user_id })
+    return response.data
+  },
+  
   logout: () => {
     localStorage.removeItem('token')
   },

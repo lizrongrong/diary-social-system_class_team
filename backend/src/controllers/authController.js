@@ -117,6 +117,31 @@ exports.register = async (req, res) => {
 };
 
 /**
+ * 即時檢查 user_id 是否可用
+ * @route POST /api/v1/auth/check-userid
+ * @access Public
+ */
+exports.checkUserId = async (req, res) => {
+  try {
+    const { user_id } = req.body;
+    if (!user_id) {
+      return res.status(400).json({ message: 'user_id is required' });
+    }
+
+    // 基本格式驗證（與 middleware 保持一致）
+    const userIdRegex = /^[a-zA-Z0-9_]{3,10}$/;
+    if (!userIdRegex.test(user_id)) {
+      return res.status(400).json({ message: 'Invalid user_id format' });
+    }
+
+    const exists = await User.userIdExists(user_id);
+    res.json({ available: !exists });
+  } catch (error) {
+    console.error('Check user_id error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+/**
  * 使用者登入
  * @route POST /api/v1/auth/login
  * @access Public
