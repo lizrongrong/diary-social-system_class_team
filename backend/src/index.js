@@ -44,7 +44,7 @@ app.get('/api/v1', (req, res) => {
       upload: '/api/v1/upload',
       likes: '/api/v1/likes',
       comments: '/api/v1/comments',
-      friends: '/api/v1/friends',
+      followers: '/api/v1/followers',
       announcements: '/api/v1/announcements',
       notifications: '/api/v1/notifications',
       cards: '/api/v1/cards',
@@ -82,7 +82,8 @@ app.use('/api/v1/diaries', diaryRoutes);
 app.use('/api/v1/upload', uploadRoutes);
 app.use('/api/v1/likes', likeRoutes);
 app.use('/api/v1/comments', commentRoutes);
-app.use('/api/v1/friends', friendRoutes);
+// Mount followers routes (previously exposed under /api/v1/friends)
+app.use('/api/v1/followers', friendRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1/announcements', announcementRoutes);
 app.use('/api/v1/cards', cardRoutes);

@@ -3,8 +3,8 @@ const { v4: uuidv4 } = require('uuid');
 const Notification = require('../models/Notification');
 
 /**
- * 獲取所有好友列表
- * @route GET /api/v1/friends
+ * 獲取所有追蹤中 (following) 列表
+ * @route GET /api/v1/followers
  * @access Private
  */
 exports.getAll = async (req, res) => {
@@ -28,21 +28,21 @@ exports.getAll = async (req, res) => {
     );
     
     res.json({
-      message: 'Friends retrieved successfully',
-      friends: rows
+      message: 'Following retrieved successfully',
+      following: rows
     });
   } catch (error) {
-    console.error('Get friends error:', error);
+    console.error('Get following error:', error);
     res.status(500).json({
-      message: 'Failed to get friends',
+      message: 'Failed to get following',
       error: error.message
     });
   }
 };
 
 /**
- * 添加好友
- * @route POST /api/v1/friends
+ * 添加追蹤 (follow)
+ * @route POST /api/v1/followers
  * @access Private
  */
 exports.add = async (req, res) => {
@@ -130,8 +130,8 @@ exports.add = async (req, res) => {
     );
     
     res.status(201).json({
-      message: 'Friend added successfully',
-      friend_id: friendshipId,
+      message: 'Follow added successfully',
+      follow_id: friendshipId,
       is_mutual: isMutual
     });
   } catch (error) {
@@ -144,8 +144,8 @@ exports.add = async (req, res) => {
 };
 
 /**
- * 移除好友
- * @route DELETE /api/v1/friends/:friendId
+ * 移除追蹤
+ * @route DELETE /api/v1/followers/:friendId
  * @access Private
  */
 exports.remove = async (req, res) => {
@@ -161,7 +161,7 @@ exports.remove = async (req, res) => {
     );
     
     res.json({
-      message: 'Friend removed successfully'
+      message: 'Follow removed successfully'
     });
   } catch (error) {
     console.error('Remove friend error:', error);
@@ -173,8 +173,8 @@ exports.remove = async (req, res) => {
 };
 
 /**
- * 檢查好友狀態
- * @route GET /api/v1/friends/status/:userId
+ * 檢查追蹤狀態
+ * @route GET /api/v1/followers/status/:userId
  * @access Private
  */
 exports.checkStatus = async (req, res) => {
@@ -227,7 +227,7 @@ exports.checkStatus = async (req, res) => {
 
 /**
  * 取得指定用戶的追蹤中列表（該用戶正在追蹤誰）
- * @route GET /api/v1/friends/:userId/following
+ * @route GET /api/v1/followers/:userId/following
  * @access Private
  */
 exports.getFollowingByUser = async (req, res) => {
@@ -258,7 +258,7 @@ exports.getFollowingByUser = async (req, res) => {
 
 /**
  * 取得指定用戶的粉絲列表（誰在追蹤該用戶）
- * @route GET /api/v1/friends/:userId/followers
+ * @route GET /api/v1/followers/:userId/followers
  * @access Private
  */
 exports.getFollowersByUser = async (req, res) => {
@@ -289,7 +289,7 @@ exports.getFollowersByUser = async (req, res) => {
 
 /**
  * 取得指定用戶的追蹤統計數
- * @route GET /api/v1/friends/:userId/counts
+ * @route GET /api/v1/followers/:userId/counts
  * @access Private
  */
 exports.getCounts = async (req, res) => {
