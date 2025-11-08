@@ -23,7 +23,7 @@ function LuckyCardPage() {
 
   const loadCards = async () => {
     try {
-      const token = localStorage.getItem('token')
+  const token = sessionStorage.getItem('token')
       const response = await axios.get(`${API_URL}/cards`, {
         headers: { Authorization: `Bearer ${token}` }
       })
@@ -35,7 +35,7 @@ function LuckyCardPage() {
 
   const loadUserCards = async () => {
     try {
-      const token = localStorage.getItem('token')
+  const token = sessionStorage.getItem('token')
       const response = await axios.get(`${API_URL}/cards/my-cards`, {
         headers: { Authorization: `Bearer ${token}` }
       })
@@ -48,7 +48,7 @@ function LuckyCardPage() {
   const handleDraw = async () => {
     setDrawing(true)
     try {
-      const token = localStorage.getItem('token')
+  const token = sessionStorage.getItem('token')
       const response = await axios.post(`${API_URL}/cards/draw`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       })

@@ -109,7 +109,7 @@ function DiaryEditor() {
     files.forEach(f => formData.append('files', f))
 
     try {
-      const token = localStorage.getItem('token')
+  const token = sessionStorage.getItem('token')
       const res = await axios.post('http://localhost:3000/api/v1/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${token}` }
       })
