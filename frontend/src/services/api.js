@@ -14,7 +14,7 @@ const api = axios.create({
 // 請求攔截器 - 自動添加 token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token')
+  const token = sessionStorage.getItem('token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
@@ -45,15 +45,23 @@ api.interceptors.response.use(
 
       const isAuthEndpoint = authPaths.some(p => url.includes(p));
 
-      // Only clear token / redirect for non-auth endpoints. For auth endpoints
-      // we keep the token so transient 401s during auth flows don't immediately
-      // log the user out.
-      if (!isAuthEndpoint) {
-        localStorage.removeItem('token');
+      // Only treat 401 as a session-expiry / logout when the backend returns
+      // an explicit auth-related failure code. This avoids clearing session
+      // when unrelated endpoints momentarily return 401 or during race
+      // conditions. If the backend provides a code, respect it.
+      const code = error.response?.data?.code;
+      const authFailureCodes = ['TOKEN_EXPIRED', 'INVALID_TOKEN', 'NO_TOKEN', 'USER_NOT_FOUND'];
+
+      if (code && authFailureCodes.includes(code)) {
+        // clear token and redirect to login
+        sessionStorage.removeItem('token');
         if (window.location.pathname !== '/login') {
           window.location.href = '/login';
         }
       }
+
+      // If there's no explicit code, do NOT automatically clear the token.
+      // This prevents background or transient 401s from forcing a logout.
     }
     return Promise.reject(error)
   }
@@ -63,17 +71,11 @@ api.interceptors.response.use(
 export const authAPI = {
   login: async (email, password) => {
     const response = await api.post('/auth/login', { email, password })
-    if (response.data.token) {
-      localStorage.setItem('token', response.data.token)
-    }
     return response.data
   },
   
   register: async (userData) => {
     const response = await api.post('/auth/register', userData)
-    if (response.data.token) {
-      localStorage.setItem('token', response.data.token)
-    }
     return response.data
   },
   
@@ -116,7 +118,7 @@ export const authAPI = {
   },
   
   logout: () => {
-    localStorage.removeItem('token')
+    sessionStorage.removeItem('token')
   },
   
   getCurrentUser: async () => {

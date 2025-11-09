@@ -3,8 +3,9 @@ import api from '../services/api';
 
 export const useAuthStore = create((set) => ({
   user: null,
-  token: localStorage.getItem('token'),
-  isAuthenticated: !!localStorage.getItem('token'),
+  // Use sessionStorage for token (cleared on tab/window close). Remember-me/localStorage removed.
+  token: sessionStorage.getItem('token'),
+  isAuthenticated: !!sessionStorage.getItem('token'),
   isLoading: false,
   error: null,
 
@@ -16,8 +17,8 @@ export const useAuthStore = create((set) => ({
     try {
       const response = await api.post('/auth/login', credentials);
       const { token, user } = response.data;
-      
-      localStorage.setItem('token', token);
+      // Always store token in sessionStorage (no remember-me persistence).
+      sessionStorage.setItem('token', token);
       set({
         user,
         token,
@@ -46,7 +47,7 @@ export const useAuthStore = create((set) => ({
       const response = await api.post('/auth/register', userData);
       const { token, user } = response.data;
       
-      localStorage.setItem('token', token);
+  sessionStorage.setItem('token', token);
       set({
         user,
         token,
@@ -76,7 +77,9 @@ export const useAuthStore = create((set) => ({
       console.error('Logout error:', error);
     } finally {
       // 清除所有 localStorage
-      localStorage.clear();
+  // Clear sessionStorage token (session-based) and localStorage fallback
+  sessionStorage.clear();
+  localStorage.clear();
       
       // 清除所有 cookies
       document.cookie.split(";").forEach(function(c) { 
@@ -99,7 +102,8 @@ export const useAuthStore = create((set) => ({
    * 取得當前使用者資料
    */
   fetchUser: async () => {
-    const token = localStorage.getItem('token');
+  // Read token from sessionStorage only (remember-me removed)
+  const token = sessionStorage.getItem('token');
     if (!token) {
       set({ isAuthenticated: false });
       return;
@@ -119,7 +123,7 @@ export const useAuthStore = create((set) => ({
       const code = error.response?.data?.code;
       const authFailureCodes = ['TOKEN_EXPIRED', 'INVALID_TOKEN', 'NO_TOKEN', 'USER_NOT_FOUND'];
       if (code && authFailureCodes.includes(code)) {
-        localStorage.removeItem('token');
+        sessionStorage.removeItem('token');
         set({
           user: null,
           token: null,

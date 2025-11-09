@@ -77,7 +77,7 @@ function SearchPage() {
     setSearched(true)
     
     try {
-      const token = localStorage.getItem('token')
+  const token = sessionStorage.getItem('token')
       const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {}
       
       const params = new URLSearchParams()

@@ -3,7 +3,7 @@ module.exports = {
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || '<REDACTED>',
   password: process.env.DB_PASSWORD || '<REDACTED>',
-  database: process.env.DB_NAME || 'dary_app',
+  database: process.env.DB_NAME || 'diary_app',
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
