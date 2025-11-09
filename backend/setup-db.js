@@ -7,8 +7,8 @@ const path = require('path');
 const DB_CONFIG = {
   host: 'localhost',
   user: 'root',
-  password: 'lizrong1017',
-  database_name: 'resonote'
+  password: 'your_password',
+  database_name: 'diary_app'
 };
 
 async function setupDatabase() {
