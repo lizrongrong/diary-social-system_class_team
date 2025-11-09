@@ -16,32 +16,32 @@ const pool = mysql.createPool({
   keepAliveInitialDelay: 0,
 });
 
-// Initialize friends table if not exists
-const initializeFriendsTable = async () => {
+// Initialize followers table if not exists (符合短 user_id VARCHAR(10))
+const initializeFollowersTable = async () => {
   try {
     const connection = await pool.getConnection();
-
     await connection.query(`
-      CREATE TABLE IF NOT EXISTS friends (
-        friend_id CHAR(36) NOT NULL COMMENT 'UUID',
-        user_id CHAR(36) NOT NULL COMMENT '用戶ID',
-        friend_user_id CHAR(36) NOT NULL COMMENT '好友用戶ID',
-        status ENUM('pending', 'accepted', 'blocked') NOT NULL DEFAULT 'accepted' COMMENT '好友狀態',
+      CREATE TABLE IF NOT EXISTS followers (
+        follow_id CHAR(36) NOT NULL COMMENT 'UUID',
+        follower_id VARCHAR(10) NOT NULL COMMENT '追蹤者 ID (users.user_id)',
+        following_id VARCHAR(10) NOT NULL COMMENT '被追蹤者 ID (users.user_id)',
+        status ENUM('active', 'blocked') NOT NULL DEFAULT 'active' COMMENT '追蹤狀態',
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '建立時間',
-        PRIMARY KEY (friend_id),
-        KEY idx_user_id (user_id),
-        KEY idx_friend_user_id (friend_user_id),
-        UNIQUE KEY uk_user_friend (user_id, friend_user_id),
-        CONSTRAINT fk_friends_user FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE,
-        CONSTRAINT fk_friends_friend FOREIGN KEY (friend_user_id) REFERENCES users (user_id) ON DELETE CASCADE,
-        CONSTRAINT chk_no_self_friend CHECK (user_id != friend_user_id)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='好友關係表'
+        PRIMARY KEY (follow_id),
+        UNIQUE KEY uk_follower_following (follower_id, following_id),
+        KEY idx_follower (follower_id),
+        KEY idx_following (following_id),
+        KEY idx_status (status),
+        CONSTRAINT fk_followers_follower FOREIGN KEY (follower_id) REFERENCES users (user_id) ON DELETE CASCADE,
+        CONSTRAINT fk_followers_following FOREIGN KEY (following_id) REFERENCES users (user_id) ON DELETE CASCADE,
+        CONSTRAINT chk_no_self_follow CHECK (follower_id != following_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='追蹤關係表'
     `);
 
-    console.log('✅ Friends table initialized');
+    console.log('✅ Followers table initialized');
     connection.release();
   } catch (error) {
-    console.error('❌ Failed to initialize friends table:', error.message);
+    console.error('❌ Failed to initialize followers table:', error.message);
   }
 };
 
@@ -51,8 +51,8 @@ pool
   .then(async (conn) => {
     console.log('✅ Database pool ready');
     conn.release();
-    // Initialize friends table
-    await initializeFriendsTable();
+    // Initialize followers table (短 ID schema)
+    await initializeFollowersTable();
   })
   .catch((err) => {
     console.error('❌ Database connection failed:', err.message);
