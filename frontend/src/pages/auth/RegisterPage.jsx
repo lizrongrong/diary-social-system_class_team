@@ -418,10 +418,10 @@ function RegisterPage() {
                     variant="primary"
                     size="medium"
                     onClick={handleSendCode}
-                    disabled={sendingCode || isLoading || emailExists === true || emailVerified}
+                    disabled={sendingCode || isLoading || emailExists === true}
                     style={{ width: 100 }}
                   >
-                    {sendingCode ? '寄送中…' : (emailVerified ? '已驗證' : '寄驗證信')}
+                    {sendingCode ? '寄送中…' : '寄驗證信'}
                   </Button>
 
                   <Button
