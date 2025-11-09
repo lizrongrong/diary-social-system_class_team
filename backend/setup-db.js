@@ -8,7 +8,7 @@ const DB_CONFIG = {
   host: 'localhost',
   user: 'root',
   password: 'your_password',
-  database_name: 'resonote'
+  database_name: 'diary_app'
 };
 
 async function setupDatabase() {
