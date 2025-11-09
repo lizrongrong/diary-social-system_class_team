@@ -30,7 +30,7 @@ function AdminDashboard() {
 
   const loadAdminData = async () => {
     try {
-      const token = localStorage.getItem('token')
+  const token = sessionStorage.getItem('token')
       const config = { headers: { Authorization: `Bearer ${token}` } }
 
       // 載入統計數據

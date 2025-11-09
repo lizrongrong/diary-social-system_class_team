@@ -84,6 +84,8 @@ function LoginPage() {
               autoComplete="current-password"
             />
 
+            {/* (remember_me removed) */}
+
             {/* Login Button (use shared Button component for consistent styles) */}
             <Button
               type="submit"

@@ -8,7 +8,7 @@ const DB_CONFIG = {
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || '<REDACTED>',
   password: process.env.DB_PASSWORD || '<REDACTED>',
-  database_name: process.env.DB_NAME || 'dary_app'
+  database_name: process.env.DB_NAME || 'diary_app'
 };
 
 async function setupDatabase() {
