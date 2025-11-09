@@ -319,22 +319,31 @@ exports.exploreDiaries = async (req, res) => {
       order
     });
     
-    // ?��?篇日記�?得�?籤�??�件
+    // quick request log to aid debugging
+    console.log('Explore request:', { query: req.query, diariesFound: Array.isArray(diaries) ? diaries.length : 0 });
+
+    // fetch tags/media/likes/comments for each diary with per-item error logging
     const diariesWithTags = await Promise.all(
       diaries.map(async (diary) => {
-        const tags = await Diary.getTags(diary.diary_id);
-        const media = await Diary.getMedia(diary.diary_id);
-        const likeCount = await Like.count('diary', diary.diary_id);
-        const isLiked = req.user?.user_id ? await Like.isLiked('diary', diary.diary_id, req.user.user_id) : false;
-        const comments = await Comment.findByDiary(diary.diary_id);
-        return { 
-          ...diary, 
-          tags, 
-          media, 
-          like_count: likeCount, 
-          is_liked: isLiked,
-          comment_count: comments.length 
-        };
+        try {
+          const tags = await Diary.getTags(diary.diary_id);
+          const media = await Diary.getMedia(diary.diary_id);
+          const likeCount = await Like.count('diary', diary.diary_id);
+          const isLiked = req.user?.user_id ? await Like.isLiked('diary', diary.diary_id, req.user.user_id) : false;
+          const comments = await Comment.findByDiary(diary.diary_id);
+          return { 
+            ...diary, 
+            tags, 
+            media, 
+            like_count: likeCount, 
+            is_liked: isLiked,
+            comment_count: comments.length 
+          };
+        } catch (innerErr) {
+          console.error(`Error processing diary ${diary && diary.diary_id ? diary.diary_id : '(unknown)'}:`, innerErr && innerErr.stack ? innerErr.stack : innerErr);
+          // rethrow so outer catch will handle responding with SERVER_ERROR
+          throw innerErr;
+        }
       })
     );
     
