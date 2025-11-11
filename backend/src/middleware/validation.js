@@ -11,6 +11,9 @@ const isValidEmail = (email) => {
   return emailRegex.test(email);
 };
 
+// Export helper so other modules can reuse email validation
+exports.isValidEmail = isValidEmail;
+
 /**
  * 驗證密碼強度
  * 8-20 字元，包含字母、數字、特殊符號
@@ -19,11 +22,11 @@ const isValidPassword = (password) => {
   if (!password || password.length < 8 || password.length > 20) {
     return false;
   }
-  
+
   const hasLetter = /[A-Za-z]/.test(password);
   const hasNumber = /\d/.test(password);
   const hasSpecial = /[@$!%*#?&]/.test(password);
-  
+
   return hasLetter && hasNumber && hasSpecial;
 };
 
@@ -50,21 +53,21 @@ const isValidDate = (dateString) => {
 exports.validateRegister = (req, res, next) => {
   const { email, password, username, gender, birth_date, user_id } = req.body;
   const errors = {};
-  
+
   // Email 驗證
   if (!email) {
     errors.email = 'Email is required';
   } else if (!isValidEmail(email)) {
     errors.email = 'Invalid email format';
   }
-  
+
   // 密碼驗證
   if (!password) {
     errors.password = 'Password is required';
   } else if (!isValidPassword(password)) {
     errors.password = 'Password must be 8-20 characters with letters, numbers and special characters';
   }
-  
+
   // Username 驗證
   if (!username) {
     errors.username = 'Username is required';
@@ -81,9 +84,9 @@ exports.validateRegister = (req, res, next) => {
       errors.user_id = 'User ID must be 3-10 characters (letters, numbers, underscores only)';
     }
   }
-  
+
   // Username 已在上方驗證，schema 中沒有 display_name 欄位
-  
+
   // Gender 驗證
   const validGenders = ['male', 'female', 'other', 'prefer_not_to_say'];
   if (!gender) {
@@ -91,14 +94,14 @@ exports.validateRegister = (req, res, next) => {
   } else if (!validGenders.includes(gender)) {
     errors.gender = 'Invalid gender value';
   }
-  
+
   // Birth Date 驗證
   if (!birth_date) {
     errors.birth_date = 'Birth date is required';
   } else if (!isValidDate(birth_date)) {
     errors.birth_date = 'Invalid date format';
   }
-  
+
   // 如果有錯誤，返回 400
   if (Object.keys(errors).length > 0) {
     return res.status(400).json({
@@ -107,7 +110,7 @@ exports.validateRegister = (req, res, next) => {
       details: errors
     });
   }
-  
+
   next();
 };
 
@@ -117,19 +120,19 @@ exports.validateRegister = (req, res, next) => {
 exports.validateLogin = (req, res, next) => {
   const { email, password } = req.body;
   const errors = {};
-  
+
   // Email 驗證
   if (!email) {
     errors.email = 'Email is required';
   } else if (!isValidEmail(email)) {
     errors.email = 'Invalid email format';
   }
-  
+
   // 密碼驗證
   if (!password) {
     errors.password = 'Password is required';
   }
-  
+
   // 如果有錯誤，返回 400
   if (Object.keys(errors).length > 0) {
     return res.status(400).json({
@@ -138,7 +141,7 @@ exports.validateLogin = (req, res, next) => {
       details: errors
     });
   }
-  
+
   next();
 };
 
@@ -148,26 +151,26 @@ exports.validateLogin = (req, res, next) => {
 exports.validateChangePassword = (req, res, next) => {
   const { old_password, new_password, new_password_confirm } = req.body;
   const errors = {};
-  
+
   // 舊密碼驗證
   if (!old_password) {
     errors.old_password = 'Old password is required';
   }
-  
+
   // 新密碼驗證
   if (!new_password) {
     errors.new_password = 'New password is required';
   } else if (!isValidPassword(new_password)) {
     errors.new_password = 'Password must be 8-20 characters with letters, numbers and special characters';
   }
-  
+
   // 確認密碼驗證
   if (!new_password_confirm) {
     errors.new_password_confirm = 'Password confirmation is required';
   } else if (new_password !== new_password_confirm) {
     errors.new_password_confirm = 'Passwords do not match';
   }
-  
+
   // 如果有錯誤，返回 400
   if (Object.keys(errors).length > 0) {
     return res.status(400).json({
@@ -176,7 +179,7 @@ exports.validateChangePassword = (req, res, next) => {
       details: errors
     });
   }
-  
+
   next();
 };
 
@@ -193,7 +196,7 @@ exports.validateUpdateProfile = (req, res, next) => {
       errors.username = 'Username must be 3-10 characters (letters, numbers, underscores only)';
     }
   }
-  
+
   // Gender 驗證 (選填)
   if (gender !== undefined) {
     const validGenders = ['male', 'female', 'other', 'prefer_not_to_say'];
@@ -208,7 +211,7 @@ exports.validateUpdateProfile = (req, res, next) => {
       errors.birth_date = 'Invalid date format';
     }
   }
-  
+
   // 如果有錯誤，返回 400
   if (Object.keys(errors).length > 0) {
     return res.status(400).json({
@@ -217,7 +220,7 @@ exports.validateUpdateProfile = (req, res, next) => {
       details: errors
     });
   }
-  
+
   next();
 };
 
@@ -227,27 +230,27 @@ exports.validateUpdateProfile = (req, res, next) => {
 exports.validateDiary = (req, res, next) => {
   const { title, content, visibility } = req.body;
   const errors = {};
-  
+
   // 標題驗證
   if (!title) {
     errors.title = 'Title is required';
   } else if (title.length < 1 || title.length > 200) {
     errors.title = 'Title must be 1-200 characters';
   }
-  
+
   // 內容驗證
   if (!content) {
     errors.content = 'Content is required';
   } else if (content.length < 1 || content.length > 10000) {
     errors.content = 'Content must be 1-10,000 characters';
   }
-  
+
   // 可見性驗證
   const validVisibility = ['private', 'followers', 'public'];
   if (visibility && !validVisibility.includes(visibility)) {
     errors.visibility = "Invalid visibility value (private/followers/public)";
   }
-  
+
   // 如果有錯誤，返回 400
   if (Object.keys(errors).length > 0) {
     return res.status(400).json({
@@ -256,6 +259,6 @@ exports.validateDiary = (req, res, next) => {
       details: errors
     });
   }
-  
+
   next();
 };

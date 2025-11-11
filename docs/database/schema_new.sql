@@ -207,6 +207,7 @@ CREATE TABLE IF NOT EXISTS `ai_analysis` (
   `emotion_score` JSON NULL COMMENT 'AI 計算各情緒分數 (多維度)',
   `dominant_emotion` VARCHAR(50) NULL COMMENT '主要情緒',
   `keywords` JSON NULL COMMENT '日記關鍵字與 AI 自動抽取的關鍵詞',
+  `sentiment` ENUM('positive','neutral','negative') NULL COMMENT '情感傾向',
   `summary` TEXT NULL COMMENT 'AI 自動生成日記摘要',
   `suggestion` TEXT NULL COMMENT 'AI 提供的建議或心理提醒',
   `analyzed_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '分析時間',
@@ -252,7 +253,11 @@ DROP TABLE IF EXISTS `cards`;
 CREATE TABLE `cards` (
   `card_id` CHAR(36) NOT NULL COMMENT '卡片ID',
   `name` VARCHAR(50) NOT NULL COMMENT '卡片名稱',
+  `rarity` ENUM('common', 'rare', 'epic', 'legendary') NOT NULL COMMENT '稀有度',
+  `image_url` VARCHAR(255) DEFAULT NULL COMMENT '圖片連結，可為 NULL',
   `description` TEXT COMMENT '卡片說明 / 解釋文字',
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '卡片建立時間',
+  `active` BOOLEAN NOT NULL DEFAULT TRUE COMMENT '卡片是否可用',
   PRIMARY KEY (`card_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='抽卡卡片表';
 

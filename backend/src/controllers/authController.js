@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const emailVerification = require('../services/emailVerification');
+const { isValidEmail } = require('../middleware/validation');
 
 function serverError(res, err) {
   console.error(err);
@@ -15,12 +16,20 @@ exports.sendVerificationCode = async (req, res) => {
   try {
     const { email } = req.body;
     if (!email) return res.status(400).json({ error: 'Email required' });
+    if (!isValidEmail(email)) return res.status(400).json({ error: 'Invalid email format' });
     if (await User.emailExists(email)) {
       return res.status(400).json({ error: 'Email already registered', code: 'EMAIL_EXISTS', message: '此 Email 已被註冊，請更換 Email 或前往忘記密碼' });
     }
+
+    // Ensure we attempt to send via configured SMTP. If SMTP is not configured the
+    // mailer will throw and we return a 503 instructing the operator to configure SMTP.
     await emailVerification.sendVerificationCode(email);
     return res.json({ message: 'Verification code sent' });
   } catch (err) {
+    // Surface a clear error when SMTP is not set up
+    if (err && typeof err.message === 'string' && err.message.includes('SMTP not configured')) {
+      return res.status(503).json({ error: 'Mail service not configured', message: '請在後端設定 MAIL_HOST / MAIL_PORT / MAIL_USER / MAIL_PASSWORD 等 SMTP 參數以便寄送真實郵件' });
+    }
     return serverError(res, err);
   }
 };
