@@ -59,7 +59,7 @@ const LuckyCardPage = () => {
         ? fortune.cardSlot
         : selectedCard || 1;
       setSelectedCard(recordedSlot);
-      setStatusMessage('今日已抽過卡，歡迎明天再來！');
+      setStatusMessage('今日已抽出幸運小卡，記得明天再來喔！');
       return;
     }
 
@@ -136,7 +136,7 @@ const LuckyCardPage = () => {
           return (
             <div
               key={card.id}
-              className={`card-scene ${hasDrawn ? 'no-hover' : ''} ${isDisabled ? 'card-disabled' : ''}`}
+              className={`card-scene ${isDisabled ? 'card-disabled' : ''}`}
               onClick={() => handleCardClick(card.id)}
               role="button"
               tabIndex={0}
@@ -148,15 +148,26 @@ const LuckyCardPage = () => {
               }}
               aria-label={`選擇第 ${card.id} 張卡片`}
             >
-              <div className={`card-object ${isFlipped ? 'is-flipped' : ''}`}>
-                <div className="card-face card-face-front">
-                  <img src={card.frontImage} alt={card.label} />
-                </div>
-                <div className="card-face card-face-back">
-                  {isFlipped && fortune ? (
-                    <>
-                      <h3 className="card-back-title">{fortune.title}</h3>
-                      <p className="card-back-text">{fortune.message}</p>
+              <div className="card-float">
+                <div className={`card-object ${isFlipped ? 'is-flipped' : ''}`}>
+                  <div className="card-face card-face-front">
+                    <img src={card.frontImage} alt={card.label} />
+                  </div>
+                  <div className="card-face card-face-back">
+                    <div className="card-back-content">
+                      {isFlipped && fortune ? (
+                        <>
+                          <h3 className="card-back-title">{fortune.title}</h3>
+                          <p className="card-back-text">{fortune.message}</p>
+                        </>
+                      ) : (
+                        <>
+                          <h3 className="card-back-title">等待揭曉</h3>
+                          <p className="card-back-text">選擇你的幸運小卡來揭曉今日運勢。</p>
+                        </>
+                      )}
+                    </div>
+                    {isFlipped && fortune && (
                       <button
                         type="button"
                         className="card-share-button"
@@ -167,13 +178,8 @@ const LuckyCardPage = () => {
                       >
                         分享
                       </button>
-                    </>
-                  ) : (
-                    <>
-                      <h3 className="card-back-title">等待揭曉</h3>
-                      <p className="card-back-text">選擇你的幸運小卡來揭曉今日運勢。</p>
-                    </>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
