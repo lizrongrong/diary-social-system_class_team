@@ -52,19 +52,17 @@ router.get('/:userId/diaries', async (req, res) => {
   }
 });
 
-// GET /api/v1/users/:username - 取得指定使用者公開資料
-router.get('/:username', userController.getUserByUsername);
-
 // 需要認證的路由
-router.use(authMiddleware);
-
 // GET /api/v1/users/profile - 取得個人資料
-router.get('/profile', userController.getProfile);
+router.get('/profile', authMiddleware, userController.getProfile);
 
 // PUT /api/v1/users/profile - 更新個人資料
-router.put('/profile', validateUpdateProfile, userController.updateProfile);
+router.put('/profile', authMiddleware, validateUpdateProfile, userController.updateProfile);
 
 // PUT /api/v1/users/password - 修改密碼
-router.put('/password', validateChangePassword, userController.changePassword);
+router.put('/password', authMiddleware, validateChangePassword, userController.changePassword);
+
+// GET /api/v1/users/:username - 取得指定使用者公開資料
+router.get('/:username', userController.getUserByUsername);
 
 module.exports = router;

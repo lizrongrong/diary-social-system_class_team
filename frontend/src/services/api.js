@@ -171,7 +171,7 @@ export const userAPI = {
     // 如果有 userId，獲取該用戶的公開資料；否則獲取自己的資料
     const url = userId ? `/users/${userId}` : '/users/profile'
     const res = await api.get(url)
-    return res
+    return res.data
   },
   updateProfile: async (data) => {
     const res = await api.put('/users/profile', data)
