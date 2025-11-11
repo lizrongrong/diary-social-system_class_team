@@ -241,7 +241,7 @@ function FollowPage() {
 
         <div className="friend-search">
           <div className="friend-search-input">
-            <Search size={18} />
+            {/* <Search size={18} /> */}
             <input
               type="text"
               placeholder="搜尋好友名稱或暱稱"
