@@ -47,15 +47,18 @@
 }
 
 .card-scene.card-disabled {
-  cursor: not-allowed;
+  cursor: pointer;
   opacity: 1;
 }
 
-.card-scene.card-disabled:hover .card-object {
-  transform: none;
+/* Card Object: for transition and transform */
+.card-float {
+  width: 100%;
+  height: 100%;
+  transition: transform 0.4s ease;
+  will-change: transform;
 }
 
-/* Card Object: for transition and transform */
 .card-object {
   width: 100%;
   height: 100%;
@@ -64,9 +67,24 @@
   transition: transform 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
-/* Hover effect for non-flipped cards */
-.card-scene:not(.no-hover):hover .card-object {
-  transform: translateY(-15px) scale(1.03);
+/* Hover effect for cards */
+.card-scene:hover .card-float {
+  transform: translateY(0) scale(1.01);
+  animation: cardFloat 3s ease-in-out infinite;
+}
+
+@keyframes cardFloat {
+  0% {
+    transform: translateY(0) scale(1.01);
+  }
+
+  50% {
+    transform: translateY(-8px) scale(1.02);
+  }
+
+  100% {
+    transform: translateY(0) scale(1.01);
+  }
 }
 
 .card-object.is-flipped {
@@ -87,69 +105,90 @@
 }
 
 .card-face-front {
-  background-color: #000;
+  background-color: #0c0c18;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 6px;
 }
 
 .card-face-front img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  /* object-fit: contain; */
 }
 
 .card-face-back {
-  background-color: #ffffff;
+  background-image: url('../../assets/images/card_back.jpg');
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
   transform: rotateY(180deg);
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding: 20px;
+  padding: 0;
   text-align: center;
-  border: 2px solid #e0e0e0;
+  border: 2px solid #c8a74a;
   position: relative;
+  color: #fff;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+}
+
+.card-back-content {
+  width: 100%;
+  height: 100%;
+  padding: 32px 28px 88px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  background: none;
 }
 
 .card-back-title {
   font-size: 2rem;
   font-weight: 600;
-  color: #8a6d3b;
-  /* A gold-like color */
+  color: #c8a74a;
   margin-bottom: 15px;
 }
 
 .card-back-text {
   font-size: 1rem;
-  color: #555;
+  color: #ffffff;
   line-height: 1.7;
   margin-bottom: 40px;
 }
 
 .card-share-button {
   position: absolute;
-  right: 16px;
-  bottom: 16px;
-  padding: 8px 16px;
+  right: 70px;
+  bottom: 35px;
+  padding: 9px 18px;
   font-size: 0.95rem;
   font-weight: 600;
-  color: #fff;
-  background: linear-gradient(135deg, #6c5ce7, #8a6d3b);
-  border: none;
+  color: #1b1630;
+  background: rgba(239, 216, 134, 0.92);
+  border: 1px solid #f6e9c4;
   border-radius: 999px;
   cursor: pointer;
-  box-shadow: 0 6px 12px rgba(108, 92, 231, 0.3);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 8px 18px rgba(239, 216, 134, 0.3);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
 .card-share-button:hover,
 .card-share-button:focus {
   transform: translateY(-2px);
-  box-shadow: 0 10px 20px rgba(108, 92, 231, 0.35);
+  box-shadow: 0 12px 22px rgba(239, 216, 134, 0.35);
+  background: rgba(246, 233, 196, 0.95);
   outline: none;
 }
 
 .card-share-button:active {
   transform: translateY(0);
-  box-shadow: 0 4px 10px rgba(108, 92, 231, 0.25);
+  box-shadow: 0 5px 12px rgba(239, 216, 134, 0.25);
 }
 
 .card-status {
