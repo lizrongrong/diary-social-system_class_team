@@ -184,6 +184,17 @@ export const userAPI = {
   getPublic: async (username) => {
     const res = await api.get(`/users/${username}`)
     return res.data
+  },
+  search: async (keyword, options = {}) => {
+    const params = { keyword, ...options }
+    const res = await api.get('/users/search', { params })
+    return res.data
+  },
+  search: async (keyword, params = {}) => {
+    const res = await api.get('/users/search', {
+      params: { keyword, ...params }
+    })
+    return res.data
   }
 }
 

@@ -34,6 +34,8 @@ router.get('/my-info', authMiddleware, async (req, res) => {
   }
 });
 
+router.get('/search', authMiddleware, userController.searchUsers);
+
 // 公開路由（不需認證）
 // GET /api/v1/users/:userId/diaries - 取得指定使用者的公開日記
 router.get('/:userId/diaries', async (req, res) => {

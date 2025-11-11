@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { followAPI } from '../services/api'
+import { followAPI, userAPI } from '../services/api'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
-import { Users, Search, X, HeartHandshake } from 'lucide-react'
-import { FaCommentDots, FaShareNodes, FaTrashCan } from 'react-icons/fa6'
+import { Users, Search, X, HeartHandshake, UserPlus } from 'lucide-react'
+import { FaCommentDots, FaShareFromSquare, FaTrashCan } from 'react-icons/fa6'
 import { useToast } from '../components/ui/Toast'
 import './FollowPage.css'
 
@@ -53,56 +53,152 @@ function FollowPage() {
   const navigate = useNavigate()
   const [follows, setFollows] = useState([])
   const [filteredFollows, setFilteredFollows] = useState([])
+  const [otherUsers, setOtherUsers] = useState([])
   const [loading, setLoading] = useState(true)
+  const [searchingUsers, setSearchingUsers] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [pendingDelete, setPendingDelete] = useState(null)
   const [messageFriend, setMessageFriend] = useState(null)
   const [shareFriend, setShareFriend] = useState(null)
   const [showGuide, setShowGuide] = useState(false)
+  const searchRequestIdRef = useRef(0)
+
+  const resetSearch = useCallback(() => {
+    searchRequestIdRef.current += 1
+    setSearchTerm('')
+    setFilteredFollows(follows)
+    setOtherUsers([])
+    setSearchingUsers(false)
+  }, [follows])
 
   useEffect(() => {
     loadFollows()
   }, [])
 
-  const loadFollows = async () => {
+  const loadFollows = async ({ showSpinner = true } = {}) => {
     try {
-      setLoading(true)
+      if (showSpinner) setLoading(true)
       const data = await followAPI.getAll()
-      // backend may return { following: [...] } or legacy { friends: [...] }
       const list = data.following || data.friends || []
       setFollows(list)
-      setFilteredFollows(list)
+
+      if (!searchTerm.trim()) {
+        setFilteredFollows(list)
+        setOtherUsers([])
+      }
+
+      return list
     } catch (err) {
       console.error('Error loading follows:', err)
       addToast('載入追蹤列表失敗', 'error')
+      return []
     } finally {
-      setLoading(false)
+      if (showSpinner) setLoading(false)
     }
   }
 
-  const handleSearch = () => {
-    const keyword = searchTerm.trim().toLowerCase()
-    if (!keyword) {
-      setFilteredFollows(follows)
+  const handleSearch = useCallback(
+    async (options = {}) => {
+      const { keyword: keywordOverride, sourceFollows, skipToast } = options
+      const rawKeyword = keywordOverride !== undefined ? keywordOverride : searchTerm
+      const keyword = rawKeyword.trim()
+      const currentFollows = sourceFollows || follows
+      const requestId = ++searchRequestIdRef.current
+
+      if (!keyword) {
+        setFilteredFollows(currentFollows)
+        setOtherUsers([])
+        setSearchingUsers(false)
+        return
+      }
+
+      const lowerKeyword = keyword.toLowerCase()
+      const matched = currentFollows.filter((item) => {
+        const username = (item.username || '').toLowerCase()
+        const displayName = (item.display_name || '').toLowerCase()
+        return username.includes(lowerKeyword) || displayName.includes(lowerKeyword)
+      })
+      setFilteredFollows(matched)
+      setOtherUsers([])
+
+      try {
+        setSearchingUsers(true)
+        const response = await userAPI.search(keyword)
+        if (requestId !== searchRequestIdRef.current) {
+          return
+        }
+
+        const friendIds = new Set(
+          currentFollows.map(
+            (item) => item.following_user_id || item.friend_user_id || item.user_id
+          )
+        )
+
+        const suggestions = (response?.users || []).filter((user) => {
+          if (!user?.user_id) return false
+          return !friendIds.has(user.user_id)
+        })
+
+        setOtherUsers(suggestions)
+      } catch (err) {
+        console.error('Error searching users:', err)
+        if (requestId === searchRequestIdRef.current) {
+          if (!skipToast) {
+            addToast('搜尋用戶失敗', 'error')
+          }
+          setOtherUsers([])
+        }
+      } finally {
+        if (requestId === searchRequestIdRef.current) {
+          setSearchingUsers(false)
+        }
+      }
+    },
+    [addToast, follows, searchTerm]
+  )
+
+  useEffect(() => {
+    if (loading) {
       return
     }
 
-    const matched = follows.filter((item) => {
-      const username = (item.username || '').toLowerCase()
-      const displayName = (item.display_name || '').toLowerCase()
-      return username.includes(keyword) || displayName.includes(keyword)
-    })
-    setFilteredFollows(matched)
-  }
+    const handler = setTimeout(() => {
+      handleSearch({ skipToast: true })
+    }, 300)
+
+    return () => clearTimeout(handler)
+  }, [handleSearch, loading, searchTerm])
 
   const handleRemoveFollow = async (targetUserId) => {
     try {
       await followAPI.remove(targetUserId)
       addToast('已取消追蹤', 'success')
-      loadFollows()
+      const updatedList = await loadFollows({ showSpinner: false })
+      if (searchTerm.trim()) {
+        await handleSearch({ keyword: searchTerm, sourceFollows: updatedList, skipToast: true })
+      }
     } catch (err) {
       console.error('Error removing follow:', err)
       addToast('取消追蹤失敗', 'error')
+    }
+  }
+
+  const handleAddFollow = async (user) => {
+    if (!user?.user_id) return
+    try {
+      await followAPI.add(user.user_id)
+      addToast(`已追蹤 ${user.username || user.user_id}`, 'success')
+      const updatedList = await loadFollows({ showSpinner: false })
+      setOtherUsers((prev) => prev.filter((item) => item.user_id !== user.user_id))
+      if (searchTerm.trim()) {
+        await handleSearch({ keyword: searchTerm, sourceFollows: updatedList, skipToast: true })
+      } else {
+        setFilteredFollows(updatedList)
+      }
+    } catch (err) {
+      console.error('Error adding follow:', err)
+      const message = err.response?.data?.message || '追蹤失敗'
+      addToast(message, 'error')
     }
   }
 
@@ -145,7 +241,7 @@ function FollowPage() {
 
         <div className="friend-search">
           <div className="friend-search-input">
-            {/* <Search size={18} /> */}
+            <Search size={18} />
             <input
               type="text"
               placeholder="搜尋好友名稱或暱稱"
@@ -157,12 +253,141 @@ function FollowPage() {
             />
           </div>
           <button type="button" className="friend-search-button" onClick={handleSearch}>
-            搜尋
+            {searchingUsers ? '搜尋中...' : '搜尋'}
           </button>
         </div>
       </section>
 
-      {filteredFollows.length === 0 ? (
+      {searchTerm.trim() ? (
+        <div className="friend-search-results">
+          {filteredFollows.length > 0 && (
+            <>
+              <h2 className="friend-section-title">好友列表</h2>
+              <ul className="friend-list">
+                {filteredFollows.map((follow) => {
+                  const friendId =
+                    follow.friend_user_id || follow.following_user_id || follow.user_id
+                  const displayName = follow.display_name || follow.username || '好友'
+                  const avatarStyle = follow.avatar_url
+                    ? { backgroundImage: `url(${follow.avatar_url})` }
+                    : {}
+
+                  return (
+                    <li
+                      key={friendId || follow.friend_id || follow.follow_id}
+                      className="friend-item"
+                    >
+                      <button
+                        type="button"
+                        className="friend-avatar"
+                        style={avatarStyle}
+                        onClick={() => openProfile(friendId)}
+                        aria-label={`${displayName} 的個人頁面`}
+                      >
+                        {!follow.avatar_url && (follow.username || '').charAt(0).toUpperCase()}
+                      </button>
+
+                      <div className="friend-info">
+                        <span className="friend-name">{displayName}</span>
+                        {follow.username && (
+                          <span className="friend-username">@{follow.username}</span>
+                        )}
+                      </div>
+
+                      <div className="friend-actions">
+                        <button
+                          type="button"
+                          className="friend-icon-button"
+                          aria-label="私訊好友"
+                          onClick={() => setMessageFriend({ id: friendId, name: displayName })}
+                        >
+                          <FaCommentDots size={26} />
+                        </button>
+                        <button
+                          type="button"
+                          className="friend-icon-button"
+                          aria-label="分享好友"
+                          onClick={() => setShareFriend({ id: friendId, name: displayName })}
+                        >
+                          <FaShareFromSquare size={26} />
+                        </button>
+                        <button
+                          type="button"
+                          className="friend-icon-button danger"
+                          aria-label="刪除好友"
+                          onClick={() => setPendingDelete({ id: friendId, name: displayName })}
+                        >
+                          <FaTrashCan size={26} />
+                        </button>
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+            </>
+          )}
+
+          {otherUsers.length > 0 && (
+            <>
+              <h2 className="friend-section-title">搜尋好友</h2>
+              <ul className="friend-list friend-suggestion-list">
+                {otherUsers.map((user) => {
+                  const displayName = user.display_name || user.username || '使用者'
+                  const usernameLabel = user.username
+                    ? `@${user.username}`
+                    : `ID：${user.user_id}`
+                  const avatarStyle = user.avatar_url
+                    ? { backgroundImage: `url(${user.avatar_url})` }
+                    : {}
+
+                  return (
+                    <li key={user.user_id} className="friend-item friend-item--suggestion">
+                      <button
+                        type="button"
+                        className="friend-avatar"
+                        style={avatarStyle}
+                        onClick={() => openProfile(user.user_id)}
+                        aria-label={`${displayName} 的個人頁面`}
+                      >
+                        {!user.avatar_url && (user.username || user.user_id || '').charAt(0).toUpperCase()}
+                      </button>
+                      <div className="friend-info">
+                        <span className="friend-name">{displayName}</span>
+                        <span className="friend-username">{usernameLabel}</span>
+                      </div>
+                      <div className="friend-actions friend-actions--suggestion">
+                        <button
+                          type="button"
+                          className="friend-follow-button"
+                          onClick={() => handleAddFollow(user)}
+                        >
+                          <UserPlus size={20} />
+                          <span>追蹤</span>
+                        </button>
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+            </>
+          )}
+
+          {filteredFollows.length === 0 && otherUsers.length === 0 && !searchingUsers && (
+            <div className="friend-search-empty-card">
+              <div className="friend-search-empty-icon">
+                <Search size={56} />
+              </div>
+              <h3 className="friend-search-empty-title">尚未找到符合的好友</h3>
+              <p className="friend-search-empty-text">
+                試試不同的暱稱或關鍵字，或是邀請朋友加入 Resonote。
+              </p>
+              <button type="button" className="friend-search-empty-action" onClick={resetSearch}>
+                返回好友列表
+              </button>
+            </div>
+          )}
+        </div>
+      ) : filteredFollows.length === 0 ? (
         <Card className="friend-empty-card">
           <Users size={64} />
           <h3>還沒有好友</h3>
@@ -212,7 +437,7 @@ function FollowPage() {
                     aria-label="分享好友"
                     onClick={() => setShareFriend({ id: friendId, name: displayName })}
                   >
-                    <FaShareNodes size={26} />
+                    <FaShareFromSquare size={26} />
                   </button>
                   <button
                     type="button"
