@@ -1,381 +1,200 @@
-import { useState, useEffect } from 'react'
-import { Sparkles, Gift, TrendingUp, Star } from 'lucide-react'
-import Card from '../../components/ui/Card'
-import Button from '../../components/ui/Button'
-import useAuthStore from '../../store/authStore'
-import axios from 'axios'
+import React, { useState, useEffect } from 'react';
+import './LuckyCardPage.css';
+import { luckyCardAPI } from '../../services/api';
 
-const API_URL = 'http://localhost:3000/api/v1'
+// 匯入卡牌圖片
+import cardFront1 from '../../assets/images/card-front-1.png';
+import cardFront2 from '../../assets/images/card-front-2.png';
+import cardFront3 from '../../assets/images/card-front-3.png';
+import cardFront4 from '../../assets/images/card-front-4.png';
 
-function LuckyCardPage() {
-  const { user } = useAuthStore()
-  const [cards, setCards] = useState([])
-  const [drawnCard, setDrawnCard] = useState(null)
-  const [drawing, setDrawing] = useState(false)
-  const [showCard, setShowCard] = useState(false)
-  const [userCards, setUserCards] = useState([])
-  const [activeTab, setActiveTab] = useState('draw') // draw | collection
+const cards = [
+  { id: 1, frontImage: cardFront1, label: '星象卡一' },
+  { id: 2, frontImage: cardFront2, label: '星象卡二' },
+  { id: 3, frontImage: cardFront3, label: '星象卡三' },
+  { id: 4, frontImage: cardFront4, label: '星象卡四' }
+];
+
+const LuckyCardPage = () => {
+  const [selectedCard, setSelectedCard] = useState(null);
+  const [fortune, setFortune] = useState(null);
+  const [hasDrawn, setHasDrawn] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [statusMessage, setStatusMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [shareFeedback, setShareFeedback] = useState('');
 
   useEffect(() => {
-    loadCards()
-    loadUserCards()
-  }, [])
+    const loadTodayFortune = async () => {
+      try {
+        setLoading(true);
+        setErrorMessage('');
+        const response = await luckyCardAPI.getTodayFortune();
+        if (response?.hasDrawn && response.fortune) {
+          const slot = cards.some((card) => card.id === response.fortune.cardSlot)
+            ? response.fortune.cardSlot
+            : 1;
+          setFortune(response.fortune);
+          setSelectedCard(slot);
+          setHasDrawn(true);
+          setStatusMessage('今日已抽出幸運小卡，記得明天再來喔！');
+          setShareFeedback('');
+        }
+      } catch (error) {
+        console.error('Failed to load today fortune:', error);
+        setErrorMessage('無法取得今日運勢，請稍後再試。');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const loadCards = async () => {
+    loadTodayFortune();
+  }, []);
+
+  const handleCardClick = async (cardId) => {
+    if (loading) return;
+
+    if (hasDrawn) {
+      const recordedSlot = cards.some((card) => card.id === fortune?.cardSlot)
+        ? fortune.cardSlot
+        : selectedCard || 1;
+      setSelectedCard(recordedSlot);
+      setStatusMessage('今日已抽出幸運小卡，記得明天再來喔！');
+      return;
+    }
+
     try {
-  const token = sessionStorage.getItem('token')
-      const response = await axios.get(`${API_URL}/cards`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      setCards(response.data.cards || [])
-    } catch (error) {
-      console.error('Load cards error:', error)
-    }
-  }
+      setLoading(true);
+      setErrorMessage('');
+      setStatusMessage('');
+      setShareFeedback('');
+      const response = await luckyCardAPI.drawCard(cardId);
+      const drawnFortune = response?.fortune;
 
-  const loadUserCards = async () => {
+      if (drawnFortune) {
+        const slot = cards.some((card) => card.id === drawnFortune.cardSlot)
+          ? drawnFortune.cardSlot
+          : cardId;
+        setSelectedCard(slot);
+        setFortune({ ...drawnFortune, cardSlot: slot });
+        setHasDrawn(true);
+        setStatusMessage('為你揭露今日幸運小卡 ✨');
+        setShareFeedback('');
+      } else {
+        setErrorMessage('抽卡結果異常，請稍後再試。');
+      }
+    } catch (error) {
+      console.error('Draw card failed:', error);
+      const backendMessage = error.response?.data?.message || error.response?.data?.error;
+      setErrorMessage(backendMessage || '抽卡時發生錯誤，請稍後再試。');
+      setStatusMessage('');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleShare = async (fortuneData) => {
+    if (!fortuneData) return;
+
+    const shareText = `${fortuneData.title}\n${fortuneData.message}`;
+    const sharePayload = {
+      title: '今日運勢',
+      text: shareText
+    };
+
     try {
-  const token = sessionStorage.getItem('token')
-      const response = await axios.get(`${API_URL}/cards/my-cards`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      setUserCards(response.data.cards || [])
-    } catch (error) {
-      console.error('Load user cards error:', error)
+      if (navigator.share) {
+        await navigator.share(sharePayload);
+        setShareFeedback('分享成功，祝朋友也幸運滿滿！');
+      } else if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(shareText);
+        setShareFeedback('已複製到剪貼簿，快分享給朋友吧！');
+      } else {
+        setShareFeedback('此裝置暫不支援分享功能，請手動複製內容。');
+      }
+    } catch (err) {
+      console.warn('Share failed:', err);
+      setShareFeedback('分享未完成，稍後再試看看。');
     }
-  }
-
-  const handleDraw = async () => {
-    setDrawing(true)
-    try {
-  const token = sessionStorage.getItem('token')
-      const response = await axios.post(`${API_URL}/cards/draw`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      
-      setDrawnCard(response.data.card)
-      
-      // 動畫效果
-      setTimeout(() => {
-        setShowCard(true)
-        setDrawing(false)
-        loadUserCards() // 重新載入收藏
-      }, 1500)
-    } catch (error) {
-      setDrawing(false)
-      alert('抽卡失敗：' + (error.response?.data?.message || error.message))
-    }
-  }
-
-  const getRarityColor = (rarity) => {
-    const colors = {
-      common: '#95A5A6',
-      rare: '#3498DB',
-      epic: '#9B59B6',
-      legendary: '#F39C12'
-    }
-    return colors[rarity] || colors.common
-  }
-
-  const getRarityLabel = (rarity) => {
-    const labels = {
-      common: '普通',
-      rare: '稀有',
-      epic: '史詩',
-      legendary: '傳說'
-    }
-    return labels[rarity] || '普通'
-  }
+  };
 
   return (
-    <div style={{ 
-      minHeight: '100vh',
-      background: 'linear-gradient(180deg, #667EEA 0%, #764BA2 100%)',
-      padding: 'var(--spacing-xl)',
-      paddingTop: '80px'
-    }}>
-      <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-        {/* Header */}
-        <div style={{ 
-          textAlign: 'center', 
-          color: '#FFFFFF',
-          marginBottom: 'var(--spacing-2xl)'
-        }}>
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center',
-            gap: 'var(--spacing-md)',
-            marginBottom: 'var(--spacing-md)'
-          }}>
-            <Sparkles size={40} />
-            <h1 className="text-h1" style={{ margin: 0 }}>幸運抽卡</h1>
-          </div>
-          <p className="text-body" style={{ opacity: 0.9 }}>
-            每天免費抽取一張卡片，獲得特殊祝福與靈感
-          </p>
-        </div>
+    <div className="lucky-card-container">
+      <div className="page-header">
+        <h1 className="page-title">今日運勢</h1>
+        <p className="page-subtitle">
+          快來測測你的運勢，領取你的專屬語錄吧～<br />
+          偷偷告訴你♡愛笑的人運氣都不會太差喔～
+        </p>
+      </div>
 
-        {/* Tabs */}
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'center',
-          gap: 'var(--spacing-md)',
-          marginBottom: 'var(--spacing-2xl)'
-        }}>
-          <Button
-            variant={activeTab === 'draw' ? 'primary' : 'outline'}
-            onClick={() => setActiveTab('draw')}
-            style={{ 
-              minWidth: 120,
-              background: activeTab === 'draw' ? '#FFFFFF' : 'transparent',
-              color: activeTab === 'draw' ? 'var(--primary-purple)' : '#FFFFFF',
-              border: '2px solid #FFFFFF'
-            }}
-          >
-            <Gift size={18} />
-            抽卡
-          </Button>
-          <Button
-            variant={activeTab === 'collection' ? 'primary' : 'outline'}
-            onClick={() => setActiveTab('collection')}
-            style={{ 
-              minWidth: 120,
-              background: activeTab === 'collection' ? '#FFFFFF' : 'transparent',
-              color: activeTab === 'collection' ? 'var(--primary-purple)' : '#FFFFFF',
-              border: '2px solid #FFFFFF'
-            }}
-          >
-            <Star size={18} />
-            收藏 ({userCards.length})
-          </Button>
-        </div>
+      <div className="card-grid">
+        {cards.map((card) => {
+          const isFlipped = selectedCard === card.id;
+          const isDisabled = hasDrawn && !isFlipped;
 
-        {/* Draw Tab */}
-        {activeTab === 'draw' && (
-          <div style={{ textAlign: 'center' }}>
-            {/* Draw Area */}
-            <div style={{ 
-              position: 'relative',
-              marginBottom: 'var(--spacing-2xl)'
-            }}>
-              {!showCard ? (
-                <div 
-                  className="hover-lift"
-                  style={{
-                    width: 280,
-                    height: 400,
-                    margin: '0 auto',
-                    background: 'linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.05))',
-                    borderRadius: 'var(--radius-lg)',
-                    border: '2px solid rgba(255,255,255,0.3)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: drawing ? 'not-allowed' : 'pointer',
-                    animation: drawing ? 'pulse 1s infinite' : 'none',
-                    boxShadow: '0 8px 32px rgba(0,0,0,0.2)'
-                  }}
-                  onClick={!drawing ? handleDraw : null}
-                >
-                  {drawing ? (
-                    <div style={{ textAlign: 'center', color: '#FFFFFF' }}>
-                      <Sparkles size={64} className="pulse" style={{ marginBottom: 'var(--spacing-md)' }} />
-                      <div className="text-h3">抽卡中...</div>
-                    </div>
-                  ) : (
-                    <div style={{ textAlign: 'center', color: '#FFFFFF' }}>
-                      <Gift size={64} style={{ marginBottom: 'var(--spacing-md)' }} />
-                      <div className="text-h3">點擊抽卡</div>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div 
-                  className="slide-up"
-                  style={{
-                    width: 280,
-                    height: 400,
-                    margin: '0 auto',
-                    background: '#FFFFFF',
-                    borderRadius: 'var(--radius-lg)',
-                    padding: 'var(--spacing-lg)',
-                    boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-                    border: `3px solid ${getRarityColor(drawnCard?.rarity)}`
-                  }}
-                >
-                  <div style={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: 'var(--spacing-md)'
-                  }}>
-                    <span 
-                      className="text-tiny"
-                      style={{ 
-                        background: getRarityColor(drawnCard?.rarity),
-                        color: '#FFFFFF',
-                        padding: '4px 12px',
-                        borderRadius: 'var(--radius-full)',
-                        fontWeight: 600
-                      }}
-                    >
-                      {getRarityLabel(drawnCard?.rarity)}
-                    </span>
-                    <Star size={20} fill={getRarityColor(drawnCard?.rarity)} color={getRarityColor(drawnCard?.rarity)} />
+          return (
+            <div
+              key={card.id}
+              className={`card-scene ${isDisabled ? 'card-disabled' : ''}`}
+              onClick={() => handleCardClick(card.id)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  handleCardClick(card.id);
+                }
+              }}
+              aria-label={`選擇第 ${card.id} 張卡片`}
+            >
+              <div className="card-float">
+                <div className={`card-object ${isFlipped ? 'is-flipped' : ''}`}>
+                  <div className="card-face card-face-front">
+                    <img src={card.frontImage} alt={card.label} />
                   </div>
-                  
-                  <div style={{ 
-                    fontSize: 80,
-                    marginBottom: 'var(--spacing-lg)',
-                    marginTop: 'var(--spacing-xl)'
-                  }}>
-                    {drawnCard?.icon || '🎴'}
-                  </div>
-                  
-                  <h3 className="text-h3" style={{ 
-                    marginBottom: 'var(--spacing-sm)',
-                    color: 'var(--dark-purple)'
-                  }}>
-                    {drawnCard?.card_name}
-                  </h3>
-                  
-                  <p className="text-body text-small" style={{ 
-                    color: 'var(--gray-600)',
-                    marginBottom: 'var(--spacing-lg)'
-                  }}>
-                    {drawnCard?.description}
-                  </p>
-                  
-                  <div style={{ 
-                    background: 'var(--gray-50)',
-                    padding: 'var(--spacing-md)',
-                    borderRadius: 'var(--radius-md)',
-                    marginTop: 'auto'
-                  }}>
-                    <div className="text-tiny" style={{ color: 'var(--gray-500)', marginBottom: 4 }}>
-                      特殊效果
+                  <div className="card-face card-face-back">
+                    <div className="card-back-content">
+                      {isFlipped && fortune ? (
+                        <>
+                          <h3 className="card-back-title">{fortune.title}</h3>
+                          <p className="card-back-text">{fortune.message}</p>
+                        </>
+                      ) : (
+                        <>
+                          <h3 className="card-back-title">等待揭曉</h3>
+                          <p className="card-back-text">選擇你的幸運小卡來揭曉今日運勢。</p>
+                        </>
+                      )}
                     </div>
-                    <div className="text-small" style={{ fontWeight: 500 }}>
-                      {drawnCard?.effect_description || '神秘祝福'}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {showCard && (
-              <Button
-                variant="primary"
-                size="large"
-                onClick={() => {
-                  setShowCard(false)
-                  setDrawnCard(null)
-                }}
-                style={{
-                  background: '#FFFFFF',
-                  color: 'var(--primary-purple)'
-                }}
-              >
-                再抽一次
-              </Button>
-            )}
-          </div>
-        )}
-
-        {/* Collection Tab */}
-        {activeTab === 'collection' && (
-          <div>
-            {userCards.length === 0 ? (
-              <Card style={{ 
-                textAlign: 'center', 
-                padding: 'var(--spacing-3xl)',
-                background: 'rgba(255,255,255,0.95)'
-              }}>
-                <Star size={64} style={{ color: 'var(--gray-300)', margin: '0 auto var(--spacing-lg)' }} />
-                <h3 className="text-h3" style={{ color: 'var(--gray-600)', marginBottom: 'var(--spacing-sm)' }}>
-                  還沒有收藏
-                </h3>
-                <p className="text-body" style={{ color: 'var(--gray-500)' }}>
-                  快去抽卡吧！
-                </p>
-              </Card>
-            ) : (
-              <div style={{ 
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
-                gap: 'var(--spacing-lg)'
-              }}>
-                {userCards.map((item, index) => (
-                  <Card 
-                    key={item.draw_id}
-                    hoverable
-                    className="slide-up"
-                    style={{ 
-                      animationDelay: `${index * 0.05}s`,
-                      border: `2px solid ${getRarityColor(item.rarity)}`,
-                      background: '#FFFFFF'
-                    }}
-                  >
-                    <div style={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      marginBottom: 'var(--spacing-md)'
-                    }}>
-                      <span 
-                        className="text-tiny"
-                        style={{ 
-                          background: getRarityColor(item.rarity),
-                          color: '#FFFFFF',
-                          padding: '4px 8px',
-                          borderRadius: 'var(--radius-full)',
-                          fontSize: 11,
-                          fontWeight: 600
+                    {isFlipped && fortune && (
+                      <button
+                        type="button"
+                        className="card-share-button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleShare(fortune);
                         }}
                       >
-                        {getRarityLabel(item.rarity)}
-                      </span>
-                      <Star size={16} fill={getRarityColor(item.rarity)} color={getRarityColor(item.rarity)} />
-                    </div>
-                    
-                    <div style={{ fontSize: 56, marginBottom: 'var(--spacing-md)', textAlign: 'center' }}>
-                      {item.icon || '🎴'}
-                    </div>
-                    
-                    <h4 className="text-body" style={{ 
-                      fontWeight: 600,
-                      marginBottom: 'var(--spacing-xs)',
-                      color: 'var(--dark-purple)'
-                    }}>
-                      {item.card_name}
-                    </h4>
-                    
-                    <p className="text-small" style={{ 
-                      color: 'var(--gray-600)',
-                      marginBottom: 'var(--spacing-sm)',
-                      lineHeight: 1.4
-                    }}>
-                      {item.description}
-                    </p>
-                    
-                    <div className="text-tiny" style={{ 
-                      color: 'var(--gray-400)',
-                      marginTop: 'var(--spacing-md)',
-                      paddingTop: 'var(--spacing-sm)',
-                      borderTop: '1px solid var(--gray-200)'
-                    }}>
-                      抽取於 {new Date(item.drawn_at).toLocaleDateString('zh-TW')}
-                    </div>
-                  </Card>
-                ))}
+                        分享
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
-        )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="card-status">
+        {loading && <p className="status-info">正在為你準備幸運小卡...</p>}
+        {!loading && statusMessage && <p className="status-info">{statusMessage}</p>}
+        {shareFeedback && <p className="status-info">{shareFeedback}</p>}
+        {errorMessage && <p className="status-error">{errorMessage}</p>}
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default LuckyCardPage
+export default LuckyCardPage;
