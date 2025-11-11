@@ -1,0 +1,194 @@
+/* LuckyCardPage.css */
+
+.lucky-card-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 20px;
+  background-color: #f4f6f8;
+  min-height: 100vh;
+  font-family: 'Noto Sans TC', sans-serif;
+}
+
+.page-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.page-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.page-subtitle {
+  font-size: 1.1rem;
+  color: #666;
+  line-height: 1.6;
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 24px;
+  max-width: 1000px;
+  width: 100%;
+}
+
+/* Card Scene: for perspective */
+.card-scene {
+  width: 100%;
+  max-width: 220px;
+  aspect-ratio: 3 / 5;
+  /* 保持卡片比例 */
+  perspective: 1000px;
+  cursor: pointer;
+}
+
+.card-scene.card-disabled {
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+.card-scene.card-disabled:hover .card-object {
+  transform: none;
+}
+
+/* Card Object: for transition and transform */
+.card-object {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Hover effect for non-flipped cards */
+.card-scene:not(.no-hover):hover .card-object {
+  transform: translateY(-15px) scale(1.03);
+}
+
+.card-object.is-flipped {
+  transform: rotateY(180deg);
+}
+
+/* Card Face: common styles for front and back */
+.card-face {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  /* Safari */
+  border-radius: 15px;
+  overflow: hidden;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.card-face-front {
+  background-color: #000;
+}
+
+.card-face-front img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.card-face-back {
+  background-color: #ffffff;
+  transform: rotateY(180deg);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  text-align: center;
+  border: 2px solid #e0e0e0;
+  position: relative;
+}
+
+.card-back-title {
+  font-size: 2rem;
+  font-weight: 600;
+  color: #8a6d3b;
+  /* A gold-like color */
+  margin-bottom: 15px;
+}
+
+.card-back-text {
+  font-size: 1rem;
+  color: #555;
+  line-height: 1.7;
+  margin-bottom: 40px;
+}
+
+.card-share-button {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  padding: 8px 16px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(135deg, #6c5ce7, #8a6d3b);
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: 0 6px 12px rgba(108, 92, 231, 0.3);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-share-button:hover,
+.card-share-button:focus {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(108, 92, 231, 0.35);
+  outline: none;
+}
+
+.card-share-button:active {
+  transform: translateY(0);
+  box-shadow: 0 4px 10px rgba(108, 92, 231, 0.25);
+}
+
+.card-status {
+  margin-top: 30px;
+  text-align: center;
+  min-height: 32px;
+}
+
+.status-info {
+  color: #6c5ce7;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.status-error {
+  color: #d63031;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+/* Responsive adjustments */
+@media (max-width: 992px) {
+  .card-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 25px;
+  }
+}
+
+@media (max-width: 576px) {
+  .card-grid {
+    grid-template-columns: 1fr;
+    max-width: 300px;
+  }
+
+  .page-title {
+    font-size: 2rem;
+  }
+
+  .page-subtitle {
+    font-size: 1rem;
+  }
+}

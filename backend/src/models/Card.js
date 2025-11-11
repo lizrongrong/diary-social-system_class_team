@@ -1,96 +1,81 @@
-const db = require('../config/db');
 const { v4: uuidv4 } = require('uuid');
+const db = require('../config/db');
+const fortunes = require('../data/fortunes');
 
 class Card {
-  // 獲取所有卡片
-  static async findAll() {
-    const [rows] = await db.execute(
-      'SELECT * FROM cards ORDER BY rarity, card_name'
-    );
-    return rows;
+  static getFortunes() {
+    return fortunes;
   }
 
-  // 根據稀有度獲取卡片
-  static async findByRarity(rarity) {
-    const [rows] = await db.execute(
-      'SELECT * FROM cards WHERE rarity = ?',
-      [rarity]
-    );
-    return rows;
+  static getFortuneById(id) {
+    return fortunes.find((fortune) => fortune.id === id) || null;
   }
 
-  // 隨機抽卡（按稀有度權重）
-  static async drawRandom() {
-    // 稀有度權重: common: 60%, rare: 25%, epic: 12%, legendary: 3%
-    const rand = Math.random() * 100;
-    let rarity;
-    
-    if (rand < 60) rarity = 'common';
-    else if (rand < 85) rarity = 'rare';
-    else if (rand < 97) rarity = 'epic';
-    else rarity = 'legendary';
-
-    const cards = await Card.findByRarity(rarity);
-    if (cards.length === 0) {
-      // 如果該稀有度沒有卡片，返回 common
-      return (await Card.findByRarity('common'))[0];
+  static getRandomFortune() {
+    if (!fortunes.length) {
+      throw new Error('FORTUNE_LIST_EMPTY');
     }
-    
-    const randomIndex = Math.floor(Math.random() * cards.length);
-    return cards[randomIndex];
+    const index = Math.floor(Math.random() * fortunes.length);
+    return fortunes[index];
   }
 
-  // 記錄用戶抽卡
-  static async recordDraw(userId, cardId) {
+  static async getTodayDraw(userId) {
+    const query = `
+      SELECT draw_id AS drawId,
+            user_id AS userId,
+            fortune_id AS fortuneId,
+            fortune_title AS title,
+            fortune_text AS message,
+            card_slot AS cardSlot,
+            draw_date AS drawDate, 
+            created_at AS createdAt
+      FROM user_card_draws
+      WHERE user_id = ? AND draw_date = CURDATE()
+      LIMIT 1
+    `;
+
+    const [rows] = await db.execute(query, [userId]);
+    const record = rows[0] || null;
+
+    if (record && record.drawDate instanceof Date) {
+      record.drawDate = record.drawDate.toISOString().split('T')[0];
+    }
+
+    return record;
+  }
+
+  static async recordDraw(userId, fortune, cardSlot = null) {
     const drawId = uuidv4();
-    await db.execute(
-      'INSERT INTO card_draws (draw_id, user_id, card_id) VALUES (?, ?, ?)',
-      [drawId, userId, cardId]
-    );
-    return drawId;
-  }
+    const query = `
+      INSERT INTO user_card_draws (
+        draw_id,
+        user_id,
+        fortune_id,
+        fortune_title,
+        fortune_text,
+        card_slot,
+        draw_date
+      ) VALUES (?, ?, ?, ?, ?, ?, CURDATE())
+    `;
 
-  // 獲取用戶的抽卡記錄
-  static async getUserCards(userId, limit = 50, offset = 0) {
-    const [rows] = await db.execute(
-      `SELECT cd.draw_id, cd.drawn_at, c.* 
-       FROM card_draws cd 
-       JOIN cards c ON cd.card_id = c.card_id 
-       WHERE cd.user_id = ? 
-       ORDER BY cd.drawn_at DESC 
-       LIMIT ? OFFSET ?`,
-      [userId, limit, offset]
-    );
-    return rows;
-  }
+    await db.execute(query, [
+      drawId,
+      userId,
+      fortune.id,
+      fortune.title,
+      fortune.message,
+      cardSlot
+    ]);
 
-  // 檢查用戶今日是否已抽卡
-  static async hasDrawnToday(userId) {
-    const [rows] = await db.execute(
-      `SELECT COUNT(*) as count 
-       FROM card_draws 
-       WHERE user_id = ? AND DATE(drawn_at) = CURDATE()`,
-      [userId]
-    );
-    return rows[0].count > 0;
-  }
-
-  // 獲取用戶收藏統計
-  static async getUserCardStats(userId) {
-    const [rows] = await db.execute(
-      `SELECT 
-        COUNT(DISTINCT cd.card_id) as unique_cards,
-        COUNT(*) as total_draws,
-        SUM(CASE WHEN c.rarity = 'legendary' THEN 1 ELSE 0 END) as legendary_count,
-        SUM(CASE WHEN c.rarity = 'epic' THEN 1 ELSE 0 END) as epic_count,
-        SUM(CASE WHEN c.rarity = 'rare' THEN 1 ELSE 0 END) as rare_count,
-        SUM(CASE WHEN c.rarity = 'common' THEN 1 ELSE 0 END) as common_count
-       FROM card_draws cd
-       JOIN cards c ON cd.card_id = c.card_id
-       WHERE cd.user_id = ?`,
-      [userId]
-    );
-    return rows[0];
+    return {
+      drawId,
+      userId,
+      fortuneId: fortune.id,
+      title: fortune.title,
+      message: fortune.message,
+      cardSlot,
+      drawDate: new Date().toISOString().split('T')[0]
+    };
   }
 }
 

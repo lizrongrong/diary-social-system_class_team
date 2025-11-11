@@ -14,7 +14,7 @@ const api = axios.create({
 // 請求攔截器 - 自動添加 token
 api.interceptors.request.use(
   (config) => {
-  const token = sessionStorage.getItem('token')
+    const token = sessionStorage.getItem('token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
@@ -73,12 +73,12 @@ export const authAPI = {
     const response = await api.post('/auth/login', { email, password })
     return response.data
   },
-  
+
   register: async (userData) => {
     const response = await api.post('/auth/register', userData)
     return response.data
   },
-  
+
   // Email verification (send code / verify code)
   sendVerification: async (email) => {
     const response = await api.post('/auth/send-verification', { email })
@@ -89,7 +89,7 @@ export const authAPI = {
     const response = await api.post('/auth/verify-email', { email, code })
     return response.data
   },
-  
+
   // 忘記密碼流程
   sendResetCode: async (email) => {
     const response = await api.post('/auth/forgot-password', { email })
@@ -105,7 +105,7 @@ export const authAPI = {
     const response = await api.post('/auth/reset-password', { email, code, new_password })
     return response.data
   },
-  
+
   checkUserId: async (user_id) => {
     const response = await api.post('/auth/check-userid', { user_id })
     return response.data
@@ -116,11 +116,11 @@ export const authAPI = {
     const response = await api.post('/auth/check-email', { email })
     return response.data
   },
-  
+
   logout: () => {
     sessionStorage.removeItem('token')
   },
-  
+
   getCurrentUser: async () => {
     const response = await api.get('/auth/me')
     return response.data
@@ -137,28 +137,28 @@ export const diaryAPI = {
     const response = await api.get('/diaries/explore', { params })
     return response.data
   },
-  
+
   getById: async (id) => {
     const response = await api.get(`/diaries/${id}`)
     // Backend returns shape: { diary: { ... } }
     return response.data?.diary || response.data
   },
-  
+
   create: async (diaryData) => {
     const response = await api.post('/diaries', diaryData)
     return response.data
   },
-  
+
   update: async (id, diaryData) => {
     const response = await api.put(`/diaries/${id}`, diaryData)
     return response.data
   },
-  
+
   delete: async (id) => {
     const response = await api.delete(`/diaries/${id}`)
     return response.data
   },
-  
+
   getUserPublicDiaries: async (userId, params) => {
     const response = await api.get(`/users/${userId}/diaries`, { params })
     return response
@@ -193,17 +193,17 @@ export const notificationAPI = {
     const response = await api.get('/notifications', { params })
     return response.data
   },
-  
+
   markAsRead: async (notificationId) => {
     const response = await api.put(`/notifications/${notificationId}/read`)
     return response.data
   },
-  
+
   markAllAsRead: async () => {
     const response = await api.put('/notifications/read-all')
     return response.data
   },
-  
+
   delete: async (notificationId) => {
     const response = await api.delete(`/notifications/${notificationId}`)
     return response.data
@@ -214,9 +214,9 @@ export const notificationAPI = {
 export const likeAPI = {
   toggle: async (targetType, targetId) => {
     // Backend expects camelCase: { targetType, targetId }
-    const response = await api.post('/likes', { 
-      targetType, 
-      targetId 
+    const response = await api.post('/likes', {
+      targetType,
+      targetId
     })
     return response.data
   }
@@ -228,12 +228,12 @@ export const commentAPI = {
     const response = await api.get(`/comments/diary/${diaryId}`)
     return response.data
   },
-  
+
   create: async (data) => {
     const response = await api.post('/comments', data)
     return response.data
   },
-  
+
   delete: async (commentId) => {
     const response = await api.delete(`/comments/${commentId}`)
     return response.data
@@ -277,5 +277,16 @@ export const followAPI = {
 }
 
 // 已統一使用 followAPI
+
+export const luckyCardAPI = {
+  getTodayFortune: async () => {
+    const response = await api.get('/cards/today')
+    return response.data
+  },
+  drawCard: async (cardSlot) => {
+    const response = await api.post('/cards/draw', { cardSlot })
+    return response.data
+  }
+}
 
 export default api
