@@ -218,7 +218,7 @@ CREATE TABLE IF NOT EXISTS `user_card_draws` (
 
 
 -- ---------------------------------------------------------
--- 11. AI 分析結果表
+-- 12. AI 分析結果表
 -- ---------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `ai_analysis` (
   `analysis_id` CHAR(36) NOT NULL COMMENT '分析結果ID',
@@ -238,7 +238,7 @@ CREATE TABLE IF NOT EXISTS `ai_analysis` (
 
 
 -- ---------------------------------------------------------
--- 12. 月度回顧報告表
+-- 13. 月度回顧報告表
 -- ---------------------------------------------------------
 DROP TABLE IF EXISTS `monthly_reviews`;
 CREATE TABLE `monthly_reviews` (
@@ -263,36 +263,7 @@ CREATE TABLE `monthly_reviews` (
 
 
 -- ---------------------------------------------------------
--- 13.14. 抽卡功能相關表
--- ---------------------------------------------------------
-
--- 卡片資料表
-DROP TABLE IF EXISTS `cards`;
-CREATE TABLE `cards` (
-  `card_id` CHAR(36) NOT NULL COMMENT '卡片ID',
-  `name` VARCHAR(50) NOT NULL COMMENT '卡片名稱',
-  `description` TEXT COMMENT '卡片說明 / 解釋文字',
-  PRIMARY KEY (`card_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='抽卡卡片表';
-
--- 抽卡紀錄表
-DROP TABLE IF EXISTS `card_draws`;
-CREATE TABLE `card_draws` (
-  `draw_id` CHAR(36) NOT NULL COMMENT '卡片記錄(判斷抽卡紀錄)ID',
-  `user_id` VARCHAR(10) NOT NULL COMMENT '使用者 ID',
-  `card_id` CHAR(36) NOT NULL COMMENT '卡片 ID',
-  `draw_time` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '抽卡時間',
-  `draw_date` DATE NOT NULL COMMENT '抽卡日期 (每日限一次)',
-  `result_info` JSON NULL COMMENT '抽卡結果文字 / 占卜解釋',
-  PRIMARY KEY (`draw_id`),
-  UNIQUE KEY `uk_user_draw_date` (`user_id`, `draw_date`),
-  CONSTRAINT `fk_draw_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_draw_card` FOREIGN KEY (`card_id`) REFERENCES `cards` (`card_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='抽卡紀錄表';
-
-
--- ---------------------------------------------------------
--- 15.16. 系統通知與公告
+-- 14.15. 系統通知與公告
 -- ---------------------------------------------------------
 
 -- 系統通知表
@@ -335,7 +306,7 @@ CREATE TABLE `announcements` (
 
 
 -- ---------------------------------------------------------
--- 17. 問題回饋表
+-- 16. 問題回饋表
 -- ---------------------------------------------------------
 DROP TABLE IF EXISTS `feedbacks`;
 
@@ -358,7 +329,7 @@ CREATE TABLE `feedbacks` (
 
 
 -- ============================================
--- 18. 系統統計 (含活躍用戶與圖表數據)
+-- 17. 系統統計 (含活躍用戶與圖表數據)
 -- ============================================
 
 DROP TABLE IF EXISTS `system_stats`;
