@@ -100,7 +100,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 14px 20px;
+  /* padding: 14px 20px; */
   /* border: 2px solid #ad48c1; */
   border-radius: 26px;
   min-width: 340px;
