@@ -8,7 +8,15 @@
 
 .account-header {
     text-align: center;
-    margin-bottom: 80px;
+    /* margin-bottom: 80px; */
+}
+
+.account-header-title-group {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 12px;
 }
 
 .account-header-title {
@@ -220,7 +228,7 @@
 }
 
 .account-password-card {
-    padding: 32px 36px 40px;
+    padding: 36px;
     display: flex;
     flex-direction: column;
     gap: 24px;
@@ -333,6 +341,7 @@
 .account-secondary-button:hover {
     transform: translateY(-2px);
     box-shadow: 0 12px 20px rgba(172, 92, 205, 0.2);
+    background: none;
 }
 
 .account-secondary-button:disabled {
@@ -353,6 +362,12 @@
 .account-link-button:hover {
     transform: none;
     text-decoration: underline;
+    background: none;
+}
+
+.account-return-link {
+    text-align: center;
+    margin-top: 24px;
 }
 
 @media (max-width: 600px) {

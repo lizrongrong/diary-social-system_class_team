@@ -11,6 +11,8 @@ const initialForm = {
     confirm_password: ''
 }
 
+const passwordRule = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&]).{8,20}$/
+
 function ChangePasswordPage() {
     const navigate = useNavigate()
     const { addToast } = useToast()
@@ -35,8 +37,8 @@ function ChangePasswordPage() {
 
         if (!form.new_password.trim()) {
             nextErrors.new_password = '請輸入新密碼'
-        } else if (form.new_password.length < 6) {
-            nextErrors.new_password = '新密碼至少 6 個字元'
+        } else if (!passwordRule.test(form.new_password)) {
+            nextErrors.new_password = '需 8-20 字元，包含字母、數字與符號'
         }
 
         if (!form.confirm_password.trim()) {
@@ -62,11 +64,23 @@ function ChangePasswordPage() {
         try {
             await userAPI.changePassword({
                 old_password: form.old_password,
-                new_password: form.new_password
+                new_password: form.new_password,
+                new_password_confirm: form.confirm_password
             })
             addToast('密碼已更新', 'success')
             setForm(initialForm)
+            setErrors({})
         } catch (error) {
+            const details = error.response?.data?.details
+
+            if (details) {
+                setErrors({
+                    old_password: details.old_password || '',
+                    new_password: details.new_password || '',
+                    confirm_password: details.new_password_confirm || ''
+                })
+            }
+
             const message = error.response?.data?.message || '變更密碼失敗，請確認資訊後重試'
             addToast(message, 'error')
         } finally {
@@ -77,14 +91,16 @@ function ChangePasswordPage() {
     return (
         <div className="account-page fade-in">
             <header className="account-header">
-                <h1 className="account-header-title">變更密碼</h1>
+                <div className="account-header-title-group">
+                    <div className="account-password-icon">
+                        <KeyRound size={28} />
+                    </div>
+                    <h1 className="account-header-title">變更密碼</h1>
+                </div>
                 <p className="account-header-subtitle">請輸入目前密碼與新密碼以完成更新</p>
             </header>
 
             <section className="account-card account-password-card">
-                <div className="account-password-icon">
-                    <KeyRound size={28} />
-                </div>
 
                 <form className="account-form" onSubmit={handleSubmit}>
                     <div className="account-form-field">
@@ -112,9 +128,9 @@ function ChangePasswordPage() {
                             value={form.new_password}
                             onChange={handleChange}
                             disabled={submitting}
-                            placeholder="至少 6 個字元"
+                            placeholder="8-20 字元，需含字母、數字、符號"
                         />
-                        <span className="account-field-hint">密碼長度至少 6 個字元</span>
+                        <span className="account-field-hint">需 8-20 字元，包含字母、數字與特殊符號</span>
                         {errors.new_password && <span className="account-field-error">{errors.new_password}</span>}
                     </div>
 
@@ -153,6 +169,9 @@ function ChangePasswordPage() {
                     </div>
                 </form>
 
+            </section>
+
+            <div className="account-return-link">
                 <button
                     type="button"
                     className="account-link-button"
@@ -160,7 +179,7 @@ function ChangePasswordPage() {
                 >
                     返回上一頁
                 </button>
-            </section>
+            </div>
         </div>
     )
 }
