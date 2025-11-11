@@ -90,7 +90,7 @@ function ChangePasswordPage() {
 
     return (
         <div className="account-page fade-in">
-            <header className="account-header">
+            <header className="account-header-changepassword">
                 <div className="account-header-title-group">
                     <div className="account-password-icon">
                         <KeyRound size={28} />
