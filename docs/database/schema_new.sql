@@ -199,6 +199,25 @@ CREATE TABLE `messages` (
 
 
 -- ---------------------------------------------------------
+-- 11. 幸運小卡抽卡紀錄表
+-- ---------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `user_card_draws` (
+  `draw_id` CHAR(36) NOT NULL COMMENT '抽卡紀錄ID',
+  `user_id` VARCHAR(10) NOT NULL COMMENT '使用者ID (users.user_id)',
+  `fortune_id` INT NOT NULL COMMENT '簽文ID (對應 fortunes.js)',
+  `fortune_title` VARCHAR(120) NOT NULL COMMENT '簽文標題',
+  `fortune_text` TEXT NOT NULL COMMENT '簽文內容',
+  `card_slot` TINYINT UNSIGNED DEFAULT NULL COMMENT '抽取的卡片位置 (1~4)',
+  `draw_date` DATE NOT NULL COMMENT '抽卡日期',
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '建立時間',
+  PRIMARY KEY (`draw_id`),
+  UNIQUE KEY `uk_user_draw_date` (`user_id`, `draw_date`),
+  KEY `idx_user_date` (`user_id`, `draw_date`),
+  CONSTRAINT `fk_user_card_draws_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='幸運小卡抽卡紀錄表';
+
+
+-- ---------------------------------------------------------
 -- 11. AI 分析結果表
 -- ---------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `ai_analysis` (
