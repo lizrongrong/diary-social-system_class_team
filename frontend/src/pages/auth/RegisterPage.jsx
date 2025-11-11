@@ -13,7 +13,7 @@ function RegisterPage() {
   const navigate = useNavigate();
   const register = useAuthStore((state) => state.register);
   const { addToast } = useToast();
-  
+
   const [formData, setFormData] = useState({
     user_id: '',
     email: '',
@@ -23,7 +23,7 @@ function RegisterPage() {
     gender: '',
     birth_date: ''
   });
-  
+
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState(0);
@@ -39,6 +39,9 @@ function RegisterPage() {
   const [verificationCode, setVerificationCode] = useState('');
   const [sendingCode, setSendingCode] = useState(false);
   const [verifyingCode, setVerifyingCode] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState(null); // kept for backwards compat but not shown to users
+  const [sentVerification, setSentVerification] = useState(false);
+  const RIGHT_COL_WIDTH = 120;
 
   // 密碼強度計算
   const calculatePasswordStrength = (password) => {
@@ -68,7 +71,7 @@ function RegisterPage() {
     if (name === 'password') {
       setPasswordStrength(calculatePasswordStrength(value));
     }
-    
+
     // 清除該欄位的錯誤
     if (errors[name]) {
       setErrors(prev => ({
@@ -80,14 +83,14 @@ function RegisterPage() {
 
   const validate = () => {
     const newErrors = {};
-    
+
     // Email 驗證
     if (!formData.email) {
       newErrors.email = '請輸入 Email';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = '請輸入有效的 Email';
     }
-    
+
     // 密碼驗證
     if (!formData.password) {
       newErrors.password = '請輸入密碼';
@@ -96,14 +99,14 @@ function RegisterPage() {
     } else if (!/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])/.test(formData.password)) {
       newErrors.password = '密碼需包含字母、數字與特殊符號';
     }
-    
+
     // 確認密碼
     if (!formData.password_confirm) {
       newErrors.password_confirm = '請確認密碼';
     } else if (formData.password !== formData.password_confirm) {
       newErrors.password_confirm = '兩次密碼輸入不一致';
     }
-    
+
     // Username 驗證
     // user_id (short id) 驗證 — 前端可填寫短 ID，儲存在 users.user_id
     if (!formData.user_id) {
@@ -118,14 +121,14 @@ function RegisterPage() {
     } else if (!/^[\w\-\s]{3,50}$/.test(formData.username)) {
       newErrors.username = '使用者名稱需 3-50 字元';
     }
-    
+
     // (display_name 已移除，使用 username 作為顯示名稱)
-    
+
     // Gender 驗證
     if (!formData.gender) {
       newErrors.gender = '請選擇性別';
     }
-    
+
     // Birth Date 驗證
     if (!formData.birth_date) {
       newErrors.birth_date = '請選擇生日';
@@ -137,13 +140,13 @@ function RegisterPage() {
         newErrors.birth_date = '您必須年滿 13 歲才能註冊';
       }
     }
-    
+
     return newErrors;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     const validationErrors = validate();
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
@@ -157,9 +160,9 @@ function RegisterPage() {
       addToast('請檢查使用者識別 ID', 'error');
       return;
     }
-    
+
     setIsLoading(true);
-    
+
     try {
       // require email verification before allowing registration
       if (!emailVerified) {
@@ -207,6 +210,7 @@ function RegisterPage() {
     setSendingCode(true);
     try {
       await authAPI.sendVerification(formData.email);
+      setSentVerification(true);
       addToast('驗證碼已寄出，請到信箱查看', 'success');
     } catch (err) {
       console.error('Send verification error', err);
@@ -215,7 +219,8 @@ function RegisterPage() {
         setErrors(prev => ({ ...prev, email: '此 Email 已被註冊' }));
         addToast('此 Email 已被註冊，請改用忘記密碼或更換 Email', 'error');
       } else {
-        addToast(err.response?.data?.message || '寄送驗證碼失敗', 'error');
+        const msg = err.response?.data?.message || err.response?.data?.error || '寄送驗證碼失敗';
+        addToast(msg, 'error');
       }
     } finally {
       setSendingCode(false);
@@ -379,168 +384,194 @@ function RegisterPage() {
             />
 
             {/* Email */}
-            <Input
-              type="email"
-              label="帳號 (Email)"
-              name="email"
-              placeholder="example@gmail.com"
-              value={formData.email}
-              onChange={handleChange}
-                error={errors.email}
-                required
-                disabled={isLoading}
-                autoComplete="email"
-              />
-
-              <div className="email-status" style={{ marginTop: 6 }}>
-                {emailChecking && <small>檢查中…</small>}
-                {emailExists === true && <small style={{ color: 'red' }}>✕ 此 Email 已被註冊</small>}
-                {emailExists === false && <small style={{ color: 'green' }}>✓ 可以使用</small>}
-                {emailCheckError && <small style={{ color: 'red' }}>{emailCheckError}</small>}
-              </div>
-
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '6px' }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <div style={{ flex: 1 }}>
                 <Input
-                  type="text"
-                  label="驗證碼"
-                  name="verificationCode"
-                  placeholder="輸入驗證碼"
-                  value={verificationCode}
-                  onChange={(e) => setVerificationCode(e.target.value)}
-                  error={''}
-                  disabled={isLoading || verifyingCode || emailVerified}
-                  style={{ flex: 1 }}
+                  type="email"
+                  label="帳號 (Email)"
+                  name="email"
+                  placeholder="example@gmail.com"
+                  value={formData.email}
+                  onChange={handleChange}
+                  error={errors.email}
+                  required
+                  disabled={isLoading}
+                  autoComplete="email"
                 />
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <Button
-                    type="button"
-                    variant="primary"
-                    size="medium"
-                    onClick={handleSendCode}
-                    disabled={sendingCode || isLoading || emailExists === true || emailVerified}
-                    style={{ width: 100 }}
-                  >
-                    {sendingCode ? '寄送中…' : (emailVerified ? '已驗證' : '寄驗證信')}
-                  </Button>
+                <div className="email-status" style={{ marginTop: 6 }}>
+                  {emailChecking && <small>檢查中…</small>}
+                  {emailExists === true && <small style={{ color: 'red' }}>✕ 此 Email 已被註冊</small>}
+                  {emailExists === false && <small style={{ color: 'green' }}>✓ 可以使用</small>}
+                  {emailCheckError && <small style={{ color: 'red' }}>{emailCheckError}</small>}
+                </div>
+              </div>
 
+              <div style={{ display: 'flex', alignItems: 'center', width: RIGHT_COL_WIDTH }}>
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="medium"
+                  onClick={handleSendCode}
+                  disabled={sendingCode || isLoading || emailExists === true}
+                  style={{ width: '100%' }}
+                >
+                  {sendingCode ? '寄送中…' : '驗證'}
+                </Button>
+              </div>
+            </div>
+
+            {/* Send button appears first; after successful send we reveal the input + confirm button below */}
+            {/* <div style={{ marginTop: '8px' }}>
+              <Button
+                type="button"
+                variant="primary"
+                size="medium"
+                onClick={handleSendCode}
+                disabled={sendingCode || isLoading || emailExists === true}
+                style={{ width: 120 }}
+              >
+                {sendingCode ? '寄送中…' : '寄驗證信'}
+              </Button>
+            </div> */}
+
+            {sentVerification && (
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <Input
+                    type="text"
+                    label=""
+                    name="verificationCode"
+                    placeholder="輸入驗證碼"
+                    value={verificationCode}
+                    onChange={(e) => setVerificationCode(e.target.value)}
+                    error={''}
+                    disabled={isLoading || verifyingCode || emailVerified}
+                    style={{ width: '100%' }}
+                  />
+                </div>
+
+                <div style={{ width: RIGHT_COL_WIDTH }}>
                   <Button
                     type="button"
                     variant="primary"
                     size="medium"
                     onClick={handleVerifyCode}
                     disabled={verifyingCode || isLoading || emailVerified}
-                    style={{ width: 100 }}
+                    style={{ width: '100%' }}
                   >
                     {verifyingCode ? '驗證中…' : (emailVerified ? '已驗證' : '確認')}
                   </Button>
                 </div>
               </div>
+            )}
 
-              {/* Password */}
-              <div>
-                <Input
-                  type="password"
-                  label="密碼"
-                  name="password"
-                  placeholder="8-20 字元，包含字母、數字、特殊符號"
-                  value={formData.password}
-                  onChange={handleChange}
-                  error={errors.password}
-                  required
-                  disabled={isLoading}
-                  autoComplete="new-password"
-                />
-                {formData.password && (
-                  <div style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: 'var(--spacing-sm)', 
-                    marginTop: 'var(--spacing-xs)' 
-                  }}>
-                    <div style={{ 
-                      flex: 1, 
-                      height: 4, 
-                      background: 'var(--gray-200)', 
-                      borderRadius: 'var(--radius-sm)', 
-                      overflow: 'hidden' 
-                    }}>
-                      <div style={{
-                        height: '100%',
-                        width: `${passwordStrength * 25}%`,
-                        background: passwordStrength === 1 ? '#FF6B6B' : 
-                                   passwordStrength === 2 ? '#FFA94D' : 
-                                   passwordStrength === 3 ? '#51CF66' : '#12B886',
-                        transition: 'all var(--transition-base)',
-                        borderRadius: 'var(--radius-sm)'
-                      }}></div>
-                    </div>
-                    <span className="text-tiny" style={{
-                      minWidth: 60,
-                      fontWeight: 500,
-                      color: passwordStrength === 1 ? '#FF6B6B' : 
-                             passwordStrength === 2 ? '#FFA94D' : 
-                             passwordStrength === 3 ? '#51CF66' : '#12B886'
-                    }}>
-                      {passwordStrength === 0 ? '' : 
-                       passwordStrength === 1 ? '弱' : 
-                       passwordStrength === 2 ? '中' : 
-                       passwordStrength === 3 ? '強' : '非常強'}
-                    </span>
-                  </div>
-                )}
-              </div>
+            {/* No preview or dev-code shown in production; real SMTP required for delivery */}
 
-              {/* Password Confirm */}
+            {/* Password */}
+            <div>
               <Input
                 type="password"
-                label="確認密碼"
-                name="password_confirm"
-                placeholder="請再次輸入密碼"
-                value={formData.password_confirm}
+                label="密碼"
+                name="password"
+                placeholder="8-20 字元，包含字母、數字、特殊符號"
+                value={formData.password}
                 onChange={handleChange}
-                error={errors.password_confirm}
+                error={errors.password}
                 required
                 disabled={isLoading}
                 autoComplete="new-password"
               />
+              {formData.password && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 'var(--spacing-sm)',
+                  marginTop: 'var(--spacing-xs)'
+                }}>
+                  <div style={{
+                    flex: 1,
+                    height: 4,
+                    background: 'var(--gray-200)',
+                    borderRadius: 'var(--radius-sm)',
+                    overflow: 'hidden'
+                  }}>
+                    <div style={{
+                      height: '100%',
+                      width: `${passwordStrength * 25}%`,
+                      background: passwordStrength === 1 ? '#FF6B6B' :
+                        passwordStrength === 2 ? '#FFA94D' :
+                          passwordStrength === 3 ? '#51CF66' : '#12B886',
+                      transition: 'all var(--transition-base)',
+                      borderRadius: 'var(--radius-sm)'
+                    }}></div>
+                  </div>
+                  <span className="text-tiny" style={{
+                    minWidth: 60,
+                    fontWeight: 500,
+                    color: passwordStrength === 1 ? '#FF6B6B' :
+                      passwordStrength === 2 ? '#FFA94D' :
+                        passwordStrength === 3 ? '#51CF66' : '#12B886'
+                  }}>
+                    {passwordStrength === 0 ? '' :
+                      passwordStrength === 1 ? '弱' :
+                        passwordStrength === 2 ? '中' :
+                          passwordStrength === 3 ? '強' : '非常強'}
+                  </span>
+                </div>
+              )}
+            </div>
 
-              {/* Gender */}
-              <Select
-                label="性別"
-                name="gender"
-                value={formData.gender}
-                onChange={handleChange}
-                error={errors.gender}
-                required
-                disabled={isLoading}
-                options={[
-                  { value: 'male', label: '男' },
-                  { value: 'female', label: '女' },
-                  { value: 'other', label: '其他' },
-                  { value: 'prefer_not_to_say', label: '不透露' }
-                ]}
-                placeholder="請選擇性別"
-              />
+            {/* Password Confirm */}
+            <Input
+              type="password"
+              label="確認密碼"
+              name="password_confirm"
+              placeholder="請再次輸入密碼"
+              value={formData.password_confirm}
+              onChange={handleChange}
+              error={errors.password_confirm}
+              required
+              disabled={isLoading}
+              autoComplete="new-password"
+            />
 
-              {/* Birth Date */}
-              <Input
-                type="date"
-                label="生日"
-                name="birth_date"
-                value={formData.birth_date}
-                onChange={handleChange}
-                error={errors.birth_date}
-                required
-                disabled={isLoading}
-                helperText="必須年滿 13 歲"
-                autoComplete="bday"
-              />
+            {/* Gender */}
+            <Select
+              label="性別"
+              name="gender"
+              value={formData.gender}
+              onChange={handleChange}
+              error={errors.gender}
+              required
+              disabled={isLoading}
+              options={[
+                { value: 'male', label: '男' },
+                { value: 'female', label: '女' },
+                { value: 'other', label: '其他' },
+                { value: 'prefer_not_to_say', label: '不透露' }
+              ]}
+              placeholder="請選擇性別"
+            />
 
-              <Button 
-                type="submit" 
-                variant="primary" 
-                size="large"
+            {/* Birth Date */}
+            <Input
+              type="date"
+              label="生日"
+              name="birth_date"
+              value={formData.birth_date}
+              onChange={handleChange}
+              error={errors.birth_date}
+              required
+              disabled={isLoading}
+              helperText="必須年滿 13 歲"
+              autoComplete="bday"
+            />
+
+            <Button
+              type="submit"
+              variant="primary"
+              size="large"
               disabled={isLoading}
               style={{ width: '100%', height: '45px', marginTop: 'var(--spacing-md)' }}
             >
@@ -552,8 +583,8 @@ function RegisterPage() {
             已經有帳號了？ <Link to="/login" className="form-link">立即登入</Link>
           </div>
         </div>
-      </div>
-    </div>
+      </div >
+    </div >
   );
 }
 
