@@ -12,4 +12,9 @@ export const getActive = async (limit = 10, offset = 0) => {
   return res.data
 }
 
-export default { getActive }
+export const markAsRead = async (announcementId) => {
+  const res = await api.put(`/announcements/${announcementId}/read`)
+  return res.data
+}
+
+export default { getActive, markAsRead }
