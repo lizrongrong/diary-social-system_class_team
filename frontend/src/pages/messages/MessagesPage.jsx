@@ -23,7 +23,7 @@ function MessagesPage() {
     if (!user || !userId) return null
     const a = String(user.id)
     const b = String(userId)
-    return `chat_${[a,b].sort().join('_')}`
+    return `chat_${[a, b].sort().join('_')}`
   })()
 
   useEffect(() => {
@@ -31,9 +31,8 @@ function MessagesPage() {
       if (!follow) {
         try {
           setLoading(true)
-          const res = await userAPI.getProfile(userId)
-          // userAPI.getProfile returns axios response; try to get data
-          setFollow(res.data?.user || res.data || null)
+          const data = await userAPI.getProfile(userId)
+          setFollow(data?.user || data || null)
         } catch (err) {
           console.error('Failed to load friend profile', err)
           setFollow({ username: userId })
@@ -95,10 +94,10 @@ function MessagesPage() {
   return (
     <div className="page messages-page" style={{ padding: 'var(--spacing-xl)', maxWidth: 900, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-md)' }}>
-            <Link to="/follows">
+        <Link to="/follows">
           <Button variant="ghost"><ArrowLeft size={16} /> 返回好友</Button>
         </Link>
-  <h2 className="text-h3">與 {follow?.username}</h2>
+        <h2 className="text-h3">與 {follow?.username}</h2>
       </div>
 
       <Card style={{ padding: 0, display: 'flex', flexDirection: 'column', height: 500 }}>
