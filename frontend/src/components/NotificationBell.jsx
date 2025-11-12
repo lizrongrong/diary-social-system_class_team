@@ -7,7 +7,7 @@ import { Link } from 'react-router-dom'
 import { useToast } from './ui/Toast'
 import MessageDropdown from './MessageDropdown'
 
-function NotificationBell() {
+function NotificationBell({ iconColor = '#FFFFFF' }) {
   const { user } = useAuthStore()
   const { addToast } = useToast()
   const [notifications, setNotifications] = useState([])
@@ -218,38 +218,32 @@ function NotificationBell() {
   if (!user) return null
 
   return (
-    <div ref={dropdownRef} style={{ position: 'relative' }}>
+    <div ref={dropdownRef} className="header-icon-wrapper header-icon-multi">
       {/* 鈴鐺：系統通知（只顯示通知） */}
       <button
         onClick={() => { setShowNotif(s => !s); if (!showNotif) setShowDropdown(false) }}
-        style={{
-          position: 'relative',
-          background: 'none',
-          border: 'none',
-          cursor: 'pointer',
-          padding: 8,
-          display: 'flex',
-          alignItems: 'center'
-        }}
+        className="header-icon-btn"
+        style={{ color: iconColor }}
         title="系統通知"
         aria-label="系統通知"
       >
-        <Bell size={20} color="#666" />
+        <Bell size={20} />
         {unreadCount > 0 && (
           <span style={{
             position: 'absolute',
-            top: 4,
-            right: 4,
+            top: -4,
+            right: -4,
             background: '#757575',
             color: '#fff',
             borderRadius: '50%',
-            width: 18,
+            minWidth: 18,
             height: 18,
             fontSize: 11,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontWeight: 600
+            fontWeight: 600,
+            padding: '0 4px'
           }}>
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
@@ -259,35 +253,28 @@ function NotificationBell() {
       {/* 訊息按鈕（聊天） - 下拉被拆到 MessageDropdown component */}
       <button
         onClick={() => { setShowDropdown(!showDropdown); if (!showDropdown) setShowNotif(false) }}
-        style={{
-          position: 'relative',
-          background: 'none',
-          border: 'none',
-          cursor: 'pointer',
-          padding: 8,
-          display: 'flex',
-          alignItems: 'center',
-          marginLeft: 4
-        }}
+        className="header-icon-btn"
+        style={{ color: iconColor }}
         title="訊息"
         aria-label="訊息"
       >
-        <MessageSquare size={20} color="#666" />
+        <MessageSquare size={20} />
         {messageUnread > 0 && (
           <span style={{
             position: 'absolute',
-            top: 4,
-            right: 4,
+            top: -4,
+            right: -4,
             background: '#CD79D5',
             color: '#fff',
             borderRadius: '50%',
-            width: 18,
+            minWidth: 18,
             height: 18,
             fontSize: 11,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontWeight: 700
+            fontWeight: 700,
+            padding: '0 4px'
           }}>
             {messageUnread > 9 ? '9+' : messageUnread}
           </span>
