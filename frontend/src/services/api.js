@@ -171,7 +171,7 @@ export const userAPI = {
     // 如果有 userId，獲取該用戶的公開資料；否則獲取自己的資料
     const url = userId ? `/users/${userId}` : '/users/profile'
     const res = await api.get(url)
-    return res
+    return res.data
   },
   updateProfile: async (data) => {
     const res = await api.put('/users/profile', data)
@@ -183,6 +183,17 @@ export const userAPI = {
   },
   getPublic: async (username) => {
     const res = await api.get(`/users/${username}`)
+    return res.data
+  },
+  search: async (keyword, options = {}) => {
+    const params = { keyword, ...options }
+    const res = await api.get('/users/search', { params })
+    return res.data
+  },
+  search: async (keyword, params = {}) => {
+    const res = await api.get('/users/search', {
+      params: { keyword, ...params }
+    })
     return res.data
   }
 }

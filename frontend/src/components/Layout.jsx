@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import useAuthStore from '../store/authStore'
 import { notificationAPI } from '../services/api'
-import { Home, Sparkles, BookOpen, TrendingUp, Users, RefreshCw, Search as SearchIcon, ChevronDown, User, LogOut, Menu, X } from 'lucide-react'
+import { Home, Sparkles, BookOpen, TrendingUp, Users, RefreshCw, Search as SearchIcon, ChevronDown, User, LogOut, Menu, X, IdCard, KeyRound } from 'lucide-react'
 import NotificationBell from './NotificationBell'
 import './Layout.css'
 
@@ -72,8 +72,8 @@ function Layout({ children }) {
     <div className="app-layout">
       <header className="top-header">
         {/* 漢堡選單按鈕（僅手機版顯示） */}
-        <button 
-          className="hamburger-btn" 
+        <button
+          className="hamburger-btn"
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           aria-label="Toggle menu"
         >
@@ -81,7 +81,7 @@ function Layout({ children }) {
         </button>
 
         <h1 className="site-title">Resonote</h1>
-        
+
         {/* 右側使用者功能區 */}
         <div className="header-actions">
           {user ? (
@@ -91,8 +91,8 @@ function Layout({ children }) {
 
               {/* 使用者選單 */}
               <div className="user-menu-container">
-                <button 
-                  className="user-menu-btn" 
+                <button
+                  className="user-menu-btn"
                   onClick={() => setShowUserMenu(!showUserMenu)}
                 >
                   <div className="user-avatar">
@@ -104,15 +104,23 @@ function Layout({ children }) {
 
                 {showUserMenu && (
                   <div className="user-dropdown">
-                    <Link 
-                      to="/profile" 
+                    <Link
+                      to="/profile"
                       className="dropdown-item"
                       onClick={() => setShowUserMenu(false)}
                     >
-                      <User size={16} />
-                      個人檔案
+                      <IdCard size={16} />
+                      會員管理
                     </Link>
-                    <button 
+                    <Link
+                      to="/account/change-password"
+                      className="dropdown-item"
+                      onClick={() => setShowUserMenu(false)}
+                    >
+                      <KeyRound size={16} />
+                      修改密碼
+                    </Link>
+                    <button
                       className="dropdown-item logout"
                       onClick={handleLogout}
                     >
@@ -139,8 +147,8 @@ function Layout({ children }) {
 
       {/* 手機版遮罩層 */}
       {isMobileMenuOpen && (
-        <div 
-          className="mobile-overlay" 
+        <div
+          className="mobile-overlay"
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
@@ -151,9 +159,9 @@ function Layout({ children }) {
             {navItems.map((item) => {
               const Icon = item.icon
               return (
-                <Link 
-                  key={item.path} 
-                  to={item.path} 
+                <Link
+                  key={item.path}
+                  to={item.path}
                   className={`nav-item ${isActive(item.path) ? 'active' : ''}`}
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
@@ -172,8 +180,8 @@ function Layout({ children }) {
               <button className="refresh-btn" onClick={handleRefresh} title="重新整理">
                 <RefreshCw size={20} />
               </button>
-              <button 
-                className="search-icon-btn" 
+              <button
+                className="search-icon-btn"
                 onClick={() => navigate('/search')}
                 title="搜尋"
               >
