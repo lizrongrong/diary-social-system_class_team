@@ -19,32 +19,15 @@ export const useAuthStore = create((set) => ({
       const { token, user } = response.data;
       // Always store token in sessionStorage (no remember-me persistence).
       sessionStorage.setItem('token', token);
-
-      // If backend already returned user in the login response, use it.
-      // Otherwise, fetch /auth/me to obtain the current user and avoid
-      // races where navigation happens before user data is populated.
-      let resolvedUser = user || null;
-      if (!resolvedUser) {
-        try {
-          const meRes = await api.get('/auth/me');
-          resolvedUser = meRes.data?.user || null;
-        } catch (e) {
-          // If /auth/me fails, don't clear the token here. We'll keep the
-          // token and surface a non-fatal error — the app can still try
-          // fetching user later. Avoid overwriting any existing user.
-          console.warn('login: fetch /auth/me failed', e);
-        }
-      }
-
       set({
-        user: resolvedUser,
+        user,
         token,
-        isAuthenticated: !!token,
+        isAuthenticated: true,
         isLoading: false,
         error: null
       });
-
-      return { token, user: resolvedUser };
+      
+      return response.data;
     } catch (error) {
       const errorMessage = error.response?.data?.message || '登入失敗';
       set({
@@ -150,10 +133,10 @@ export const useAuthStore = create((set) => ({
       } else {
         // For transient errors (network, 5xx, or unknown 401 without clear code),
         // keep the token and treat the user as still authenticated to avoid
-        // immediate redirect-to-login on page navigation. Do NOT overwrite any
-        // existing `user` value here because that can erase a valid user when
-        // /auth/me temporarily fails. Only clear loading/error flags.
+        // immediate redirect-to-login on page navigation. We still clear the
+        // loading flag and keep user=null until a successful fetch.
         set({
+          user: null,
           isLoading: false,
           error: null
         });
