@@ -1,5 +1,6 @@
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
+const { generateAvatar } = require('../services/avatarGenerator');
 
 /**
  * 取得使用者個人資料
@@ -26,6 +27,7 @@ exports.getProfile = async (req, res) => {
         birth_date: user.birth_date,
         role: user.role,
         status: user.status,
+        profile_image: user.profile_image,
         created_at: user.created_at,
         updated_at: user.updated_at
       }
@@ -46,12 +48,44 @@ exports.getProfile = async (req, res) => {
  */
 exports.updateProfile = async (req, res) => {
   try {
-    const { username, gender, birth_date } = req.body;
+    const { username, gender, birth_date, profile_image } = req.body;
+
+    const currentUser = await User.findById(req.user.user_id);
+
+    if (!currentUser) {
+      return res.status(404).json({
+        error: 'User not found',
+        code: 'USER_NOT_FOUND'
+      });
+    }
 
     const updates = {};
-    if (username !== undefined) updates.username = username;
+    let nextUsername = currentUser.username;
+
+    if (username !== undefined) {
+      const trimmedUsername = typeof username === 'string' ? username.trim() : username;
+
+      if (trimmedUsername !== currentUser.username) {
+        const exists = await User.usernameExists(trimmedUsername);
+        if (exists) {
+          return res.status(400).json({
+            error: 'Username already exists',
+            code: 'USERNAME_EXISTS',
+            message: '使用者名稱已被使用，請換一個試試'
+          });
+        }
+      }
+
+      updates.username = trimmedUsername;
+      nextUsername = trimmedUsername;
+    }
     if (gender !== undefined) updates.gender = gender;
     if (birth_date !== undefined) updates.birth_date = birth_date;
+    if (profile_image !== undefined) {
+      updates.profile_image = typeof profile_image === 'string' && profile_image.trim().length > 0
+        ? profile_image.trim()
+        : generateAvatar(nextUsername || req.user.user_id);
+    }
 
     const success = await User.update(req.user.user_id, updates);
 
@@ -73,7 +107,8 @@ exports.updateProfile = async (req, res) => {
         username: updatedUser.username,
         gender: updatedUser.gender,
         birth_date: updatedUser.birth_date,
-        role: updatedUser.role
+        role: updatedUser.role,
+        profile_image: updatedUser.profile_image
       }
     });
   } catch (error) {
@@ -199,6 +234,7 @@ exports.getUserByUsername = async (req, res) => {
       user: {
         user_id: user.user_id,
         username: user.username,
+        profile_image: user.profile_image,
         created_at: user.created_at
       }
     });

@@ -1,7 +1,32 @@
 ﻿// API 服務層 - 連接後端 API
 import axios from 'axios'
 
-const API_URL = 'http://localhost:3000/api/v1'
+const DEFAULT_API_URL = 'http://localhost:3000/api/v1'
+const envApiUrl = (import.meta.env?.VITE_API_URL || import.meta.env?.VITE_API_BASE_URL || DEFAULT_API_URL).toString()
+const sanitizedApiUrl = envApiUrl.replace(/\/+$/, '') || DEFAULT_API_URL
+
+let parsedApiUrl
+try {
+  parsedApiUrl = new URL(sanitizedApiUrl, window.location.origin)
+} catch (error) {
+  console.warn('Invalid API URL provided, falling back to default:', error)
+  parsedApiUrl = new URL(DEFAULT_API_URL)
+}
+
+export const API_ORIGIN = parsedApiUrl.origin
+
+export const ensureAbsoluteUrl = (value = '') => {
+  if (!value) return ''
+  if (value.startsWith('data:') || /^https?:\/\//i.test(value)) {
+    return value
+  }
+  if (value.startsWith('/')) {
+    return `${API_ORIGIN}${value}`
+  }
+  return `${API_ORIGIN}/${value.replace(/^\/+/, '')}`
+}
+
+const API_URL = parsedApiUrl.href.replace(/\/+$/, '')
 
 // 建立 axios 實例
 const api = axios.create({
@@ -195,6 +220,28 @@ export const userAPI = {
       params: { keyword, ...params }
     })
     return res.data
+  }
+}
+
+// 檔案上傳 API
+export const uploadAPI = {
+  uploadAvatar: async (file) => {
+    const formData = new FormData()
+    formData.append('files', file)
+
+    const res = await api.post('/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+
+    const [uploaded] = res.data?.files || []
+    if (!uploaded) {
+      return null
+    }
+
+    return {
+      ...uploaded,
+      absoluteUrl: ensureAbsoluteUrl(uploaded.url)
+    }
   }
 }
 

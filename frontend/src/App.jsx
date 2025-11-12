@@ -12,6 +12,7 @@ import DiariesList from './pages/diaries/DiariesList'
 import DiaryDetail from './pages/diaries/DiaryDetail'
 import DiaryEditor from './pages/diaries/DiaryEditor'
 import ProfilePage from './pages/ProfilePage'
+import EditProfilePage from './pages/account/EditProfilePage'
 import ChangePasswordPage from './pages/account/ChangePasswordPage'
 import UserProfilePage from './pages/UserProfilePage'
 import FollowPage from './pages/FollowPage'
@@ -53,6 +54,7 @@ function App() {
               <Route path="/messages/:userId" element={<MessagesPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/account/profile" element={<ProfilePage />} />
+              <Route path="/account/edit-profile" element={<EditProfilePage />} />
               <Route path="/account/change-password" element={<ChangePasswordPage />} />
               <Route path="/lucky-card" element={<LuckyCardPage />} />
               <Route path="/admin" element={<AdminDashboard />} />

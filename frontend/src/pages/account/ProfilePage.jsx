@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { PenLine } from 'lucide-react'
-import { userAPI } from '../../services/api'
+import { userAPI, ensureAbsoluteUrl } from '../../services/api'
 import useAuthStore from '../../store/authStore'
 import { useToast } from '../../components/ui/Toast'
 import './AccountPage.css'
@@ -39,6 +40,7 @@ function ProfilePage() {
     const { user: authUser } = useAuthStore()
     const [profile, setProfile] = useState(null)
     const [loading, setLoading] = useState(true)
+    const navigate = useNavigate()
 
     useEffect(() => {
         const load = async () => {
@@ -62,6 +64,11 @@ function ProfilePage() {
     }, [authUser?.username, profile])
 
     const avatarInitial = (profile?.username || authUser?.username || 'U').charAt(0).toUpperCase()
+    const profileImage = useMemo(() => {
+        const primary = ensureAbsoluteUrl(profile?.profile_image)
+        if (primary) return primary
+        return ensureAbsoluteUrl(authUser?.profile_image)
+    }, [authUser?.profile_image, profile?.profile_image])
     const email = profile?.email || authUser?.email || '未提供'
     const username = profile?.username || authUser?.username || '未設定'
     const birthDate = formatDate(profile?.birth_date)
@@ -92,13 +99,19 @@ function ProfilePage() {
 
             <section className="account-card account-profile-card">
                 <div className="account-profile-banner">
-                    <div className="account-avatar">{avatarInitial}</div>
+                    <div className="account-avatar" role="img" aria-label="使用者頭像">
+                        {profileImage ? (
+                            <img src={profileImage} alt={`${displayName} 的頭像`} />
+                        ) : (
+                            avatarInitial
+                        )}
+                    </div>
                     <div className="account-profile-name">{displayName}</div>
                     <button
                         type="button"
                         className="account-edit-btn"
-                        onClick={() => addToast('暱稱編輯功能即將推出', 'info')}
-                        aria-label="編輯暱稱"
+                        onClick={() => navigate('/account/edit-profile')}
+                        aria-label="編輯個人資訊"
                     >
                         <PenLine size={16} />
                         <span>編輯個人資訊</span>
