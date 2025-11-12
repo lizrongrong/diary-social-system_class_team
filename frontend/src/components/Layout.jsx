@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import useAuthStore from '../store/authStore'
 import { notificationAPI } from '../services/api'
 import { Home, Sparkles, BookOpen, TrendingUp, Users, RefreshCw, Search as SearchIcon, ChevronDown, User, LogOut, Menu, X, IdCard, KeyRound } from 'lucide-react'
+import AnnouncementBell from './AnnouncementBell'
 import NotificationBell from './NotificationBell'
 import './Layout.css'
 
@@ -86,7 +87,8 @@ function Layout({ children }) {
         <div className="header-actions">
           {user ? (
             <>
-              {/* 通知/公告：統一由 NotificationBell 控制，避免重複 icon */}
+              {/* 通知/公告：NotificationBell 保留訊息/通知，AnnouncementBell 顯示系統公告 */}
+              <AnnouncementBell />
               <NotificationBell />
 
               {/* 使用者選單 */}
