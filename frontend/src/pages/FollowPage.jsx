@@ -6,6 +6,7 @@ import Button from '../components/ui/Button'
 import { Users, Search, X, HeartHandshake, UserPlus } from 'lucide-react'
 import { FaCommentDots, FaShareFromSquare, FaTrashCan } from 'react-icons/fa6'
 import { useToast } from '../components/ui/Toast'
+import useChatStore from '../store/chatStore'
 import './FollowPage.css'
 
 function ConfirmModal({ open, name, onCancel, onConfirm }) {
@@ -299,7 +300,7 @@ function FollowPage() {
                           type="button"
                           className="friend-icon-button"
                           aria-label="私訊好友"
-                          onClick={() => setMessageFriend({ id: friendId, name: displayName })}
+                          onClick={() => { useChatStore.getState().openConversation(friendId, { username: displayName }); setMessageFriend(null) }}
                         >
                           <FaCommentDots size={26} />
                         </button>
@@ -427,7 +428,7 @@ function FollowPage() {
                     type="button"
                     className="friend-icon-button"
                     aria-label="私訊好友"
-                    onClick={() => setMessageFriend({ id: friendId, name: displayName })}
+                    onClick={() => { useChatStore.getState().openConversation(friendId, { username: displayName }); setMessageFriend(null) }}
                   >
                     <FaCommentDots size={26} />
                   </button>
@@ -465,13 +466,7 @@ function FollowPage() {
         }}
       />
 
-      <InfoModal
-        open={Boolean(messageFriend)}
-        title={messageFriend ? `與 ${messageFriend.name} 聊聊天` : ''}
-        description="聊天窗即將登場，敬請期待！"
-        onClose={() => setMessageFriend(null)}
-        actionLabel="好的"
-      />
+      {/* 訊息彈窗已改為右下 ChatPopup，移除 InfoModal */}
 
       <InfoModal
         open={Boolean(shareFriend)}
