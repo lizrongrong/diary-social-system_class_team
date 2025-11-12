@@ -1,24 +1,23 @@
 ﻿import { useState, useEffect, useRef } from 'react'
 import { Bell, MessageSquare, UserPlus } from 'lucide-react'
 import notificationAPI from '../services/notificationAPI'
-import announcementAPI from '../services/announcementAPI'
 import { followAPI } from '../services/api'
 import useAuthStore from '../store/authStore'
 import { Link } from 'react-router-dom'
 import { useToast } from './ui/Toast'
+import MessageDropdown from './MessageDropdown'
 
 function NotificationBell() {
   const { user } = useAuthStore()
   const { addToast } = useToast()
   const [notifications, setNotifications] = useState([])
   const [unreadCount, setUnreadCount] = useState(0)
-  const [showDropdown, setShowDropdown] = useState(false) // 訊息（通知）
-  const [showAnnDropdown, setShowAnnDropdown] = useState(false) // 系統公告
+  const [showDropdown, setShowDropdown] = useState(false) // 訊息（聊天）
+  const [showNotif, setShowNotif] = useState(false) // 系統通知（Bell）
   const [loading, setLoading] = useState(false)
   const [followingUsers, setFollowingUsers] = useState(new Set())
   const dropdownRef = useRef(null)
-  const [announcements, setAnnouncements] = useState([])
-  const [annCount, setAnnCount] = useState(0)
+  // announcements removed: announcements are handled by AnnouncementBell component
   const [recentChats, setRecentChats] = useState([])
   const [showOriginalFor, setShowOriginalFor] = useState(new Set())
 
@@ -77,20 +76,9 @@ function NotificationBell() {
     }
   }
   loadRecentChats()
-    const fetchAnnouncements = async () => {
-      try {
-        const data = await announcementAPI.getActive(10, 0)
-        setAnnouncements(data.announcements || [])
-        setAnnCount((data.announcements || []).length)
-      } catch (e) {
-        console.error('Failed to fetch announcements:', e)
-      }
-    }
-    fetchAnnouncements()
     const interval = setInterval(() => {
       fetchNotifications()
       fetchFollowing()
-      fetchAnnouncements()
     }, 30000) // Poll every 30s
 
     return () => clearInterval(interval)
@@ -100,17 +88,17 @@ function NotificationBell() {
     const handleClickOutside = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setShowDropdown(false)
-        setShowAnnDropdown(false)
+        setShowNotif(false)
       }
     }
 
-    if (showDropdown || showAnnDropdown) {
+    if (showDropdown || showNotif) {
       document.addEventListener('mousedown', handleClickOutside)
       return () => document.removeEventListener('mousedown', handleClickOutside)
     }
 
     return () => {}
-  }, [showDropdown, showAnnDropdown])
+  }, [showDropdown, showNotif])
 
   // Try to repair common mojibake/encoding issues in incoming strings.
   const tryFixEncoding = (s) => {
@@ -216,9 +204,9 @@ function NotificationBell() {
 
   return (
     <div ref={dropdownRef} style={{ position: 'relative' }}>
-      {/* 鈴鐺：系統公告 */}
+      {/* 鈴鐺：系統通知（只顯示通知） */}
       <button
-        onClick={() => { setShowAnnDropdown(!showAnnDropdown); if (!showAnnDropdown) setShowDropdown(false) }}
+        onClick={() => { setShowNotif(s => !s); if (!showNotif) setShowDropdown(false) }}
         style={{
           position: 'relative',
           background: 'none',
@@ -228,10 +216,11 @@ function NotificationBell() {
           display: 'flex',
           alignItems: 'center'
         }}
-        title="系統公告"
+        title="系統通知"
+        aria-label="系統通知"
       >
         <Bell size={20} color="#666" />
-        {(annCount + unreadCount) > 0 && (
+        {unreadCount > 0 && (
           <span style={{
             position: 'absolute',
             top: 4,
@@ -247,14 +236,14 @@ function NotificationBell() {
             justifyContent: 'center',
             fontWeight: 600
           }}>
-            {(annCount + unreadCount) > 9 ? '9+' : (annCount + unreadCount)}
+            {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
       </button>
 
-      {/* 訊息按鈕（聊天） - 顯示最近對話清單（從 localStorage 讀取 chat_*） */}
+      {/* 訊息按鈕（聊天） - 下拉被拆到 MessageDropdown component */}
       <button
-        onClick={() => { setShowDropdown(!showDropdown); if (!showDropdown) setShowAnnDropdown(false) }}
+        onClick={() => { setShowDropdown(!showDropdown); if (!showDropdown) setShowNotif(false) }}
         style={{
           position: 'relative',
           background: 'none',
@@ -266,9 +255,11 @@ function NotificationBell() {
           marginLeft: 4
         }}
         title="訊息"
+        aria-label="訊息"
       >
         <MessageSquare size={20} color="#666" />
       </button>
+      <MessageDropdown visible={showDropdown} onClose={() => setShowDropdown(false)} />
 
       {showDropdown && (
         <div style={{
@@ -325,7 +316,7 @@ function NotificationBell() {
       )}
 
       {/* 系統公告 Dropdown（包含公告 + 系統通知） */}
-      {showAnnDropdown && (
+      {showNotif && (
         <div style={{
           position: 'absolute',
           top: '100%',
@@ -348,49 +339,10 @@ function NotificationBell() {
             justifyContent: 'space-between',
             alignItems: 'center'
           }}>
-            <strong style={{ fontSize: 16 }}>系統公告</strong>
-            <span style={{ fontSize: 12, color: '#999' }}>{annCount} 則公告</span>
+            <strong style={{ fontSize: 16 }}>系統通知</strong>
+            <span style={{ fontSize: 12, color: '#999' }}>{unreadCount} 則未讀</span>
           </div>
           <div style={{ maxHeight: 540, overflowY: 'auto' }}>
-            {announcements.length === 0 ? (
-              <div style={{ padding: 24, textAlign: 'center', color: '#999' }}>
-                目前沒有公告
-              </div>
-            ) : (
-                  announcements.map(a => (
-                    <div key={a.announcement_id} style={{ padding: '12px 16px', borderBottom: '1px solid #f0f0f0' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <strong style={{ fontSize: 14, color: '#333' }}>{tryFixEncoding(a.title)}</strong>
-                        {a.priority === 'high' && (
-                          <span style={{ fontSize: 11, color: '#fff', background: '#e74c3c', padding: '2px 6px', borderRadius: 10 }}>重要</span>
-                        )}
-                      </div>
-                      <div style={{ fontSize: 13, color: '#555', marginTop: 6, whiteSpace: 'pre-wrap' }}>{renderMaybeFixed(a.announcement_id, a.content, tryFixEncoding(a.content))}</div>
-                      <div style={{ fontSize: 11, color: '#999', marginTop: 8 }}>
-                        {a.published_at ? new Date(a.published_at).toLocaleString() : new Date(a.created_at).toLocaleString()}
-                      </div>
-                    </div>
-                  ))
-            )}
-            {/* 系統通知區塊 */}
-            <div style={{ padding: '12px 16px', borderTop: '1px solid #eee', background: '#fafafa', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <strong style={{ fontSize: 15 }}>系統通知</strong>
-              {unreadCount > 0 && (
-                <button
-                  onClick={handleMarkAllAsRead}
-                  disabled={loading}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: '#CD79D5',
-                    cursor: 'pointer',
-                    fontSize: 13
-                  }}
-                >
-                  全部標為已讀
-                </button>
-              )}
-            </div>
             {notifications.length === 0 ? (
               <div style={{ padding: 16, textAlign: 'center', color: '#999' }}>沒有新的通知</div>
             ) : (
@@ -524,7 +476,7 @@ function NotificationBell() {
                       {n.related_diary_id && (
                         <Link
                           to={`/diaries/${n.related_diary_id}`}
-                          onClick={() => setShowAnnDropdown(false)}
+                          onClick={() => setShowNotif(false)}
                           style={{ fontSize: 12, color: '#CD79D5', marginTop: 6, display: 'inline-block' }}
                         >
                           查看日記 →
