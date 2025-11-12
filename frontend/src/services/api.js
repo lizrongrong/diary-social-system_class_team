@@ -343,4 +343,22 @@ export const luckyCardAPI = {
   }
 }
 
+// 訊息 API（輕量，對應 backend/src/routes/messages.js）
+export const messageAPI = {
+  getConversations: async () => {
+    const res = await api.get('/messages')
+    return res.data
+  },
+
+  getMessagesWith: async (otherId) => {
+    const res = await api.get(`/messages/${otherId}/messages`)
+    return res.data
+  },
+
+  sendMessageTo: async (otherId, payload) => {
+    const res = await api.post(`/messages/${otherId}/messages`, payload)
+    return res.data
+  }
+}
+
 export default api

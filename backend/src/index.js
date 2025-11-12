@@ -217,6 +217,7 @@ const commentRoutes = safeRequire('./routes/comment');
 const followRoutes = safeRequire('./routes/follow');
 const notificationRoutes = safeRequire('./routes/notification');
 const announcementRoutes = safeRequire('./routes/announcement');
+const messagesRoutes = safeRequire('./routes/messages');
 const cardRoutes = safeRequire('./routes/card');
 const adminRoutes = safeRequire('./routes/admin');
 
@@ -230,6 +231,7 @@ app.use('/api/v1/comments', commentRoutes);
 app.use('/api/v1/followers', followRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1/announcements', announcementRoutes);
+app.use('/api/v1/messages', messagesRoutes);
 app.use('/api/v1/cards', cardRoutes);
 app.use('/api/v1/admin', adminRoutes);
 

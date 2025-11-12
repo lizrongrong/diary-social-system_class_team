@@ -5,6 +5,7 @@ import { notificationAPI } from '../services/api'
 import { Home, Sparkles, BookOpen, TrendingUp, Users, RefreshCw, Search as SearchIcon, ChevronDown, User, LogOut, Menu, X, IdCard, KeyRound } from 'lucide-react'
 import AnnouncementBell from './AnnouncementBell'
 import NotificationBell from './NotificationBell'
+import ChatPopup from './ChatPopup'
 import './Layout.css'
 
 function Layout({ children }) {
@@ -176,6 +177,8 @@ function Layout({ children }) {
         </aside>
 
         <div className="main-content">
+          {/* 全局聊天彈窗（固定掛載） */}
+          <ChatPopup />
           {/* 只在首頁顯示頂部工具列 */}
           {location.pathname === '/' && (
             <div className="content-topbar">

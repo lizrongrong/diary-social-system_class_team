@@ -19,6 +19,7 @@ function NotificationBell() {
   const dropdownRef = useRef(null)
   // announcements removed: announcements are handled by AnnouncementBell component
   const [recentChats, setRecentChats] = useState([])
+  const [messageUnread, setMessageUnread] = useState(0)
   const [showOriginalFor, setShowOriginalFor] = useState(new Set())
 
   useEffect(() => {
@@ -99,6 +100,20 @@ function NotificationBell() {
 
     return () => { }
   }, [showDropdown, showNotif])
+
+  // listen for unread counts emitted by MessageDropdown (or other message loader)
+  useEffect(() => {
+    const onMessageUnread = (e) => {
+      try {
+        const total = (e?.detail && Number(e.detail.total)) || 0
+        setMessageUnread(Number.isFinite(total) ? total : 0)
+      } catch (err) {
+        setMessageUnread(0)
+      }
+    }
+    window.addEventListener('messageDropdownUnread', onMessageUnread)
+    return () => window.removeEventListener('messageDropdownUnread', onMessageUnread)
+  }, [])
 
   // Try to repair common mojibake/encoding issues in incoming strings.
   const tryFixEncoding = (s) => {
@@ -258,6 +273,25 @@ function NotificationBell() {
         aria-label="訊息"
       >
         <MessageSquare size={20} color="#666" />
+        {messageUnread > 0 && (
+          <span style={{
+            position: 'absolute',
+            top: 4,
+            right: 4,
+            background: '#CD79D5',
+            color: '#fff',
+            borderRadius: '50%',
+            width: 18,
+            height: 18,
+            fontSize: 11,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontWeight: 700
+          }}>
+            {messageUnread > 9 ? '9+' : messageUnread}
+          </span>
+        )}
       </button>
       <MessageDropdown visible={showDropdown} onClose={() => setShowDropdown(false)} />
 
