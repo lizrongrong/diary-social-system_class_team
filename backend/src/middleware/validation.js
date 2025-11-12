@@ -14,6 +14,67 @@ const isValidEmail = (email) => {
 // Export helper so other modules can reuse email validation
 exports.isValidEmail = isValidEmail;
 
+const MAX_PROFILE_IMAGE_BYTES = 9 * 1024 * 1024; // 9MB limit
+
+const parseImageDataUri = (value) => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const match = /^data:image\/(png|jpe?g|svg\+xml);base64,(.+)$/i.exec(value.trim());
+  if (!match) {
+    return null;
+  }
+  return {
+    mime: match[1].toLowerCase(),
+    base64: match[2]
+  };
+};
+
+const estimateBase64Size = (base64String = '') => {
+  const cleaned = base64String.trim();
+  if (!cleaned) {
+    return 0;
+  }
+  const padding = cleaned.endsWith('==') ? 2 : cleaned.endsWith('=') ? 1 : 0;
+  return cleaned.length * 0.75 - padding;
+};
+
+const validateProfileImageValue = (value) => {
+  if (value === undefined) {
+    return null;
+  }
+
+  if (value === null || value === '') {
+    return null;
+  }
+
+  if (typeof value !== 'string') {
+    return 'Profile image must be a string value';
+  }
+
+  const trimmed = value.trim();
+
+  const dataUri = parseImageDataUri(trimmed);
+  if (dataUri) {
+    const size = estimateBase64Size(dataUri.base64);
+    if (size > MAX_PROFILE_IMAGE_BYTES) {
+      return 'Profile image must be 9MB or smaller';
+    }
+    return null;
+  }
+
+  if (trimmed.length > 500) {
+    return 'Profile image path must be 500 characters or fewer';
+  }
+
+  const urlRegex = /^(https?:\/\/|\/)/i;
+  if (!urlRegex.test(trimmed)) {
+    return 'Profile image must be a data URI, absolute URL, or server path';
+  }
+
+  return null;
+};
+
 /**
  * 驗證密碼強度
  * 8-20 字元，包含字母、數字、特殊符號
@@ -51,7 +112,7 @@ const isValidDate = (dateString) => {
  * 註冊驗證
  */
 exports.validateRegister = (req, res, next) => {
-  const { email, password, username, gender, birth_date, user_id } = req.body;
+  const { email, password, username, gender, birth_date, user_id, profile_image } = req.body;
   const errors = {};
 
   // Email 驗證
@@ -100,6 +161,11 @@ exports.validateRegister = (req, res, next) => {
     errors.birth_date = 'Birth date is required';
   } else if (!isValidDate(birth_date)) {
     errors.birth_date = 'Invalid date format';
+  }
+
+  const profileImageError = validateProfileImageValue(profile_image);
+  if (profileImageError) {
+    errors.profile_image = profileImageError;
   }
 
   // 如果有錯誤，返回 400
@@ -187,7 +253,7 @@ exports.validateChangePassword = (req, res, next) => {
  * 更新個人資料驗證
  */
 exports.validateUpdateProfile = (req, res, next) => {
-  const { username, gender, birth_date } = req.body;
+  const { username, gender, birth_date, profile_image } = req.body;
   const errors = {};
 
   // Username 驗證 (選填)
@@ -210,6 +276,11 @@ exports.validateUpdateProfile = (req, res, next) => {
     if (!isValidDate(birth_date)) {
       errors.birth_date = 'Invalid date format';
     }
+  }
+
+  const profileImageError = validateProfileImageValue(profile_image);
+  if (profileImageError) {
+    errors.profile_image = profileImageError;
   }
 
   // 如果有錯誤，返回 400
