@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const emailVerification = require('../services/emailVerification');
+const { generateAvatar } = require('../services/avatarGenerator');
 const { isValidEmail } = require('../middleware/validation');
 
 function serverError(res, err) {
@@ -50,7 +51,7 @@ exports.verifyEmailCode = async (req, res) => {
 // POST /auth/register
 exports.register = async (req, res) => {
   try {
-    const { email, password, username, gender, birth_date, user_id } = req.body;
+    const { email, password, username, gender, birth_date, user_id, profile_image } = req.body;
     if (!email || !password || !username) return res.status(400).json({ error: 'Missing parameters' });
 
     const isVerified = await emailVerification.isEmailVerified(email);
@@ -68,9 +69,11 @@ exports.register = async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const createdUserId = await User.create({ user_id, email, password_hash: hashedPassword, username, gender, birth_date });
+    const normalizedProfileImage = typeof profile_image === 'string' && profile_image.trim().length > 0 ? profile_image.trim() : null;
+    const finalProfileImage = normalizedProfileImage || generateAvatar(username);
+    const createdUserId = await User.create({ user_id, email, password_hash: hashedPassword, username, gender, birth_date, profile_image: finalProfileImage });
     const token = jwt.sign({ user_id: createdUserId, email, role: 'member' }, process.env.JWT_SECRET || 'dev_secret', { expiresIn: process.env.JWT_EXPIRES_IN || '7d' });
-    return res.status(201).json({ message: 'Registration successful', token, user: { user_id: createdUserId, email, username, role: 'member' } });
+    return res.status(201).json({ message: 'Registration successful', token, user: { user_id: createdUserId, email, username, role: 'member', profile_image: finalProfileImage } });
   } catch (err) {
     return serverError(res, err);
   }
@@ -165,7 +168,17 @@ exports.login = async (req, res) => {
     const expiresIn = remember_me ? '30d' : (process.env.JWT_EXPIRES_IN || '7d');
     const token = jwt.sign({ user_id: user.user_id, email: user.email, role: user.role }, process.env.JWT_SECRET || 'dev_secret', { expiresIn });
     await User.updateLastLogin(user.user_id);
-    return res.json({ message: 'Login successful', token, user: { user_id: user.user_id, email: user.email, username: user.username, role: user.role } });
+    return res.json({
+      message: 'Login successful',
+      token,
+      user: {
+        user_id: user.user_id,
+        email: user.email,
+        username: user.username,
+        role: user.role,
+        profile_image: user.profile_image
+      }
+    });
   } catch (err) {
     return serverError(res, err);
   }
@@ -185,7 +198,19 @@ exports.getCurrentUser = async (req, res) => {
   try {
     const user = await User.findById(req.user.user_id);
     if (!user) return res.status(404).json({ error: 'User not found', code: 'USER_NOT_FOUND' });
-    return res.json({ user: { user_id: user.user_id, email: user.email, username: user.username, gender: user.gender, birth_date: user.birth_date, role: user.role, status: user.status, created_at: user.created_at } });
+    return res.json({
+      user: {
+        user_id: user.user_id,
+        email: user.email,
+        username: user.username,
+        gender: user.gender,
+        birth_date: user.birth_date,
+        role: user.role,
+        status: user.status,
+        profile_image: user.profile_image,
+        created_at: user.created_at
+      }
+    });
   } catch (err) {
     return serverError(res, err);
   }

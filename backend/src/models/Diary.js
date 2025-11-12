@@ -89,7 +89,7 @@ class Diary {
 
     return diaryId;
   }
-  
+
   /**
    * 根據 ID 查找日記
    * @param {string} diaryId - 日記 ID
@@ -97,11 +97,11 @@ class Diary {
    */
   static async findById(diaryId) {
     const query = `
-  SELECT d.*, u.username
+  SELECT d.*, u.username, u.profile_image AS avatar_url
       FROM diaries d
       JOIN users u ON d.user_id = u.user_id
       WHERE d.diary_id = ?`;
-    
+
     // if status column exists, filter out deleted
     const hasStatus = await checkStatusColumn();
     if (hasStatus) {
@@ -113,7 +113,7 @@ class Diary {
     const [rows] = await db.execute(query, [diaryId]);
     return rows[0] || null;
   }
-  
+
   /**
    * 取得使用者的日記列表
    * @param {string} userId - 使用者 ID
@@ -137,7 +137,7 @@ class Diary {
     const offsetNum = Math.max(0, toSafeInt(offset, 0))
 
     let query = `
-  SELECT d.*, u.username
+  SELECT d.*, u.username, u.profile_image AS avatar_url
       FROM diaries d
       JOIN users u ON d.user_id = u.user_id
       WHERE d.user_id = ?
@@ -163,7 +163,7 @@ class Diary {
     const [rows] = await db.query(query, params);
     return rows;
   }
-  
+
   /**
    * 取得公開日記列表（探索頁面）
    * @param {Object} options - 查詢選項
@@ -189,7 +189,7 @@ class Diary {
       const statusClause = hasStatus ? " AND d.status = 'published'" : ''
 
       const query = `
-        SELECT d.*, u.username
+          SELECT d.*, u.username, u.profile_image AS avatar_url
         FROM diaries d
         JOIN users u ON d.user_id = u.user_id
         WHERE d.visibility = 'public'${statusClause}
@@ -204,7 +204,7 @@ class Diary {
       throw err;
     }
   }
-  
+
   /**
    * 更新日記
    * @param {string} diaryId - 日記 ID
@@ -215,7 +215,7 @@ class Diary {
     const allowedFields = ['title', 'content', 'visibility', 'status'];
     const updateFields = [];
     const values = [];
-    
+
     for (const [key, value] of Object.entries(updates)) {
       if (allowedFields.includes(key) && value !== undefined) {
         // status may not exist in older schema; we'll handle later
@@ -229,11 +229,11 @@ class Diary {
         }
       }
     }
-    
+
     if (updateFields.length === 0) {
       return false;
     }
-    
+
     // If schema lacks status column, strip any status-related updates
     const hasStatus = await checkStatusColumn();
     if (!hasStatus) {
@@ -262,7 +262,7 @@ class Diary {
     const [result] = await db.execute(query, values);
     return result.affectedRows > 0;
   }
-  
+
   /**
    * 刪除日記（軟刪除）
    * @param {string} diaryId - 日記 ID
@@ -285,7 +285,7 @@ class Diary {
     const [result] = await db.execute(query, [diaryId]);
     return result.affectedRows > 0;
   }
-  
+
   /**
    * 檢查日記所有權
    * @param {string} diaryId - 日記 ID
@@ -298,11 +298,11 @@ class Diary {
       FROM diaries 
       WHERE diary_id = ? AND user_id = ?
     `;
-    
+
     const [rows] = await db.execute(query, [diaryId, userId]);
     return rows[0].count > 0;
   }
-  
+
   /**
    * 統計使用者的日記數量
    * @param {string} userId - 使用者 ID
@@ -321,7 +321,7 @@ class Diary {
     const [rows] = await db.execute(query, [userId]);
     return rows[0].count;
   }
-  
+
   /**
    * 新增日記標籤
    * @param {string} diaryId - 日記 ID
@@ -331,16 +331,16 @@ class Diary {
    */
   static async addTag(diaryId, tagType, tagValue) {
     const tagId = uuidv4();
-    
+
     const query = `
       INSERT INTO diary_tags (tag_id, diary_id, tag_type, tag_value, created_at)
       VALUES (?, ?, ?, ?, NOW())
     `;
-    
+
     await db.execute(query, [tagId, diaryId, tagType, tagValue]);
     return tagId;
   }
-  
+
   /**
    * 取得日記的所有標籤
    * @param {string} diaryId - 日記 ID
@@ -352,11 +352,11 @@ class Diary {
       WHERE diary_id = ?
       ORDER BY created_at ASC
     `;
-    
+
     const [rows] = await db.execute(query, [diaryId]);
     return rows;
   }
-  
+
   /**
    * 刪除日記的所有標籤
    * @param {string} diaryId - 日記 ID
@@ -378,12 +378,12 @@ class Diary {
    */
   static async addMedia(diaryId, fileUrl, fileType, fileSize) {
     const mediaId = uuidv4();
-    
+
     const query = `
       INSERT INTO diary_media (media_id, diary_id, file_url, file_type, file_size, uploaded_at)
       VALUES (?, ?, ?, ?, ?, NOW())
     `;
-    
+
     await db.execute(query, [mediaId, diaryId, fileUrl, fileType, fileSize]);
     return mediaId;
   }
@@ -395,11 +395,12 @@ class Diary {
    */
   static async getMedia(diaryId) {
     const query = `
-      SELECT * FROM diary_media 
+      SELECT *
+      FROM diary_media
       WHERE diary_id = ?
       ORDER BY uploaded_at ASC
     `;
-    
+
     const [rows] = await db.execute(query, [diaryId]);
     return rows;
   }
@@ -410,7 +411,7 @@ class Diary {
    * @returns {Promise<boolean>}
    */
   static async deleteMedia(mediaId) {
-    const query = `DELETE FROM diary_media WHERE media_id = ?`;
+    const query = `DELETE FROM diary_media WHERE media_id = ? `;
     const [result] = await db.execute(query, [mediaId]);
     return result.affectedRows > 0;
   }
@@ -421,7 +422,7 @@ class Diary {
    * @returns {Promise<boolean>}
    */
   static async deleteAllMedia(diaryId) {
-    const query = `DELETE FROM diary_media WHERE diary_id = ?`;
+    const query = `DELETE FROM diary_media WHERE diary_id = ? `;
     const [result] = await db.execute(query, [diaryId]);
     return result.affectedRows >= 0;
   }
@@ -447,25 +448,25 @@ class Diary {
     const statusClause = hasStatus ? " AND d.status = 'published'" : ''
 
     let query = `
-      SELECT DISTINCT d.*, u.username
+      SELECT DISTINCT d.*, u.username, u.profile_image AS avatar_url
       FROM diaries d
       JOIN users u ON d.user_id = u.user_id
       LEFT JOIN diary_tags dt ON d.diary_id = dt.diary_id
       WHERE d.visibility = 'public'${statusClause}
     `;
-    
+
     const params = [];
 
     // 關鍵字搜尋 (標題或內容)
     if (keyword) {
-      query += ` AND (d.title LIKE ? OR d.content LIKE ?)`;
+      query += ' AND (d.title LIKE ? OR d.content LIKE ?)';
       params.push(`%${keyword}%`, `%${keyword}%`);
     }
 
     // 情緒標籤篩選
     if (emotion) {
-      query += ` AND EXISTS (
-        SELECT 1 FROM diary_tags dt2 
+      query += ` AND EXISTS(
+      SELECT 1 FROM diary_tags dt2 
         WHERE dt2.diary_id = d.diary_id 
         AND dt2.tag_type = 'emotion' 
         AND dt2.tag_value = ?
@@ -475,7 +476,7 @@ class Diary {
 
     // 天氣標籤篩選
     if (weather) {
-      query += ` AND EXISTS (
+      query += ` AND EXISTS(
         SELECT 1 FROM diary_tags dt3 
         WHERE dt3.diary_id = d.diary_id 
         AND dt3.tag_type = 'weather' 
@@ -486,12 +487,12 @@ class Diary {
 
     // 日期範圍篩選
     if (dateFrom) {
-      query += ` AND d.created_at >= ?`;
+      query += ' AND d.created_at >= ?';
       params.push(dateFrom);
     }
 
     if (dateTo) {
-      query += ` AND d.created_at <= ?`;
+      query += ' AND d.created_at <= ?';
       params.push(dateTo);
     }
 
@@ -501,16 +502,15 @@ class Diary {
     const safeSortBy = String(sortBy || 'created_at')
 
     if (safeSortBy === 'like_count') {
-      query += ` ORDER BY (SELECT COUNT(*) FROM likes WHERE target_type = 'diary' AND target_id = d.diary_id) DESC`;
+      query += ' ORDER BY (SELECT COUNT(*) FROM likes WHERE target_type = \'diary\' AND target_id = d.diary_id) DESC';
     } else if (safeSortBy === 'comment_count') {
-      query += ` ORDER BY (SELECT COUNT(*) FROM comments WHERE diary_id = d.diary_id AND status = 'active') DESC`;
+      query += ' ORDER BY (SELECT COUNT(*) FROM comments WHERE diary_id = d.diary_id AND status = \'active\') DESC';
     } else {
       const safeOrderBy = sanitizeOrderBy('created_at')
       const safeOrderDir = 'DESC'
       query += ` ORDER BY d.${safeOrderBy} ${safeOrderDir}`;
     }
-
-    query += ` LIMIT ? OFFSET ?`;
+    query += ' LIMIT ? OFFSET ?';
     params.push(safeLimit, safeOffset);
 
     const [rows] = await db.execute(query, params);
@@ -532,7 +532,7 @@ class Diary {
     const statusClause = hasStatus ? " AND d.status = 'published'" : ''
 
     const query = `
-      SELECT d.*, u.username
+      SELECT d.*, u.username, u.profile_image AS avatar_url
       FROM diaries d
       JOIN users u ON d.user_id = u.user_id
       WHERE d.user_id = ? AND d.visibility = 'public'${statusClause}

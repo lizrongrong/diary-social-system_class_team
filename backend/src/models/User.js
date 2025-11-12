@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const crypto = require('crypto');
+const { generateAvatar } = require('../services/avatarGenerator');
 
 /**
  * User 資料模型
@@ -31,10 +32,14 @@ class User {
     } else {
       userId = genShortId();
     }
+    const finalProfileImage = typeof userData.profile_image === 'string' && userData.profile_image.trim().length > 0
+      ? userData.profile_image.trim()
+      : generateAvatar(userData.username || userId);
+
     const query = `
       INSERT INTO users (
-        user_id, email, password_hash, username, gender, birth_date, role, status, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, 'member', 'active', NOW())
+        user_id, email, password_hash, username, gender, birth_date, profile_image, role, status, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'member', 'active', NOW())
     `;
 
     const values = [
@@ -44,8 +49,9 @@ class User {
       userData.username,
       userData.gender,
       userData.birth_date,
+      finalProfileImage,
     ];
-    
+
     // 先檢查 email/username/user_id 是否已存在以提供即時錯誤
     if (await User.emailExists(userData.email)) {
       throw new Error('EMAIL_EXISTS');
@@ -95,7 +101,7 @@ class User {
     const [rows] = await db.execute(query, [userId]);
     return rows[0].count > 0;
   }
-  
+
   /**
    * 根據 Email 查找使用者
    * @param {string} email - Email
@@ -106,11 +112,11 @@ class User {
       SELECT * FROM users 
       WHERE email = ? AND status != 'deleted'
     `;
-    
+
     const [rows] = await db.query(query, [email]);
     return rows[0] || null;
   }
-  
+
   /**
    * 根據 ID 查找使用者
    * @param {string} userId - 使用者 ID
@@ -119,16 +125,16 @@ class User {
   static async findById(userId) {
     const query = `
       SELECT 
-        user_id, email, username,
-        gender, birth_date, role, status, created_at, updated_at
+  user_id, email, username,
+  gender, birth_date, role, status, profile_image, created_at, updated_at
       FROM users 
       WHERE user_id = ? AND status != 'deleted'
     `;
-    
+
     const [rows] = await db.query(query, [userId]);
     return rows[0] || null;
   }
-  
+
   /**
    * 根據 Username 查找使用者
    * @param {string} username - 使用者名稱
@@ -139,11 +145,11 @@ class User {
       SELECT * FROM users 
       WHERE username = ? AND status != 'deleted'
     `;
-    
+
     const [rows] = await db.query(query, [username]);
     return rows[0] || null;
   }
-  
+
   /**
    * 更新使用者最後登入時間
    * @param {string} userId - 使用者 ID
@@ -159,7 +165,7 @@ class User {
 
     await db.execute(query, [userId]);
   }
-  
+
   /**
    * 更新使用者資料
    * @param {string} userId - 使用者 ID
@@ -167,10 +173,10 @@ class User {
    * @returns {Promise<boolean>} 是否更新成功
    */
   static async update(userId, updates) {
-  const allowedFields = ['username', 'gender', 'birth_date'];
+    const allowedFields = ['username', 'gender', 'birth_date', 'profile_image'];
     const updateFields = [];
     const values = [];
-    
+
     // 只允許更新特定欄位
     for (const [key, value] of Object.entries(updates)) {
       if (allowedFields.includes(key) && value !== undefined) {
@@ -178,23 +184,23 @@ class User {
         values.push(value);
       }
     }
-    
+
     if (updateFields.length === 0) {
       return false;
     }
-    
+
     values.push(userId);
-    
+
     const query = `
       UPDATE users 
       SET ${updateFields.join(', ')}, updated_at = NOW()
       WHERE user_id = ?
     `;
-    
+
     const [result] = await db.execute(query, values);
     return result.affectedRows > 0;
   }
-  
+
   /**
    * 更新使用者密碼
    * @param {string} userId - 使用者 ID
@@ -207,11 +213,11 @@ class User {
       SET password_hash = ?, updated_at = NOW()
       WHERE user_id = ?
     `;
-    
+
     const [result] = await db.execute(query, [passwordHash, userId]);
     return result.affectedRows > 0;
   }
-  
+
   /**
    * 檢查 Email 是否已存在
    * @param {string} email - Email
@@ -222,11 +228,11 @@ class User {
       SELECT COUNT(*) as count FROM users 
       WHERE email = ? AND status != 'deleted'
     `;
-    
+
     const [rows] = await db.execute(query, [email]);
     return rows[0].count > 0;
   }
-  
+
   /**
    * 檢查 Username 是否已存在
    * @param {string} username - 使用者名稱
@@ -237,7 +243,7 @@ class User {
       SELECT COUNT(*) as count FROM users 
       WHERE username = ? AND status != 'deleted'
     `;
-    
+
     const [rows] = await db.execute(query, [username]);
     return rows[0].count > 0;
   }
@@ -254,9 +260,44 @@ class User {
       SET role = ?, updated_at = NOW()
       WHERE user_id = ?
     `;
-    
+
     const [result] = await db.execute(query, [role, userId]);
     return result.affectedRows > 0;
+  }
+
+  /**
+   * 搜尋使用者（依 user_id 或 username 模糊匹配）
+   * @param {string} keyword - 搜尋關鍵字
+   * @param {Object} options - 搜尋選項
+   * @param {string} [options.excludeUserId] - 排除的使用者 ID
+   * @param {number} [options.limit=10] - 回傳筆數上限
+   * @returns {Promise<Array>} 使用者列表
+   */
+  static async search(keyword, options = {}) {
+    if (!keyword) {
+      return [];
+    }
+
+    const searchTerm = `%${keyword}%`;
+    const params = [searchTerm, searchTerm];
+    let query = `
+      SELECT user_id, username
+      FROM users
+      WHERE status != 'deleted'
+        AND (username LIKE ? OR user_id LIKE ?)
+    `;
+
+    if (options.excludeUserId) {
+      query += ' AND user_id != ?';
+      params.push(options.excludeUserId);
+    }
+
+    const limit = Math.min(Math.max(parseInt(options.limit, 10) || 10, 1), 50);
+    query += ' ORDER BY username ASC LIMIT ?';
+    params.push(limit);
+
+    const [rows] = await db.query(query, params);
+    return rows;
   }
 }
 

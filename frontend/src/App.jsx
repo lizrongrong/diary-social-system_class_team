@@ -12,6 +12,8 @@ import DiariesList from './pages/diaries/DiariesList'
 import DiaryDetail from './pages/diaries/DiaryDetail'
 import DiaryEditor from './pages/diaries/DiaryEditor'
 import ProfilePage from './pages/ProfilePage'
+import EditProfilePage from './pages/account/EditProfilePage'
+import ChangePasswordPage from './pages/account/ChangePasswordPage'
 import UserProfilePage from './pages/UserProfilePage'
 import FollowPage from './pages/FollowPage'
 import MessagesPage from './pages/messages/MessagesPage'
@@ -43,7 +45,7 @@ function App() {
             <Route path="/search" element={<SearchPage />} />
 
             {/* 受保護路由 */}
-            <Route element={<ProtectedRoute />}> 
+            <Route element={<ProtectedRoute />}>
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/diaries" element={<DiariesList />} />
               <Route path="/diaries/new" element={<DiaryEditor />} />
@@ -51,6 +53,9 @@ function App() {
               <Route path="/follows" element={<FollowPage />} />
               <Route path="/messages/:userId" element={<MessagesPage />} />
               <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/account/profile" element={<ProfilePage />} />
+              <Route path="/account/edit-profile" element={<EditProfilePage />} />
+              <Route path="/account/change-password" element={<ChangePasswordPage />} />
               <Route path="/lucky-card" element={<LuckyCardPage />} />
               <Route path="/admin" element={<AdminDashboard />} />
             </Route>

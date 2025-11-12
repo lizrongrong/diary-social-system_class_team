@@ -21,7 +21,7 @@ function UserProfilePage() {
       try {
         // Load user profile
         const userResponse = await userAPI.getProfile(userId)
-        setUser(userResponse.data)
+        setUser(userResponse.user || userResponse)
 
         // Load follow status and counts via followers API
         const [status, counts] = await Promise.all([
@@ -48,7 +48,7 @@ function UserProfilePage() {
 
   const handleToggleFollow = async () => {
     if (!currentUser) return
-    
+
     setToggling(true)
     try {
       if (followStatus.isFollowing) {
@@ -70,31 +70,31 @@ function UserProfilePage() {
   }
 
   if (loading) return (
-    <div style={{ 
-      padding: 'var(--spacing-2xl)', 
+    <div style={{
+      padding: 'var(--spacing-2xl)',
       textAlign: 'center',
       paddingTop: '100px'
     }}>
       <div className="text-h3" style={{ color: 'var(--gray-500)' }}>載入中...</div>
     </div>
   )
-  
+
   if (error) return (
-    <div style={{ 
-      padding: 'var(--spacing-2xl)', 
+    <div style={{
+      padding: 'var(--spacing-2xl)',
       textAlign: 'center',
       paddingTop: '100px'
     }}>
       <div className="text-h3" style={{ color: 'var(--error-red)' }}>{error}</div>
     </div>
   )
-  
+
   if (!user) return null
 
   const isOwnProfile = currentUser?.user_id === userId
 
   return (
-    <div style={{ 
+    <div style={{
       padding: 'var(--spacing-xl)',
       paddingTop: '80px',
       maxWidth: 1000,
@@ -103,15 +103,15 @@ function UserProfilePage() {
     }}>
       {/* Profile Card */}
       <Card className="slide-up" style={{ marginBottom: 'var(--spacing-xl)' }}>
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
           alignItems: 'flex-start',
           marginBottom: 'var(--spacing-lg)'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
             {/* Avatar */}
-            <div style={{ 
+            <div style={{
               width: 80,
               height: 80,
               borderRadius: '50%',
@@ -126,7 +126,7 @@ function UserProfilePage() {
             }}>
               {(user.username || 'U').charAt(0).toUpperCase()}
             </div>
-            
+
             <div>
               <h2 className="text-h2" style={{ marginBottom: 'var(--spacing-xs)' }}>
                 {user.username}
@@ -136,7 +136,7 @@ function UserProfilePage() {
               </p>
             </div>
           </div>
-          
+
           {/* Follow Button */}
           {!isOwnProfile && currentUser && (
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -177,7 +177,7 @@ function UserProfilePage() {
 
         {/* Bio */}
         {user.bio && (
-          <p className="text-body" style={{ 
+          <p className="text-body" style={{
             color: 'var(--gray-700)',
             marginBottom: 'var(--spacing-lg)',
             paddingTop: 'var(--spacing-md)',
@@ -188,8 +188,8 @@ function UserProfilePage() {
         )}
 
         {/* Stats */}
-        <div style={{ 
-          display: 'flex', 
+        <div style={{
+          display: 'flex',
           gap: 'var(--spacing-xl)',
           paddingTop: 'var(--spacing-md)',
           borderTop: '1px solid var(--gray-200)'
@@ -223,7 +223,7 @@ function UserProfilePage() {
 
       {/* Public Diaries */}
       <div>
-        <h3 className="text-h3" style={{ 
+        <h3 className="text-h3" style={{
           marginBottom: 'var(--spacing-lg)',
           display: 'flex',
           alignItems: 'center',
@@ -244,29 +244,29 @@ function UserProfilePage() {
             </p>
           </Card>
         ) : (
-          <div style={{ 
+          <div style={{
             display: 'grid',
             gap: 'var(--spacing-lg)'
           }}>
             {diaries.map((diary, index) => (
-              <Card 
+              <Card
                 key={diary.diary_id}
                 hoverable
                 className="slide-up"
                 style={{ animationDelay: `${index * 0.05}s` }}
               >
-                <Link 
+                <Link
                   to={`/diaries/${diary.diary_id}`}
                   style={{ textDecoration: 'none', color: 'inherit' }}
                 >
                   <div style={{ marginBottom: 'var(--spacing-sm)' }}>
-                    <h4 className="text-h4" style={{ 
+                    <h4 className="text-h4" style={{
                       marginBottom: 'var(--spacing-xs)',
                       color: 'var(--dark-purple)'
                     }}>
                       {diary.title || '無標題'}
                     </h4>
-                    <div className="text-small" style={{ 
+                    <div className="text-small" style={{
                       color: 'var(--gray-500)',
                       display: 'flex',
                       alignItems: 'center',
@@ -283,7 +283,7 @@ function UserProfilePage() {
 
                   {/* Preview Content */}
                   {diary.content && (
-                    <p className="text-body" style={{ 
+                    <p className="text-body" style={{
                       color: 'var(--gray-700)',
                       marginBottom: 'var(--spacing-md)',
                       lineHeight: 1.6,
@@ -298,7 +298,7 @@ function UserProfilePage() {
 
                   {/* Tags */}
                   {diary.tags && diary.tags.length > 0 && (
-                    <div style={{ 
+                    <div style={{
                       display: 'flex',
                       gap: 'var(--spacing-xs)',
                       flexWrap: 'wrap',
@@ -323,7 +323,7 @@ function UserProfilePage() {
                   )}
 
                   {/* Stats */}
-                  <div style={{ 
+                  <div style={{
                     display: 'flex',
                     gap: 'var(--spacing-lg)',
                     paddingTop: 'var(--spacing-md)',
