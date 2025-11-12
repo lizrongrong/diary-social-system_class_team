@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   `status` ENUM('active', 'suspended', 'deleted') NOT NULL DEFAULT 'active' COMMENT '狀態',
   `gender` ENUM('male', 'female', 'other', 'prefer_not_to_say') NOT NULL DEFAULT 'prefer_not_to_say' COMMENT '性別',
   `birth_date` DATE NOT NULL COMMENT '生日 (需 ≥13歲)',
+   `profile_image` VARCHAR(500) DEFAULT NULL COMMENT '個人頭貼圖片',
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '建立時間',
   `updated_at` TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT '更新時間',
   `reset_token` VARCHAR(255) DEFAULT NULL COMMENT '密碼重設 Token',
