@@ -19,14 +19,15 @@ exports.getAll = async (req, res) => {
         f.following_id as following_user_id,
         f.status,
         f.created_at,
-  u.username
+        u.username,
+        u.profile_image AS avatar_url
       FROM followers f
       JOIN users u ON f.following_id = u.user_id
       WHERE f.follower_id = ? AND f.status = 'active'
       ORDER BY f.created_at DESC`,
       [userId]
     );
-    
+
     res.json({
       message: 'Following retrieved successfully',
       following: rows
@@ -47,67 +48,67 @@ exports.getAll = async (req, res) => {
  */
 exports.add = async (req, res) => {
   try {
-  const userId = req.user.user_id;
-  const { friend_id, following_id } = req.body; // following_id preferred: 被追蹤者的 user_id
-  const targetId = following_id || friend_id;
-    
-  console.log('=====================================');
-  console.log('📝 ADD FOLLOW REQUEST');
-    console.log('當前用戶:', userId);
-  console.log('要追蹤:', targetId);
+    const userId = req.user.user_id;
+    const { friend_id, following_id } = req.body; // following_id preferred: 被追蹤者的 user_id
+    const targetId = following_id || friend_id;
+
     console.log('=====================================');
-    
+    console.log('📝 ADD FOLLOW REQUEST');
+    console.log('當前用戶:', userId);
+    console.log('要追蹤:', targetId);
+    console.log('=====================================');
+
     if (!targetId) {
       return res.status(400).json({
         message: 'following_id (or friend_id) is required'
       });
     }
-    
+
     if (userId === targetId) {
       return res.status(400).json({
         message: 'Cannot follow yourself'
       });
     }
-    
+
     // 檢查是否已經追蹤此用戶（單向檢查）
     const [existing] = await db.query(
       `SELECT * FROM followers 
        WHERE follower_id = ? AND following_id = ?`,
       [userId, targetId]
     );
-    
+
     console.log('已存在的關係:', existing.length);
-    
+
     if (existing.length > 0) {
       console.log('❌ 已經追蹤過了');
       return res.status(400).json({
         message: 'Already following this user'
       });
     }
-    
+
     // 添加單向好友關係
-  const friendshipId = uuidv4();
-    
-  console.log('✅ 插入新追蹤關係:', userId, '-->', targetId);
-    
+    const friendshipId = uuidv4();
+
+    console.log('✅ 插入新追蹤關係:', userId, '-->', targetId);
+
     await db.execute(
       `INSERT INTO followers (follow_id, follower_id, following_id, status)
        VALUES (?, ?, ?, 'active')`,
       [friendshipId, userId, targetId]
     );
-    
+
     console.log('✅ 插入成功！');
     console.log('=====================================');
-    
+
     // 檢查對方是否也追蹤了你（互相追蹤）
     const [reverseFollow] = await db.query(
       `SELECT * FROM followers 
        WHERE follower_id = ? AND following_id = ?`,
       [targetId, userId]
     );
-    
+
     const isMutual = reverseFollow.length > 0;
-    
+
     // 獲取當前用戶資訊
     const [currentUser] = await db.query(
       'SELECT username FROM users WHERE user_id = ?',
@@ -115,12 +116,12 @@ exports.add = async (req, res) => {
     );
 
     // 發送通知給被追蹤的用戶
-  const displayName = currentUser[0]?.username || '某位用戶';
+    const displayName = currentUser[0]?.username || '某位用戶';
     const notificationTitle = isMutual ? '新的互相追蹤' : '新的追蹤者';
-    const notificationContent = isMutual 
+    const notificationContent = isMutual
       ? `${displayName} 也追蹤了你，你們現在互相追蹤了！`
       : `${displayName} 開始追蹤你了`;
-    
+
     await Notification.create(
       targetId,
       'follow',
@@ -129,7 +130,7 @@ exports.add = async (req, res) => {
       userId,
       null
     );
-    
+
     res.status(201).json({
       message: 'Follow added successfully',
       follow_id: friendshipId,
@@ -152,8 +153,8 @@ exports.add = async (req, res) => {
 exports.remove = async (req, res) => {
   try {
     const userId = req.user.user_id;
-  const { followingId, friendId } = req.params; // followingId preferred
-  const targetId = followingId || friendId;
+    const { followingId, friendId } = req.params; // followingId preferred
+    const targetId = followingId || friendId;
 
     // 刪除單向追蹤關係
     await db.execute(
@@ -161,7 +162,7 @@ exports.remove = async (req, res) => {
        WHERE follower_id = ? AND following_id = ?`,
       [userId, targetId]
     );
-    
+
     res.json({
       message: 'Follow removed successfully'
     });
@@ -181,37 +182,37 @@ exports.remove = async (req, res) => {
  */
 exports.checkStatus = async (req, res) => {
   try {
-  const userId = req.user.user_id;
-  const { userId: targetUserId } = req.params;
-    
+    const userId = req.user.user_id;
+    const { userId: targetUserId } = req.params;
+
     console.log('=== checkStatus ===');
     console.log('當前用戶:', userId);
     console.log('目標用戶:', targetUserId);
-    
+
     // 檢查你是否追蹤對方
     const [youFollow] = await db.query(
       `SELECT * FROM followers 
        WHERE follower_id = ? AND following_id = ?`,
       [userId, targetUserId]
     );
-    
+
     console.log('我追蹤對方?', youFollow.length > 0, youFollow);
-    
+
     // 檢查對方是否追蹤你
     const [theyFollow] = await db.query(
       `SELECT * FROM followers 
        WHERE follower_id = ? AND following_id = ?`,
       [targetUserId, userId]
     );
-    
+
     console.log('對方追蹤我?', theyFollow.length > 0, theyFollow);
-    
-  const isFriend = youFollow.length > 0;
+
+    const isFriend = youFollow.length > 0;
     const followsYou = theyFollow.length > 0;
     const isMutual = isFriend && followsYou;
-    
+
     console.log('結果:', { isFriend, followsYou, isMutual });
-    
+
     res.json({
       isFriend,
       followsYou,
@@ -243,7 +244,8 @@ exports.getFollowingByUser = async (req, res) => {
     f.following_id as following_user_id,
         f.status,
         f.created_at,
-  u.username
+        u.username,
+        u.profile_image AS avatar_url
        FROM followers f
        JOIN users u ON f.following_id = u.user_id
        WHERE f.follower_id = ? AND f.status = 'active'
@@ -251,7 +253,7 @@ exports.getFollowingByUser = async (req, res) => {
       [userId]
     );
 
-  res.json({ following: rows });
+    res.json({ following: rows });
   } catch (error) {
     console.error('Get following error:', error);
     res.status(500).json({ message: 'Failed to get following', error: error.message });
@@ -274,7 +276,8 @@ exports.getFollowersByUser = async (req, res) => {
     f.following_id as following_user_id,
         f.status,
         f.created_at,
-  u.username
+        u.username,
+        u.profile_image AS avatar_url
        FROM followers f
        JOIN users u ON f.follower_id = u.user_id
        WHERE f.following_id = ? AND f.status = 'active'
@@ -282,7 +285,7 @@ exports.getFollowersByUser = async (req, res) => {
       [userId]
     );
 
-  res.json({ followers: rows });
+    res.json({ followers: rows });
   } catch (error) {
     console.error('Get followers error:', error);
     res.status(500).json({ message: 'Failed to get followers', error: error.message });

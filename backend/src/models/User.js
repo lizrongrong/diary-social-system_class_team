@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const crypto = require('crypto');
+const { generateAvatar } = require('../services/avatarGenerator');
 
 /**
  * User 資料模型
@@ -31,10 +32,14 @@ class User {
     } else {
       userId = genShortId();
     }
+    const finalProfileImage = typeof userData.profile_image === 'string' && userData.profile_image.trim().length > 0
+      ? userData.profile_image.trim()
+      : generateAvatar(userData.username || userId);
+
     const query = `
       INSERT INTO users (
-        user_id, email, password_hash, username, gender, birth_date, role, status, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, 'member', 'active', NOW())
+        user_id, email, password_hash, username, gender, birth_date, profile_image, role, status, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'member', 'active', NOW())
     `;
 
     const values = [
@@ -44,6 +49,7 @@ class User {
       userData.username,
       userData.gender,
       userData.birth_date,
+      finalProfileImage,
     ];
 
     // 先檢查 email/username/user_id 是否已存在以提供即時錯誤
@@ -119,8 +125,8 @@ class User {
   static async findById(userId) {
     const query = `
       SELECT 
-        user_id, email, username,
-        gender, birth_date, role, status, created_at, updated_at
+  user_id, email, username,
+  gender, birth_date, role, status, profile_image, created_at, updated_at
       FROM users 
       WHERE user_id = ? AND status != 'deleted'
     `;
@@ -167,7 +173,7 @@ class User {
    * @returns {Promise<boolean>} 是否更新成功
    */
   static async update(userId, updates) {
-    const allowedFields = ['username', 'gender', 'birth_date'];
+    const allowedFields = ['username', 'gender', 'birth_date', 'profile_image'];
     const updateFields = [];
     const values = [];
 
