@@ -261,59 +261,7 @@ function NotificationBell() {
       </button>
       <MessageDropdown visible={showDropdown} onClose={() => setShowDropdown(false)} />
 
-      {showDropdown && (
-        <div style={{
-          position: 'absolute',
-          top: '100%',
-          right: 0,
-          marginTop: 8,
-          width: 320,
-          maxHeight: 420,
-          background: '#fff',
-          border: '1px solid #ddd',
-          borderRadius: 8,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-          zIndex: 1000,
-          overflow: 'hidden'
-        }}>
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            padding: '12px 16px',
-            borderBottom: '1px solid #eee',
-            background: '#f9f9f9'
-          }}>
-            <strong style={{ fontSize: 16 }}>訊息</strong>
-          </div>
-
-          <div style={{ maxHeight: 360, overflowY: 'auto' }}>
-            {recentChats.length === 0 ? (
-              <div style={{ padding: 20, color: '#666', fontSize: 14 }}>尚無對話，或請先在好友頁打開對話。</div>
-            ) : (
-              recentChats.map(c => (
-                <Link
-                  key={c.key}
-                  to={`/messages/${c.otherId}`}
-                  state={{}}
-                  onClick={() => setShowDropdown(false)}
-                  style={{ display: 'block', padding: '12px 16px', borderBottom: '1px solid #f5f5f5', color: '#333', textDecoration: 'none' }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ fontSize: 14, fontWeight: 600 }}>
-                      {c.latest && c.latest.from === user.id ? '我' : `使用者 ${c.otherId}`}
-                    </div>
-                    <div style={{ fontSize: 12, color: '#999' }}>{new Date(c.latest.created_at).toLocaleString()}</div>
-                  </div>
-                  <div style={{ marginTop: 6, fontSize: 13, color: '#666', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {c.latest.text}
-                  </div>
-                </Link>
-              ))
-            )}
-          </div>
-        </div>
-      )}
+      {/* 訊息下拉已移到 <MessageDropdown />，上方元件管理顯示 */}
 
       {/* 系統公告 Dropdown（包含公告 + 系統通知） */}
       {showNotif && (
