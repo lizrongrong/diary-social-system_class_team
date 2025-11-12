@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { Heart, MessageCircle, Share2, UserPlus, UserCheck, Users } from 'lucide-react'
 import useAuthStore from '../store/authStore'
-import { diaryAPI, likeAPI, followAPI } from '../services/api'
+import { diaryAPI, ensureAbsoluteUrl, followAPI, likeAPI } from '../services/api'
 import { useToast } from '../components/ui/Toast'
 import './HomePage.css'
 
@@ -39,7 +39,7 @@ function HomePage() {
       console.log('Fetching public diaries...')
       const data = await diaryAPI.explore({ page: 1, limit: user ? 20 : 6 })
       console.log('Received data:', data)
-      
+
       // 隨機排序日記
       const diariesArray = data.diaries || []
       const shuffled = [...diariesArray].sort(() => Math.random() - 0.5)
@@ -100,7 +100,7 @@ function HomePage() {
       addToast('請先登入', 'warning')
       return
     }
-    
+
     try {
       await likeAPI.toggle('diary', diaryId)
       // 更新本地狀態
@@ -125,24 +125,24 @@ function HomePage() {
       addToast('請先登入', 'warning')
       return
     }
-    
+
     if (isFriend(userId)) {
       addToast('已經追蹤此用戶', 'info')
       return
     }
-    
+
     try {
-    console.log('Adding follow:', userId)
-    const result = await followAPI.add(userId)
-      
+      console.log('Adding follow:', userId)
+      const result = await followAPI.add(userId)
+
       // 如果是互相追蹤，顯示特別訊息
       if (result.is_mutual) {
         addToast('追蹤成功！你們現在互相追蹤了', 'success')
       } else {
         addToast('追蹤成功', 'success')
       }
-      
-  await fetchFollows() // 重新獲取追蹤列表和互相追蹤狀態
+
+      await fetchFollows() // 重新獲取追蹤列表和互相追蹤狀態
       console.log('Friends updated after adding')
     } catch (err) {
       console.error('Error adding friend:', err)
@@ -198,23 +198,37 @@ function HomePage() {
           <article key={post.diary_id} className="post-card">
             <div className="post-header">
               <div className="author-info">
-                <div className="author-avatar" style={{ 
-                  backgroundImage: post.avatar_url ? `url(${post.avatar_url})` : 'none',
-                  backgroundColor: post.avatar_url ? 'transparent' : '#E0E0E0'
-                }}></div>
+                <Link
+                  to={`/users/${post.user_id}`}
+                  className="author-avatar-link"
+                  style={{ textDecoration: 'none' }}
+                >
+                  <div
+                    className="author-avatar"
+                    style={{
+                      backgroundImage: post.avatar_url ? `url(${ensureAbsoluteUrl(post.avatar_url)})` : 'none',
+                      backgroundColor: post.avatar_url ? 'transparent' : '#E0E0E0'
+                    }}
+                  />
+                </Link>
                 <div className="author-details">
-                  <h3 className="author-name">{post.username || '匿名用戶'}</h3>
+                  <Link
+                    to={`/users/${post.user_id}`}
+                    className="author-name-link"
+                    style={{ textDecoration: 'none', color: 'inherit' }}
+                  >
+                    <h3 className="author-name">{post.username || '匿名用戶'}</h3>
+                  </Link>
                   <span className="post-date">
                     {new Date(post.created_at).toLocaleDateString('zh-TW')}
                   </span>
                 </div>
               </div>
               {user && user.user_id !== post.user_id && (
-                <button 
-                  className={`follow-btn ${
-                    isMutual(post.user_id) ? 'is-mutual' : 
-                    isFriend(post.user_id) ? 'is-friend' : ''
-                  }`}
+                <button
+                  className={`follow-btn ${isMutual(post.user_id) ? 'is-mutual' :
+                      isFriend(post.user_id) ? 'is-friend' : ''
+                    }`}
                   onClick={() => handleFollow(post.user_id)}
                   disabled={isFriend(post.user_id)}
                 >
@@ -239,27 +253,27 @@ function HomePage() {
             </div>
 
             <div className="post-content">
-              <Link 
+              <Link
                 to={`/diaries/${post.diary_id}`}
                 style={{ textDecoration: 'none', color: 'inherit' }}
               >
                 <h3 className="post-title">{post.title || '(未命名)'}</h3>
               </Link>
-              
+
               {/* 標籤 */}
               {post.tags && post.tags.length > 0 && (
-                <div style={{ 
-                  display: 'flex', 
-                  flexWrap: 'wrap', 
-                  gap: '6px', 
-                  marginBottom: '12px' 
+                <div style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: '6px',
+                  marginBottom: '12px'
                 }}>
                   {post.tags.filter(t => t.tag_type === 'emotion').slice(0, 2).map((t, i) => (
-                    <span 
-                      key={i} 
-                      style={{ 
-                        padding: '3px 10px', 
-                        background: 'var(--emotion-pink)', 
+                    <span
+                      key={i}
+                      style={{
+                        padding: '3px 10px',
+                        background: 'var(--emotion-pink)',
                         borderRadius: '12px',
                         fontSize: '0.75rem',
                         fontWeight: 500,
@@ -270,10 +284,10 @@ function HomePage() {
                     </span>
                   ))}
                   {post.tags.find(t => t.tag_type === 'weather') && (
-                    <span 
-                      style={{ 
-                        padding: '3px 10px', 
-                        background: '#B2EBF2', 
+                    <span
+                      style={{
+                        padding: '3px 10px',
+                        background: '#B2EBF2',
                         borderRadius: '12px',
                         fontSize: '0.75rem',
                         fontWeight: 500,
@@ -284,11 +298,11 @@ function HomePage() {
                     </span>
                   )}
                   {post.tags.filter(t => t.tag_type === 'keyword').slice(0, 3).map((t, i) => (
-                    <span 
-                      key={i} 
-                      style={{ 
-                        padding: '3px 10px', 
-                        background: 'var(--gray-200)', 
+                    <span
+                      key={i}
+                      style={{
+                        padding: '3px 10px',
+                        background: 'var(--gray-200)',
                         borderRadius: '12px',
                         fontSize: '0.75rem',
                         color: 'var(--gray-700)'
@@ -299,12 +313,12 @@ function HomePage() {
                   ))}
                 </div>
               )}
-              
+
               <p>{post.content}</p>
             </div>
 
             <div className="post-footer">
-              <button 
+              <button
                 className={`post-action ${post.is_liked ? 'liked' : ''}`}
                 onClick={() => handleLike(post.diary_id)}
               >

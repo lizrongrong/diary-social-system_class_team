@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { followAPI, userAPI } from '../services/api'
+import { ensureAbsoluteUrl, followAPI, userAPI } from '../services/api'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import { Users, Search, X, HeartHandshake, UserPlus } from 'lucide-react'
@@ -204,7 +204,7 @@ function FollowPage() {
 
   const openProfile = (friendId) => {
     if (!friendId) return
-    navigate(`/user/${friendId}`)
+    navigate(`/users/${friendId}`)
   }
 
   const friendCount = follows.length
@@ -268,9 +268,11 @@ function FollowPage() {
                   const friendId =
                     follow.friend_user_id || follow.following_user_id || follow.user_id
                   const displayName = follow.display_name || follow.username || '好友'
-                  const avatarStyle = follow.avatar_url
-                    ? { backgroundImage: `url(${follow.avatar_url})` }
+                  const avatarUrl = ensureAbsoluteUrl(follow.avatar_url)
+                  const avatarStyle = avatarUrl
+                    ? { backgroundImage: `url(${avatarUrl})` }
                     : {}
+                  const profileHref = friendId ? `/users/${friendId}` : '#'
 
                   return (
                     <li
@@ -284,15 +286,19 @@ function FollowPage() {
                         onClick={() => openProfile(friendId)}
                         aria-label={`${displayName} 的個人頁面`}
                       >
-                        {!follow.avatar_url && (follow.username || '').charAt(0).toUpperCase()}
+                        {!avatarUrl && (follow.username || '').charAt(0).toUpperCase()}
                       </button>
 
-                      <div className="friend-info">
+                      <Link
+                        to={profileHref}
+                        className="friend-info"
+                        style={{ textDecoration: 'none', color: 'inherit' }}
+                      >
                         <span className="friend-name">{displayName}</span>
                         {follow.username && (
                           <span className="friend-username">@{follow.username}</span>
                         )}
-                      </div>
+                      </Link>
 
                       <div className="friend-actions">
                         <button
@@ -336,9 +342,11 @@ function FollowPage() {
                   const usernameLabel = user.username
                     ? `@${user.username}`
                     : `ID：${user.user_id}`
-                  const avatarStyle = user.avatar_url
-                    ? { backgroundImage: `url(${user.avatar_url})` }
+                  const avatarUrl = ensureAbsoluteUrl(user.avatar_url)
+                  const avatarStyle = avatarUrl
+                    ? { backgroundImage: `url(${avatarUrl})` }
                     : {}
+                  const profileHref = user.user_id ? `/users/${user.user_id}` : '#'
 
                   return (
                     <li key={user.user_id} className="friend-item friend-item--suggestion">
@@ -349,12 +357,16 @@ function FollowPage() {
                         onClick={() => openProfile(user.user_id)}
                         aria-label={`${displayName} 的個人頁面`}
                       >
-                        {!user.avatar_url && (user.username || user.user_id || '').charAt(0).toUpperCase()}
+                        {!avatarUrl && (user.username || user.user_id || '').charAt(0).toUpperCase()}
                       </button>
-                      <div className="friend-info">
+                      <Link
+                        to={profileHref}
+                        className="friend-info"
+                        style={{ textDecoration: 'none', color: 'inherit' }}
+                      >
                         <span className="friend-name">{displayName}</span>
                         <span className="friend-username">{usernameLabel}</span>
-                      </div>
+                      </Link>
                       <div className="friend-actions friend-actions--suggestion">
                         <button
                           type="button"
@@ -401,9 +413,11 @@ function FollowPage() {
           {filteredFollows.map((follow) => {
             const friendId = follow.friend_user_id || follow.following_user_id || follow.user_id
             const displayName = follow.display_name || follow.username || '好友'
-            const avatarStyle = follow.avatar_url
-              ? { backgroundImage: `url(${follow.avatar_url})` }
+            const avatarUrl = ensureAbsoluteUrl(follow.avatar_url)
+            const avatarStyle = avatarUrl
+              ? { backgroundImage: `url(${avatarUrl})` }
               : {}
+            const profileHref = friendId ? `/users/${friendId}` : '#'
 
             return (
               <li key={friendId || follow.friend_id || follow.follow_id} className="friend-item">
@@ -414,13 +428,17 @@ function FollowPage() {
                   onClick={() => openProfile(friendId)}
                   aria-label={`${displayName} 的個人頁面`}
                 >
-                  {!follow.avatar_url && (follow.username || '').charAt(0).toUpperCase()}
+                  {!avatarUrl && (follow.username || '').charAt(0).toUpperCase()}
                 </button>
 
-                <div className="friend-info">
+                <Link
+                  to={profileHref}
+                  className="friend-info"
+                  style={{ textDecoration: 'none', color: 'inherit' }}
+                >
                   <span className="friend-name">{displayName}</span>
                   {follow.username && <span className="friend-username">@{follow.username}</span>}
-                </div>
+                </Link>
 
                 <div className="friend-actions">
                   <button

@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect, useRef } from 'react'
 import { Bell, MessageSquare, UserPlus } from 'lucide-react'
 import notificationAPI from '../services/notificationAPI'
-import { followAPI } from '../services/api'
+import { ensureAbsoluteUrl, followAPI } from '../services/api'
 import useAuthStore from '../store/authStore'
 import { Link } from 'react-router-dom'
 import { useToast } from './ui/Toast'
@@ -22,7 +22,7 @@ function NotificationBell() {
   const [showOriginalFor, setShowOriginalFor] = useState(new Set())
 
   useEffect(() => {
-  if (!user) return
+    if (!user) return
 
     const fetchNotifications = async () => {
       try {
@@ -46,36 +46,36 @@ function NotificationBell() {
       }
     }
 
-  fetchNotifications()
-  fetchFollowing()
-  // preload recent chats from localStorage
-  const loadRecentChats = () => {
-    try {
-      const chats = []
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i)
-        if (!key || !key.startsWith('chat_')) continue
-        try {
-          const arr = JSON.parse(localStorage.getItem(key)) || []
-          if (!Array.isArray(arr) || arr.length === 0) continue
-          // messages may be stored newest-first; pick the first as latest
-          const latest = arr[0] || arr[arr.length - 1]
-          const ids = key.replace(/^chat_/, '').split('_')
-          // other participant id (not current user)
-          const otherId = ids.find(id => id !== String(user.id)) || ids[0]
-          chats.push({ key, otherId, latest })
-        } catch (e) {
-          // ignore parse errors
+    fetchNotifications()
+    fetchFollowing()
+    // preload recent chats from localStorage
+    const loadRecentChats = () => {
+      try {
+        const chats = []
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i)
+          if (!key || !key.startsWith('chat_')) continue
+          try {
+            const arr = JSON.parse(localStorage.getItem(key)) || []
+            if (!Array.isArray(arr) || arr.length === 0) continue
+            // messages may be stored newest-first; pick the first as latest
+            const latest = arr[0] || arr[arr.length - 1]
+            const ids = key.replace(/^chat_/, '').split('_')
+            // other participant id (not current user)
+            const otherId = ids.find(id => id !== String(user.id)) || ids[0]
+            chats.push({ key, otherId, latest })
+          } catch (e) {
+            // ignore parse errors
+          }
         }
+        // sort by latest message time desc
+        chats.sort((a, b) => new Date(b.latest.created_at) - new Date(a.latest.created_at))
+        setRecentChats(chats)
+      } catch (e) {
+        setRecentChats([])
       }
-      // sort by latest message time desc
-      chats.sort((a, b) => new Date(b.latest.created_at) - new Date(a.latest.created_at))
-      setRecentChats(chats)
-    } catch (e) {
-      setRecentChats([])
     }
-  }
-  loadRecentChats()
+    loadRecentChats()
     const interval = setInterval(() => {
       fetchNotifications()
       fetchFollowing()
@@ -97,7 +97,7 @@ function NotificationBell() {
       return () => document.removeEventListener('mousedown', handleClickOutside)
     }
 
-    return () => {}
+    return () => { }
   }, [showDropdown, showNotif])
 
   // Try to repair common mojibake/encoding issues in incoming strings.
@@ -167,7 +167,7 @@ function NotificationBell() {
   const handleMarkAsRead = async (notificationId) => {
     try {
       await notificationAPI.markAsRead(notificationId)
-      setNotifications(notifications.map(n => 
+      setNotifications(notifications.map(n =>
         n.notification_id === notificationId ? { ...n, is_read: true } : n
       ))
       setUnreadCount(Math.max(0, unreadCount - 1))
@@ -191,7 +191,7 @@ function NotificationBell() {
 
   const handleFollowBack = async (sourceUserId) => {
     try {
-        await followAPI.add(sourceUserId)
+      await followAPI.add(sourceUserId)
       setFollowingUsers(new Set([...followingUsers, sourceUserId]))
       addToast('追蹤成功', 'success')
     } catch (e) {
@@ -306,18 +306,18 @@ function NotificationBell() {
                 >
                   {n.type === 'follow' && n.source_user_id ? (
                     <div>
-                      <div 
+                      <div
                         onClick={() => !n.is_read && handleMarkAsRead(n.notification_id)}
                         style={{ cursor: n.is_read ? 'default' : 'pointer' }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-                          <div 
+                          <div
                             style={{
                               width: 40,
                               height: 40,
                               borderRadius: '50%',
-                              background: n.avatar_url 
-                                ? `url(${n.avatar_url}) center/cover` 
+                              background: n.avatar_url
+                                ? `url(${ensureAbsoluteUrl(n.avatar_url)}) center/cover`
                                 : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                               border: '2px solid #CD79D5',
                               flexShrink: 0
@@ -395,7 +395,7 @@ function NotificationBell() {
                     </div>
                   ) : (
                     <div>
-                      <div 
+                      <div
                         onClick={() => !n.is_read && handleMarkAsRead(n.notification_id)}
                         style={{ cursor: n.is_read ? 'default' : 'pointer' }}
                       >
@@ -414,9 +414,9 @@ function NotificationBell() {
                             }} />
                           )}
                         </div>
-                              <div style={{ fontSize: 13, color: '#666', marginBottom: 6 }}>
-                                {renderMaybeFixed(n.notification_id, n.content, tryFixEncoding(n.content))}
-                              </div>
+                        <div style={{ fontSize: 13, color: '#666', marginBottom: 6 }}>
+                          {renderMaybeFixed(n.notification_id, n.content, tryFixEncoding(n.content))}
+                        </div>
                         <div style={{ fontSize: 11, color: '#999' }}>
                           {new Date(n.created_at).toLocaleString()}
                         </div>

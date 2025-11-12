@@ -186,16 +186,14 @@ export const diaryAPI = {
 
   getUserPublicDiaries: async (userId, params) => {
     const response = await api.get(`/users/${userId}/diaries`, { params })
-    return response
+    return response.data
   }
 }
 
 // 使用者 API
 export const userAPI = {
-  getProfile: async (userId) => {
-    // 如果有 userId，獲取該用戶的公開資料；否則獲取自己的資料
-    const url = userId ? `/users/${userId}` : '/users/profile'
-    const res = await api.get(url)
+  getProfile: async () => {
+    const res = await api.get('/users/profile')
     return res.data
   },
   updateProfile: async (data) => {
@@ -206,6 +204,10 @@ export const userAPI = {
     const res = await api.put('/users/password', data)
     return res.data
   },
+  getPublicById: async (userId) => {
+    const res = await api.get(`/users/id/${userId}`)
+    return res.data
+  },
   getPublic: async (username) => {
     const res = await api.get(`/users/${username}`)
     return res.data
@@ -213,12 +215,6 @@ export const userAPI = {
   search: async (keyword, options = {}) => {
     const params = { keyword, ...options }
     const res = await api.get('/users/search', { params })
-    return res.data
-  },
-  search: async (keyword, params = {}) => {
-    const res = await api.get('/users/search', {
-      params: { keyword, ...params }
-    })
     return res.data
   }
 }
