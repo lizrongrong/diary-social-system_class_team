@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import { useEffect } from 'react'
 import useAuthStore from './store/authStore'
 import HomePage from './pages/HomePage'
@@ -31,39 +31,48 @@ function App() {
     fetchUser()
   }, [fetchUser])
 
+  // 建立巢狀路由配置，Layout 為父 element，使用 Outlet 顯示子頁面
+  const router = createBrowserRouter([
+    {
+      path: '/',
+      element: <Layout />,
+      children: [
+        { index: true, element: <HomePage /> },
+        { path: 'login', element: <LoginPage /> },
+        { path: 'forgot-password', element: <ForgotPasswordPage /> },
+        { path: 'register', element: <RegisterPage /> },
+        { path: 'explore', element: <ExplorePage /> },
+        { path: 'search', element: <SearchPage /> },
+
+        // 受保護路由（ProtectedRoute 渲染 Outlet）
+        {
+          element: <ProtectedRoute />,
+          children: [
+            { path: 'dashboard', element: <DashboardPage /> },
+            { path: 'diaries', element: <DiariesList /> },
+            { path: 'diaries/new', element: <DiaryEditor /> },
+            { path: 'diaries/:id/edit', element: <DiaryEditor /> },
+            { path: 'follows', element: <FollowPage /> },
+            { path: 'messages/:userId', element: <MessagesPage /> },
+            { path: 'profile', element: <ProfilePage /> },
+            { path: 'account/profile', element: <ProfilePage /> },
+            { path: 'account/change-password', element: <ChangePasswordPage /> },
+            { path: 'lucky-card', element: <LuckyCardPage /> },
+            { path: 'admin', element: <AdminDashboard /> }
+          ]
+        },
+
+        // 公開細節頁
+        { path: 'diaries/:id', element: <DiaryDetail /> },
+        { path: 'users/:userId', element: <UserProfilePage /> }
+      ]
+    }
+  ])
+
   return (
     <ToastProvider>
-      <Router>
-        <Layout>
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="/explore" element={<ExplorePage />} />
-            <Route path="/search" element={<SearchPage />} />
-
-            {/* 受保護路由 */}
-            <Route element={<ProtectedRoute />}>
-              <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/diaries" element={<DiariesList />} />
-              <Route path="/diaries/new" element={<DiaryEditor />} />
-              <Route path="/diaries/:id/edit" element={<DiaryEditor />} />
-              <Route path="/follows" element={<FollowPage />} />
-              <Route path="/messages/:userId" element={<MessagesPage />} />
-              <Route path="/profile" element={<ProfilePage />} />
-              <Route path="/account/profile" element={<ProfilePage />} />
-              <Route path="/account/change-password" element={<ChangePasswordPage />} />
-              <Route path="/lucky-card" element={<LuckyCardPage />} />
-              <Route path="/admin" element={<AdminDashboard />} />
-            </Route>
-
-            {/* 公開讀取單篇（公開可匿名；私人需登入且為作者，但這裡頁面共用）*/}
-            <Route path="/diaries/:id" element={<DiaryDetail />} />
-            <Route path="/users/:userId" element={<UserProfilePage />} />
-          </Routes>
-        </Layout>
-      </Router>
+      {/* 使用 future flags 提前啟用 v7 行為，移除警告 */}
+      <RouterProvider router={router} future={{ v7_startTransition: true, v7_relativeSplatPath: true }} />
     </ToastProvider>
   )
 }

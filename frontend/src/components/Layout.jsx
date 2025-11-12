@@ -1,4 +1,4 @@
-﻿import { Link, useLocation, useNavigate } from 'react-router-dom'
+﻿import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import useAuthStore from '../store/authStore'
 import { notificationAPI } from '../services/api'
@@ -6,7 +6,7 @@ import { Home, Sparkles, BookOpen, TrendingUp, Users, RefreshCw, Search as Searc
 import NotificationBell from './NotificationBell'
 import './Layout.css'
 
-function Layout({ children }) {
+function Layout() {
   const { user, logout } = useAuthStore()
   const location = useLocation()
   const navigate = useNavigate()
@@ -189,7 +189,9 @@ function Layout({ children }) {
               </button>
             </div>
           )}
-          <main className="page-content">{children}</main>
+          <main className="page-content">
+            <Outlet />
+          </main>
         </div>
       </div>
     </div>
