@@ -7,6 +7,19 @@ const { generateAvatar } = require('../services/avatarGenerator');
  * 處理使用者相關的資料庫操作
  */
 class User {
+  static async ensureSignatureColumnSupport() {
+    if (User.signatureColumnSupported !== undefined) {
+      return;
+    }
+
+    try {
+      const [rows] = await db.query('SHOW COLUMNS FROM users LIKE "signature"');
+      User.signatureColumnSupported = rows.length > 0;
+    } catch (error) {
+      console.warn('Unable to inspect users.signature column:', error);
+      User.signatureColumnSupported = false;
+    }
+  }
   /**
    * 建立新使用者
    * @param {Object} userData - 使用者資料
@@ -123,17 +136,54 @@ class User {
    * @returns {Promise<Object|null>} 使用者物件或 null
    */
   static async findById(userId) {
+    const fields = [
+      'user_id',
+      'email',
+      'username'
+    ];
+
+    await User.ensureSignatureColumnSupport();
+
+    if (User.signatureColumnSupported) {
+      fields.push('signature');
+    }
+
+    fields.push(
+      'gender',
+      'birth_date',
+      'role',
+      'status',
+      'profile_image',
+      'created_at',
+      'updated_at'
+    );
+
     const query = `
-        SELECT 
-      user_id, email, username,
-      signature,
-      gender, birth_date, role, status, profile_image, created_at, updated_at
-      FROM users 
+      SELECT ${fields.join(', ')}
+      FROM users
       WHERE user_id = ? AND status != 'deleted'
     `;
 
-    const [rows] = await db.query(query, [userId]);
-    return rows[0] || null;
+    try {
+      const [rows] = await db.query(query, [userId]);
+      const user = rows[0] || null;
+
+      if (user && User.signatureColumnSupported && !Object.prototype.hasOwnProperty.call(user, 'signature')) {
+        // If the column was reported but still missing (unlikely), treat as unsupported to prevent future crashes.
+        User.signatureColumnSupported = false;
+        user.signature = null;
+      }
+
+      return user;
+    } catch (error) {
+      if (User.signatureColumnSupported && error.code === 'ER_BAD_FIELD_ERROR') {
+        console.warn('users.signature column not found, continuing without signature support');
+        User.signatureColumnSupported = false;
+        return User.findById(userId);
+      }
+
+      throw error;
+    }
   }
 
   /**
@@ -174,7 +224,12 @@ class User {
    * @returns {Promise<boolean>} 是否更新成功
    */
   static async update(userId, updates) {
-    const allowedFields = ['username', 'gender', 'birth_date', 'profile_image', 'signature'];
+    await User.ensureSignatureColumnSupport();
+
+    const allowedFields = ['username', 'gender', 'birth_date', 'profile_image'];
+    if (User.signatureColumnSupported) {
+      allowedFields.push('signature');
+    }
     const updateFields = [];
     const values = [];
 
