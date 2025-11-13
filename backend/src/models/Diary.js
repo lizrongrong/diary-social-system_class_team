@@ -569,7 +569,7 @@ class Diary {
       JOIN users u ON d.user_id = u.user_id
       WHERE d.user_id = ? AND d.visibility = 'public'${statusClause}
       ORDER BY d.created_at DESC
-      LIMIT ? OFFSET ?
+      LIMIT ${limitNum} OFFSET ${offsetNum}
     `;
 
     const normalizedUserId = typeof userId === 'number' ? userId : String(userId).trim();
