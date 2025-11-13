@@ -87,7 +87,6 @@ export default function MessageDropdown({ visible, onClose }) {
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid #eee', background: '#f9f9f9' }}>
         <strong style={{ fontSize: 16 }}>訊息</strong>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#999', cursor: 'pointer' }}>關閉</button>
       </div>
 
       <div style={{ maxHeight: 360, overflowY: 'auto' }}>

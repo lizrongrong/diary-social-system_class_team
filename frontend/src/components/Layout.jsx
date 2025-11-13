@@ -188,6 +188,8 @@ function Layout({ children }) {
           <main className="page-content">{children}</main>
         </div>
       </div>
+      {/* 全域聊天彈窗（右下） */}
+      <ChatPopup />
     </div>
   )
 }
