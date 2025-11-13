@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import useAuthStore from '../store/authStore'
 import './AnnouncementBell.css'
 
-function AnnouncementBell() {
+function AnnouncementBell({ iconColor = '#FFFFFF' }) {
   const { user } = useAuthStore()
   const [announcements, setAnnouncements] = useState([])
   const [count, setCount] = useState(0)
@@ -75,16 +75,17 @@ function AnnouncementBell() {
   }
 
   return (
-    <div ref={ref} style={{ position: 'relative' }}>
+    <div ref={ref} className="header-icon-wrapper">
       <button
         onClick={() => setOpen(s => !s)}
         title="系統公告"
         aria-label="系統公告"
-        style={{ background: 'none', border: 'none', padding: 8, cursor: 'pointer' }}
+        className="header-icon-btn"
+        style={{ color: iconColor }}
       >
-        <Megaphone size={18} color="#666" />
+        <Megaphone size={20} />
         {count > 0 && (
-          <span style={{ position: 'absolute', top: 4, right: 4, background: '#757575', color: '#fff', borderRadius: '50%', width: 18, height: 18, fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600 }}>
+          <span style={{ position: 'absolute', top: -4, right: -4, background: '#757575', color: '#fff', borderRadius: '50%', minWidth: 18, height: 18, fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, padding: '0 4px' }}>
             {count > 9 ? '9+' : count}
           </span>
         )}
@@ -96,7 +97,7 @@ function AnnouncementBell() {
             <strong style={{ fontSize: 16 }}>系統公告</strong>
             <span style={{ fontSize: 12, color: '#999' }}>{count} 則</span>
           </div>
-            {announcements.length === 0 ? (
+          {announcements.length === 0 ? (
             <div style={{ padding: 20, color: '#666' }}>目前沒有公告</div>
           ) : (
             announcements.map(a => (

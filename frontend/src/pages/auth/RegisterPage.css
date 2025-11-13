@@ -51,6 +51,9 @@
   display: flex;
   flex-direction: column;
   gap: var(--spacing-lg);
+  border-radius: 40px;
+  padding: 30px;
+  background-color: #FFF;
 }
 
 /* Form Header */
@@ -213,6 +216,7 @@
     opacity: 0;
     transform: translateY(30px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);

@@ -1,6 +1,20 @@
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
+const Diary = require('../models/Diary');
 const { generateAvatar } = require('../services/avatarGenerator');
+
+const buildPublicProfileResponse = (user, followerCount, diaryCount) => ({
+  user: {
+    user_id: user.user_id,
+    username: user.username,
+    profile_image: user.profile_image,
+    created_at: user.created_at
+  },
+  stats: {
+    followerCount,
+    diaryCount
+  }
+});
 
 /**
  * 取得使用者個人資料
@@ -212,6 +226,38 @@ exports.searchUsers = async (req, res) => {
 };
 
 /**
+ * 透過使用者 ID 取得公開資料
+ * @route GET /api/v1/users/id/:userId
+ * @access Public
+ */
+exports.getUserByIdPublic = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        error: 'User not found',
+        code: 'USER_NOT_FOUND'
+      });
+    }
+
+    const [followerCount, diaryCount] = await Promise.all([
+      User.countFollowers(user.user_id),
+      Diary.countPublicByUser(user.user_id)
+    ]);
+
+    res.json(buildPublicProfileResponse(user, followerCount, diaryCount));
+  } catch (error) {
+    console.error('Get user by id error:', error);
+    res.status(500).json({
+      error: 'Server error',
+      code: 'SERVER_ERROR'
+    });
+  }
+};
+
+/**
  * 取得指定使用者的公開資料
  * @route GET /api/v1/users/:username
  * @access Public
@@ -229,15 +275,12 @@ exports.getUserByUsername = async (req, res) => {
       });
     }
 
-    // 只返回公開資料
-    res.json({
-      user: {
-        user_id: user.user_id,
-        username: user.username,
-        profile_image: user.profile_image,
-        created_at: user.created_at
-      }
-    });
+    const [followerCount, diaryCount] = await Promise.all([
+      User.countFollowers(user.user_id),
+      Diary.countPublicByUser(user.user_id)
+    ]);
+
+    res.json(buildPublicProfileResponse(user, followerCount, diaryCount));
   } catch (error) {
     console.error('Get user by username error:', error);
     res.status(500).json({

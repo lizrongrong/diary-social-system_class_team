@@ -1,19 +1,118 @@
 ﻿import { Link } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { Heart, MessageCircle, Share2, UserPlus, UserCheck, Users } from 'lucide-react'
+import { Heart, MessageCircle, Share2, UserPlus, UserCheck, Users, RefreshCw, SlidersHorizontal, X } from 'lucide-react'
 import useAuthStore from '../store/authStore'
-import { diaryAPI, likeAPI, followAPI } from '../services/api'
+import { diaryAPI, ensureAbsoluteUrl, followAPI, likeAPI } from '../services/api'
 import { useToast } from '../components/ui/Toast'
+import Card from '../components/ui/Card'
+import Input from '../components/ui/Input'
+import Select from '../components/ui/Select'
+import Button from '../components/ui/Button'
+import { EMOTIONS, WEATHERS, SORT_OPTIONS } from '../constants/searchFilters'
 import './HomePage.css'
 
 function HomePage() {
   const { user } = useAuthStore()
   const { addToast } = useToast()
   const [posts, setPosts] = useState([])
+  const [filteredPosts, setFilteredPosts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [follows, setFollows] = useState([])
   const [mutualFollows, setMutualFollows] = useState(new Set()) // 儲存互相追蹤的用戶ID
+  const [keyword, setKeyword] = useState('')
+  const [emotion, setEmotion] = useState('')
+  const [weather, setWeather] = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+  const [sortBy, setSortBy] = useState('created_at')
+  const [showFilters, setShowFilters] = useState(false)
+
+  const applyFilters = (data, overrides = {}) => {
+    const criteria = {
+      keyword,
+      emotion,
+      weather,
+      dateFrom,
+      dateTo,
+      sortBy,
+      ...overrides
+    }
+
+    const normalizedKeyword = criteria.keyword.trim().toLowerCase()
+    const hasEmotion = Boolean(criteria.emotion)
+    const hasWeather = Boolean(criteria.weather)
+    const hasDateFrom = Boolean(criteria.dateFrom)
+    const hasDateTo = Boolean(criteria.dateTo)
+    const hasKeyword = Boolean(normalizedKeyword)
+    const shouldFilter = hasEmotion || hasWeather || hasDateFrom || hasDateTo || hasKeyword
+
+    const fromDate = hasDateFrom ? new Date(criteria.dateFrom) : null
+    const toDate = hasDateTo ? new Date(criteria.dateTo) : null
+    if (toDate) {
+      toDate.setHours(23, 59, 59, 999)
+    }
+
+    let result = shouldFilter ? data.filter((post) => {
+      const createdAt = post.created_at ? new Date(post.created_at) : null
+
+      if (fromDate && createdAt && createdAt < fromDate) {
+        return false
+      }
+
+      if (toDate && createdAt && createdAt > toDate) {
+        return false
+      }
+
+      const tags = Array.isArray(post.tags) ? post.tags : []
+      if (hasEmotion && !tags.some(tag => tag.tag_type === 'emotion' && tag.tag_value === criteria.emotion)) {
+        return false
+      }
+
+      if (hasWeather && !tags.some(tag => tag.tag_type === 'weather' && tag.tag_value === criteria.weather)) {
+        return false
+      }
+
+      if (hasKeyword) {
+        const text = `${post.title || ''} ${post.content || ''}`.toLowerCase()
+        const keywordTags = tags
+          .filter(tag => tag.tag_type === 'keyword')
+          .map(tag => tag.tag_value?.toLowerCase?.() || '')
+        const hasKeywordMatch = text.includes(normalizedKeyword) || keywordTags.some(value => value.includes(normalizedKeyword))
+        if (!hasKeywordMatch) {
+          return false
+        }
+      }
+
+      return true
+    }) : data
+
+    const shouldSort = shouldFilter || criteria.sortBy !== 'created_at'
+    if (!shouldSort) {
+      return [...result]
+    }
+
+    const sorter = (a, b) => {
+      switch (criteria.sortBy) {
+        case 'like_count':
+          return (b.like_count || 0) - (a.like_count || 0)
+        case 'comment_count':
+          return (b.comment_count || 0) - (a.comment_count || 0)
+        case 'created_at':
+        default:
+          return new Date(b.created_at || 0) - new Date(a.created_at || 0)
+      }
+    }
+
+    return [...result].sort(sorter)
+  }
+
+  const handleManualRefresh = () => {
+    fetchPublicDiaries()
+    if (user) {
+      fetchFollows()
+    }
+  }
 
   // 獲取公開日記
   useEffect(() => {
@@ -39,11 +138,12 @@ function HomePage() {
       console.log('Fetching public diaries...')
       const data = await diaryAPI.explore({ page: 1, limit: user ? 20 : 6 })
       console.log('Received data:', data)
-      
+
       // 隨機排序日記
       const diariesArray = data.diaries || []
       const shuffled = [...diariesArray].sort(() => Math.random() - 0.5)
       setPosts(shuffled)
+      setFilteredPosts(applyFilters(shuffled))
     } catch (err) {
       console.error('Error fetching public diaries:', err)
       setError('無法載入日記')
@@ -100,7 +200,7 @@ function HomePage() {
       addToast('請先登入', 'warning')
       return
     }
-    
+
     try {
       await likeAPI.toggle('diary', diaryId)
       // 更新本地狀態
@@ -125,24 +225,24 @@ function HomePage() {
       addToast('請先登入', 'warning')
       return
     }
-    
+
     if (isFriend(userId)) {
       addToast('已經追蹤此用戶', 'info')
       return
     }
-    
+
     try {
-    console.log('Adding follow:', userId)
-    const result = await followAPI.add(userId)
-      
+      console.log('Adding follow:', userId)
+      const result = await followAPI.add(userId)
+
       // 如果是互相追蹤，顯示特別訊息
       if (result.is_mutual) {
         addToast('追蹤成功！你們現在互相追蹤了', 'success')
       } else {
         addToast('追蹤成功', 'success')
       }
-      
-  await fetchFollows() // 重新獲取追蹤列表和互相追蹤狀態
+
+      await fetchFollows() // 重新獲取追蹤列表和互相追蹤狀態
       console.log('Friends updated after adding')
     } catch (err) {
       console.error('Error adding friend:', err)
@@ -157,8 +257,32 @@ function HomePage() {
     addToast('連結已複製', 'success')
   }
 
+  const clearSearchFilters = () => {
+    setKeyword('')
+    setEmotion('')
+    setWeather('')
+    setDateFrom('')
+    setDateTo('')
+    setSortBy('created_at')
+    setShowFilters(false)
+    setFilteredPosts(applyFilters(posts, {
+      keyword: '',
+      emotion: '',
+      weather: '',
+      dateFrom: '',
+      dateTo: '',
+      sortBy: 'created_at'
+    }))
+  }
+
+  const handleSearchSubmit = (event) => {
+    event.preventDefault()
+    setShowFilters(false)
+    setFilteredPosts(applyFilters(posts))
+  }
+
   // 顯示限制訪客提示
-  const showGuestLimit = !user && posts.length >= 3
+  const showGuestLimit = !user && filteredPosts.length >= 3
 
   if (loading) {
     return (
@@ -193,135 +317,286 @@ function HomePage() {
 
   return (
     <div className="home-page">
-      <div className="posts-container">
-        {posts.map(post => (
-          <article key={post.diary_id} className="post-card">
-            <div className="post-header">
-              <div className="author-info">
-                <div className="author-avatar" style={{ 
-                  backgroundImage: post.avatar_url ? `url(${post.avatar_url})` : 'none',
-                  backgroundColor: post.avatar_url ? 'transparent' : '#E0E0E0'
-                }}></div>
-                <div className="author-details">
-                  <h3 className="author-name">{post.username || '匿名用戶'}</h3>
-                  <span className="post-date">
-                    {new Date(post.created_at).toLocaleDateString('zh-TW')}
-                  </span>
-                </div>
+      <div className="home-search-section">
+        <Card className="home-search-card">
+          <form onSubmit={handleSearchSubmit}>
+            <div className="home-search-toolbar">
+              <button
+                type="button"
+                className="home-refresh-btn"
+                onClick={handleManualRefresh}
+                aria-label="重新整理"
+              >
+                <RefreshCw size={20} />
+              </button>
+              <div className="home-search-input">
+                <Input
+                  type="text"
+                  name="keyword"
+                  value={keyword}
+                  onChange={(e) => setKeyword(e.target.value)}
+                  placeholder="搜尋標題或內容..."
+                  autoComplete="off"
+                />
               </div>
-              {user && user.user_id !== post.user_id && (
-                <button 
-                  className={`follow-btn ${
-                    isMutual(post.user_id) ? 'is-mutual' : 
-                    isFriend(post.user_id) ? 'is-friend' : ''
-                  }`}
-                  onClick={() => handleFollow(post.user_id)}
-                  disabled={isFriend(post.user_id)}
-                >
-                  {isMutual(post.user_id) ? (
-                    <>
-                      <Users size={16} />
-                      互相追蹤
-                    </>
-                  ) : isFriend(post.user_id) ? (
-                    <>
-                      <UserCheck size={16} />
-                      已追蹤
-                    </>
-                  ) : (
-                    <>
-                      <UserPlus size={16} />
-                      追蹤
-                    </>
-                  )}
-                </button>
-              )}
+              <Button
+                type="button"
+                variant={showFilters ? 'primary' : 'outline'}
+                onClick={() => setShowFilters((prev) => !prev)}
+              >
+                <SlidersHorizontal size={18} style={{ marginRight: 'var(--spacing-xs)' }} />
+                篩選
+              </Button>
+              <Button type="submit" variant="primary">
+                搜尋
+              </Button>
+            </div>
+          </form>
+        </Card>
+
+        {showFilters && (
+          <Card className="slide-up" style={{ marginBottom: 'var(--spacing-xl)' }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 'var(--spacing-lg)',
+                paddingBottom: 'var(--spacing-md)',
+                borderBottom: '2px solid var(--gray-200)'
+              }}
+            >
+              <h4 className="text-h4" style={{ color: 'var(--primary-purple)' }}>
+                進階篩選
+              </h4>
+              <button
+                type="button"
+                onClick={() => setShowFilters(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: 'var(--gray-600)',
+                  padding: 'var(--spacing-xs)'
+                }}
+              >
+                <X size={20} />
+              </button>
             </div>
 
-            <div className="post-content">
-              <Link 
-                to={`/diaries/${post.diary_id}`}
-                style={{ textDecoration: 'none', color: 'inherit' }}
-              >
-                <h3 className="post-title">{post.title || '(未命名)'}</h3>
-              </Link>
-              
-              {/* 標籤 */}
-              {post.tags && post.tags.length > 0 && (
-                <div style={{ 
-                  display: 'flex', 
-                  flexWrap: 'wrap', 
-                  gap: '6px', 
-                  marginBottom: '12px' 
-                }}>
-                  {post.tags.filter(t => t.tag_type === 'emotion').slice(0, 2).map((t, i) => (
-                    <span 
-                      key={i} 
-                      style={{ 
-                        padding: '3px 10px', 
-                        background: 'var(--emotion-pink)', 
-                        borderRadius: '12px',
-                        fontSize: '0.75rem',
-                        fontWeight: 500,
-                        color: 'var(--dark-purple)'
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+                gap: 'var(--spacing-md)'
+              }}
+            >
+              <Select
+                label="情緒"
+                name="emotion"
+                value={emotion}
+                onChange={(e) => setEmotion(e.target.value)}
+                options={[
+                  { value: '', label: '全部' },
+                  ...EMOTIONS.map((item) => ({ value: item, label: item }))
+                ]}
+              />
+
+              <Select
+                label="天氣"
+                name="weather"
+                value={weather}
+                onChange={(e) => setWeather(e.target.value)}
+                options={[
+                  { value: '', label: '全部' },
+                  ...WEATHERS.map((item) => ({ value: item, label: item }))
+                ]}
+              />
+
+              <Input
+                type="date"
+                name="dateFrom"
+                label="開始日期"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+              />
+
+              <Input
+                type="date"
+                name="dateTo"
+                label="結束日期"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+              />
+
+              <Select
+                label="排序方式"
+                name="sortBy"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                options={SORT_OPTIONS}
+              />
+            </div>
+
+            <div style={{ marginTop: 'var(--spacing-lg)', display: 'flex', justifyContent: 'flex-end' }}>
+              <Button type="button" variant="ghost" onClick={clearSearchFilters}>
+                清除篩選
+              </Button>
+            </div>
+          </Card>
+        )}
+      </div>
+
+      <div className="posts-container">
+        {filteredPosts.length === 0 ? (
+          <div className="empty-state">
+            <h3>找不到符合條件的日記</h3>
+            <p>試試不同的關鍵字或篩選條件</p>
+          </div>
+        ) : (
+          filteredPosts.map(post => (
+            <article key={post.diary_id} className="post-card">
+              <div className="post-header">
+                <div className="author-info">
+                  <Link
+                    to={`/users/${post.user_id}`}
+                    className="author-avatar-link"
+                    style={{ textDecoration: 'none' }}
+                  >
+                    <div
+                      className="author-avatar"
+                      style={{
+                        backgroundImage: post.avatar_url ? `url(${ensureAbsoluteUrl(post.avatar_url)})` : 'none',
+                        backgroundColor: post.avatar_url ? 'transparent' : '#E0E0E0'
                       }}
+                    />
+                  </Link>
+                  <div className="author-details">
+                    <Link
+                      to={`/users/${post.user_id}`}
+                      className="author-name-link"
+                      style={{ textDecoration: 'none', color: 'inherit' }}
                     >
-                      {t.tag_value}
+                      <h3 className="author-name">{post.username || '匿名用戶'}</h3>
+                    </Link>
+                    <span className="post-date">
+                      {new Date(post.created_at).toLocaleDateString('zh-TW')}
                     </span>
-                  ))}
-                  {post.tags.find(t => t.tag_type === 'weather') && (
-                    <span 
-                      style={{ 
-                        padding: '3px 10px', 
-                        background: '#B2EBF2', 
-                        borderRadius: '12px',
-                        fontSize: '0.75rem',
-                        fontWeight: 500,
-                        color: '#006064'
-                      }}
-                    >
-                      {post.tags.find(t => t.tag_type === 'weather').tag_value}
-                    </span>
-                  )}
-                  {post.tags.filter(t => t.tag_type === 'keyword').slice(0, 3).map((t, i) => (
-                    <span 
-                      key={i} 
-                      style={{ 
-                        padding: '3px 10px', 
-                        background: 'var(--gray-200)', 
-                        borderRadius: '12px',
-                        fontSize: '0.75rem',
-                        color: 'var(--gray-700)'
-                      }}
-                    >
-                      #{t.tag_value}
-                    </span>
-                  ))}
+                  </div>
                 </div>
-              )}
-              
-              <p>{post.content}</p>
-            </div>
+                {user && user.user_id !== post.user_id && (
+                  <button
+                    className={`follow-btn ${isMutual(post.user_id) ? 'is-mutual' :
+                      isFriend(post.user_id) ? 'is-friend' : ''
+                      }`}
+                    onClick={() => handleFollow(post.user_id)}
+                    disabled={isFriend(post.user_id)}
+                  >
+                    {isMutual(post.user_id) ? (
+                      <>
+                        <Users size={16} />
+                        互相追蹤
+                      </>
+                    ) : isFriend(post.user_id) ? (
+                      <>
+                        <UserCheck size={16} />
+                        已追蹤
+                      </>
+                    ) : (
+                      <>
+                        <UserPlus size={16} />
+                        追蹤
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
 
-            <div className="post-footer">
-              <button 
-                className={`post-action ${post.is_liked ? 'liked' : ''}`}
-                onClick={() => handleLike(post.diary_id)}
-              >
-                <Heart size={20} fill={post.is_liked ? '#CD79D5' : 'none'} />
-                <span>{post.like_count || 0}</span>
-              </button>
-              <Link to={`/diaries/${post.diary_id}`} className="post-action">
-                <MessageCircle size={20} />
-                <span>{post.comment_count || 0}</span>
-              </Link>
-              <button className="post-action share-btn" onClick={() => handleShare(post.diary_id)}>
-                <Share2 size={20} />
-                分享
-              </button>
-            </div>
-          </article>
-        ))}
+              <div className="post-content">
+                <Link
+                  to={`/diaries/${post.diary_id}`}
+                  style={{ textDecoration: 'none', color: 'inherit' }}
+                >
+                  <h3 className="post-title">{post.title || '(未命名)'}</h3>
+                </Link>
+
+                {/* 標籤 */}
+                {post.tags && post.tags.length > 0 && (
+                  <div style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '6px',
+                    marginBottom: '12px'
+                  }}>
+                    {post.tags.filter(t => t.tag_type === 'emotion').slice(0, 2).map((t, i) => (
+                      <span
+                        key={i}
+                        style={{
+                          padding: '3px 10px',
+                          background: 'var(--emotion-pink)',
+                          borderRadius: '12px',
+                          fontSize: '0.75rem',
+                          fontWeight: 500,
+                          color: 'var(--dark-purple)'
+                        }}
+                      >
+                        {t.tag_value}
+                      </span>
+                    ))}
+                    {post.tags.find(t => t.tag_type === 'weather') && (
+                      <span
+                        style={{
+                          padding: '3px 10px',
+                          background: '#B2EBF2',
+                          borderRadius: '12px',
+                          fontSize: '0.75rem',
+                          fontWeight: 500,
+                          color: '#006064'
+                        }}
+                      >
+                        {post.tags.find(t => t.tag_type === 'weather').tag_value}
+                      </span>
+                    )}
+                    {post.tags.filter(t => t.tag_type === 'keyword').slice(0, 3).map((t, i) => (
+                      <span
+                        key={i}
+                        style={{
+                          padding: '3px 10px',
+                          background: 'var(--gray-200)',
+                          borderRadius: '12px',
+                          fontSize: '0.75rem',
+                          color: 'var(--gray-700)'
+                        }}
+                      >
+                        #{t.tag_value}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <p>{post.content}</p>
+              </div>
+
+              <div className="post-footer">
+                <button
+                  className={`post-action ${post.is_liked ? 'liked' : ''}`}
+                  onClick={() => handleLike(post.diary_id)}
+                >
+                  <Heart size={20} fill={post.is_liked ? '#CD79D5' : 'none'} />
+                  <span>{post.like_count || 0}</span>
+                </button>
+                <Link to={`/diaries/${post.diary_id}`} className="post-action">
+                  <MessageCircle size={20} />
+                  <span>{post.comment_count || 0}</span>
+                </Link>
+                <button className="post-action share-btn" onClick={() => handleShare(post.diary_id)}>
+                  <Share2 size={20} />
+                  分享
+                </button>
+              </div>
+            </article>
+          ))
+        )}
 
         {/* 訪客限制提示 */}
         {showGuestLimit && (

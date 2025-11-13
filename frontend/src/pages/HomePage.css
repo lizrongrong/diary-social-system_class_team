@@ -7,6 +7,63 @@
   padding: var(--spacing-xl);
 }
 
+.home-search-section {
+  max-width: 1000px;
+  margin: 0 auto var(--spacing-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.home-refresh-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 30px;
+  /* border: 1px solid rgba(205, 121, 213, 0.4); */
+  /* background: linear-gradient(135deg, #f8e8ff 0%, #fdd9f3 100%); */
+  background-color: #FFF;
+  color: #6b2d83;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  /* box-shadow: 0 12px 24px rgba(205, 121, 213, 0.18); */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+}
+
+.home-refresh-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.home-refresh-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 32px rgba(205, 121, 213, 0.28);
+  background-color: #f3f3f3;
+}
+
+.home-refresh-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 8px 18px rgba(205, 121, 213, 0.2);
+}
+
+.home-search-card {
+  width: 100%;
+}
+
+.home-search-toolbar {
+  display: flex;
+  gap: var(--spacing-md);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.home-search-input {
+  flex: 1;
+  min-width: 220px;
+}
+
 /* 文章容器 */
 .posts-container {
   max-width: 1000px;
@@ -291,6 +348,18 @@
 @media (max-width: 768px) {
   .home-page {
     padding: var(--spacing-md);
+  }
+
+  .home-search-section {
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .home-search-toolbar {
+    gap: var(--spacing-sm);
+  }
+
+  .home-search-input {
+    min-width: 180px;
   }
 
   .posts-container {

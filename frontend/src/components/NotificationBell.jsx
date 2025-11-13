@@ -1,13 +1,13 @@
 ﻿import { useState, useEffect, useRef } from 'react'
 import { Bell, MessageSquare, UserPlus } from 'lucide-react'
 import notificationAPI from '../services/notificationAPI'
-import { followAPI } from '../services/api'
+import { ensureAbsoluteUrl, followAPI } from '../services/api'
 import useAuthStore from '../store/authStore'
 import { Link } from 'react-router-dom'
 import { useToast } from './ui/Toast'
 import MessageDropdown from './MessageDropdown'
 
-function NotificationBell() {
+function NotificationBell({ iconColor = '#FFFFFF' }) {
   const { user } = useAuthStore()
   const { addToast } = useToast()
   const [notifications, setNotifications] = useState([])
@@ -23,7 +23,7 @@ function NotificationBell() {
   const [showOriginalFor, setShowOriginalFor] = useState(new Set())
 
   useEffect(() => {
-  if (!user) return
+    if (!user) return
 
     const fetchNotifications = async () => {
       try {
@@ -47,36 +47,36 @@ function NotificationBell() {
       }
     }
 
-  fetchNotifications()
-  fetchFollowing()
-  // preload recent chats from localStorage
-  const loadRecentChats = () => {
-    try {
-      const chats = []
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i)
-        if (!key || !key.startsWith('chat_')) continue
-        try {
-          const arr = JSON.parse(localStorage.getItem(key)) || []
-          if (!Array.isArray(arr) || arr.length === 0) continue
-          // messages may be stored newest-first; pick the first as latest
-          const latest = arr[0] || arr[arr.length - 1]
-          const ids = key.replace(/^chat_/, '').split('_')
-          // other participant id (not current user)
-          const otherId = ids.find(id => id !== String(user.id)) || ids[0]
-          chats.push({ key, otherId, latest })
-        } catch (e) {
-          // ignore parse errors
+    fetchNotifications()
+    fetchFollowing()
+    // preload recent chats from localStorage
+    const loadRecentChats = () => {
+      try {
+        const chats = []
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i)
+          if (!key || !key.startsWith('chat_')) continue
+          try {
+            const arr = JSON.parse(localStorage.getItem(key)) || []
+            if (!Array.isArray(arr) || arr.length === 0) continue
+            // messages may be stored newest-first; pick the first as latest
+            const latest = arr[0] || arr[arr.length - 1]
+            const ids = key.replace(/^chat_/, '').split('_')
+            // other participant id (not current user)
+            const otherId = ids.find(id => id !== String(user.id)) || ids[0]
+            chats.push({ key, otherId, latest })
+          } catch (e) {
+            // ignore parse errors
+          }
         }
+        // sort by latest message time desc
+        chats.sort((a, b) => new Date(b.latest.created_at) - new Date(a.latest.created_at))
+        setRecentChats(chats)
+      } catch (e) {
+        setRecentChats([])
       }
-      // sort by latest message time desc
-      chats.sort((a, b) => new Date(b.latest.created_at) - new Date(a.latest.created_at))
-      setRecentChats(chats)
-    } catch (e) {
-      setRecentChats([])
     }
-  }
-  loadRecentChats()
+    loadRecentChats()
     const interval = setInterval(() => {
       fetchNotifications()
       fetchFollowing()
@@ -98,7 +98,7 @@ function NotificationBell() {
       return () => document.removeEventListener('mousedown', handleClickOutside)
     }
 
-    return () => {}
+    return () => { }
   }, [showDropdown, showNotif])
 
   // listen for unread counts emitted by MessageDropdown (or other message loader)
@@ -182,7 +182,7 @@ function NotificationBell() {
   const handleMarkAsRead = async (notificationId) => {
     try {
       await notificationAPI.markAsRead(notificationId)
-      setNotifications(notifications.map(n => 
+      setNotifications(notifications.map(n =>
         n.notification_id === notificationId ? { ...n, is_read: true } : n
       ))
       setUnreadCount(Math.max(0, unreadCount - 1))
@@ -206,7 +206,7 @@ function NotificationBell() {
 
   const handleFollowBack = async (sourceUserId) => {
     try {
-        await followAPI.add(sourceUserId)
+      await followAPI.add(sourceUserId)
       setFollowingUsers(new Set([...followingUsers, sourceUserId]))
       addToast('追蹤成功', 'success')
     } catch (e) {
@@ -218,38 +218,32 @@ function NotificationBell() {
   if (!user) return null
 
   return (
-    <div ref={dropdownRef} style={{ position: 'relative' }}>
+    <div ref={dropdownRef} className="header-icon-wrapper header-icon-multi">
       {/* 鈴鐺：系統通知（只顯示通知） */}
       <button
         onClick={() => { setShowNotif(s => !s); if (!showNotif) setShowDropdown(false) }}
-        style={{
-          position: 'relative',
-          background: 'none',
-          border: 'none',
-          cursor: 'pointer',
-          padding: 8,
-          display: 'flex',
-          alignItems: 'center'
-        }}
+        className="header-icon-btn"
+        style={{ color: iconColor }}
         title="系統通知"
         aria-label="系統通知"
       >
-        <Bell size={20} color="#666" />
+        <Bell size={20} />
         {unreadCount > 0 && (
           <span style={{
             position: 'absolute',
-            top: 4,
-            right: 4,
+            top: -4,
+            right: -4,
             background: '#757575',
             color: '#fff',
             borderRadius: '50%',
-            width: 18,
+            minWidth: 18,
             height: 18,
             fontSize: 11,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontWeight: 600
+            fontWeight: 600,
+            padding: '0 4px'
           }}>
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
@@ -259,35 +253,28 @@ function NotificationBell() {
       {/* 訊息按鈕（聊天） - 下拉被拆到 MessageDropdown component */}
       <button
         onClick={() => { setShowDropdown(!showDropdown); if (!showDropdown) setShowNotif(false) }}
-        style={{
-          position: 'relative',
-          background: 'none',
-          border: 'none',
-          cursor: 'pointer',
-          padding: 8,
-          display: 'flex',
-          alignItems: 'center',
-          marginLeft: 4
-        }}
+        className="header-icon-btn"
+        style={{ color: iconColor }}
         title="訊息"
         aria-label="訊息"
       >
-        <MessageSquare size={20} color="#666" />
+        <MessageSquare size={20} />
         {messageUnread > 0 && (
           <span style={{
             position: 'absolute',
-            top: 4,
-            right: 4,
+            top: -4,
+            right: -4,
             background: '#CD79D5',
             color: '#fff',
             borderRadius: '50%',
-            width: 18,
+            minWidth: 18,
             height: 18,
             fontSize: 11,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontWeight: 700
+            fontWeight: 700,
+            padding: '0 4px'
           }}>
             {messageUnread > 9 ? '9+' : messageUnread}
           </span>
@@ -340,18 +327,18 @@ function NotificationBell() {
                 >
                   {n.type === 'follow' && n.source_user_id ? (
                     <div>
-                      <div 
+                      <div
                         onClick={() => !n.is_read && handleMarkAsRead(n.notification_id)}
                         style={{ cursor: n.is_read ? 'default' : 'pointer' }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-                          <div 
+                          <div
                             style={{
                               width: 40,
                               height: 40,
                               borderRadius: '50%',
-                              background: n.avatar_url 
-                                ? `url(${n.avatar_url}) center/cover` 
+                              background: n.avatar_url
+                                ? `url(${ensureAbsoluteUrl(n.avatar_url)}) center/cover`
                                 : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                               border: '2px solid #CD79D5',
                               flexShrink: 0
@@ -429,7 +416,7 @@ function NotificationBell() {
                     </div>
                   ) : (
                     <div>
-                      <div 
+                      <div
                         onClick={() => !n.is_read && handleMarkAsRead(n.notification_id)}
                         style={{ cursor: n.is_read ? 'default' : 'pointer' }}
                       >
@@ -448,9 +435,9 @@ function NotificationBell() {
                             }} />
                           )}
                         </div>
-                              <div style={{ fontSize: 13, color: '#666', marginBottom: 6 }}>
-                                {renderMaybeFixed(n.notification_id, n.content, tryFixEncoding(n.content))}
-                              </div>
+                        <div style={{ fontSize: 13, color: '#666', marginBottom: 6 }}>
+                          {renderMaybeFixed(n.notification_id, n.content, tryFixEncoding(n.content))}
+                        </div>
                         <div style={{ fontSize: 11, color: '#999' }}>
                           {new Date(n.created_at).toLocaleString()}
                         </div>
