@@ -37,6 +37,7 @@ exports.getProfile = async (req, res) => {
         user_id: user.user_id,
         email: user.email,
         username: user.username,
+        signature: user.signature,
         gender: user.gender,
         birth_date: user.birth_date,
         role: user.role,
@@ -62,7 +63,7 @@ exports.getProfile = async (req, res) => {
  */
 exports.updateProfile = async (req, res) => {
   try {
-    const { username, gender, birth_date, profile_image } = req.body;
+    const { username, gender, birth_date, profile_image, signature } = req.body;
 
     const currentUser = await User.findById(req.user.user_id);
 
@@ -101,6 +102,18 @@ exports.updateProfile = async (req, res) => {
         : generateAvatar(nextUsername || req.user.user_id);
     }
 
+    if (signature !== undefined) {
+      const trimmedSignature = typeof signature === 'string' ? signature.trim() : '';
+      if (trimmedSignature.length > 50) {
+        return res.status(400).json({
+          error: 'Signature too long',
+          code: 'SIGNATURE_TOO_LONG',
+          message: '個性簽名長度不可超過 50 字'
+        });
+      }
+      updates.signature = trimmedSignature.length > 0 ? trimmedSignature : null;
+    }
+
     const success = await User.update(req.user.user_id, updates);
 
     if (!success) {
@@ -119,6 +132,7 @@ exports.updateProfile = async (req, res) => {
         user_id: updatedUser.user_id,
         email: updatedUser.email,
         username: updatedUser.username,
+        signature: updatedUser.signature,
         gender: updatedUser.gender,
         birth_date: updatedUser.birth_date,
         role: updatedUser.role,

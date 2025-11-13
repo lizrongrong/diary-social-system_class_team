@@ -175,6 +175,7 @@ exports.login = async (req, res) => {
         user_id: user.user_id,
         email: user.email,
         username: user.username,
+        signature: user.signature,
         role: user.role,
         profile_image: user.profile_image
       }
@@ -203,6 +204,7 @@ exports.getCurrentUser = async (req, res) => {
         user_id: user.user_id,
         email: user.email,
         username: user.username,
+        signature: user.signature,
         gender: user.gender,
         birth_date: user.birth_date,
         role: user.role,

@@ -124,9 +124,10 @@ class User {
    */
   static async findById(userId) {
     const query = `
-      SELECT 
-  user_id, email, username,
-  gender, birth_date, role, status, profile_image, created_at, updated_at
+        SELECT 
+      user_id, email, username,
+      signature,
+      gender, birth_date, role, status, profile_image, created_at, updated_at
       FROM users 
       WHERE user_id = ? AND status != 'deleted'
     `;
@@ -173,7 +174,7 @@ class User {
    * @returns {Promise<boolean>} 是否更新成功
    */
   static async update(userId, updates) {
-    const allowedFields = ['username', 'gender', 'birth_date', 'profile_image'];
+    const allowedFields = ['username', 'gender', 'birth_date', 'profile_image', 'signature'];
     const updateFields = [];
     const values = [];
 
