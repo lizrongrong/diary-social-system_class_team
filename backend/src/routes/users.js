@@ -47,6 +47,35 @@ router.get('/:userId/diaries', async (req, res) => {
     const offset = parseInt(req.query.offset) || 0;
 
     const diaries = await Diary.findPublicByUser(userId, limit, offset);
+
+    // If there are diaries, attach their tags in a single query to avoid N+1
+    if (Array.isArray(diaries) && diaries.length > 0) {
+      try {
+        const db = require('../config/db');
+        const ids = diaries.map(d => d.diary_id).filter(Boolean);
+        if (ids.length > 0) {
+          const placeholders = ids.map(() => '?').join(',')
+          const [tagRows] = await db.execute(
+            `SELECT * FROM diary_tags WHERE diary_id IN (${placeholders}) ORDER BY created_at ASC`,
+            ids
+          );
+
+          const tagMap = {}
+          tagRows.forEach(tr => {
+            if (!tagMap[tr.diary_id]) tagMap[tr.diary_id] = []
+            tagMap[tr.diary_id].push({ tag_id: tr.tag_id, tag_type: tr.tag_type, tag_value: tr.tag_value })
+          })
+
+          // attach to diaries
+          diaries.forEach(d => { d.tags = tagMap[d.diary_id] || [] })
+        }
+      } catch (tagErr) {
+        console.warn('Failed to attach diary tags:', tagErr)
+        // continue without tags
+        diaries.forEach(d => { if (!d.tags) d.tags = [] })
+      }
+    }
+
     res.json({ diaries });
   } catch (error) {
     console.error('Get user public diaries error:', error);
