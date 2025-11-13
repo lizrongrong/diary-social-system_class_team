@@ -194,26 +194,6 @@ CREATE TABLE `messages` (
   KEY `idx_sender_receiver` (`sender_id`, `receiver_id`),
   KEY `idx_is_read` (`is_read`),
   KEY `idx_created_at` (`created_at` DESC),
-  CONSTRAINT `fk_messages_sender` FOREIGN KEY (`sender_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_messages_receiver` FOREIGN KEY (`receiver_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE,
-  CONSTRAINT `chk_no_self_msg` CHECK (`sender_id` != `receiver_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='私訊表';
-
-CREATE TABLE `messages` (
-  `message_id` CHAR(36) NOT NULL COMMENT '私訊ID',
-  `sender_id` VARCHAR(10) NOT NULL COMMENT '發送者',
-  `receiver_id` VARCHAR(10) NOT NULL COMMENT '接收者',
-  `message_type` ENUM('text', 'image', 'audio', 'file', 'emoji') NOT NULL DEFAULT 'text' COMMENT '訊息類型',
-  `content` TEXT NOT NULL COMMENT '訊息內容',
-  `is_read` BOOLEAN NOT NULL DEFAULT FALSE COMMENT '是否已讀',
-  `read_at` TIMESTAMP NULL DEFAULT NULL COMMENT '已讀時間',
-  `is_deleted` BOOLEAN NOT NULL DEFAULT FALSE COMMENT '是否刪除（邏輯刪除）',
-  `deleted_at` TIMESTAMP NULL DEFAULT NULL COMMENT '刪除時間',
-  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '發送時間',
-  PRIMARY KEY (`message_id`),
-  KEY `idx_sender_receiver` (`sender_id`, `receiver_id`),
-  KEY `idx_is_read` (`is_read`),
-  KEY `idx_created_at` (`created_at` DESC),
   KEY `idx_receiver_is_read_created` (`receiver_id`, `is_read`, `created_at`),
   CONSTRAINT `fk_messages_sender` FOREIGN KEY (`sender_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE,
   CONSTRAINT `fk_messages_receiver` FOREIGN KEY (`receiver_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE,
