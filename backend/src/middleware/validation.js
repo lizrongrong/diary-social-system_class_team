@@ -253,7 +253,7 @@ exports.validateChangePassword = (req, res, next) => {
  * 更新個人資料驗證
  */
 exports.validateUpdateProfile = (req, res, next) => {
-  const { username, gender, birth_date, profile_image } = req.body;
+  const { username, gender, birth_date, profile_image, signature } = req.body;
   const errors = {};
 
   // Username 驗證 (選填)
@@ -281,6 +281,14 @@ exports.validateUpdateProfile = (req, res, next) => {
   const profileImageError = validateProfileImageValue(profile_image);
   if (profileImageError) {
     errors.profile_image = profileImageError;
+  }
+
+  if (signature !== undefined) {
+    if (typeof signature !== 'string') {
+      errors.signature = 'Signature must be a string';
+    } else if (signature.trim().length > 50) {
+      errors.signature = 'Signature must be 50 characters or fewer';
+    }
   }
 
   // 如果有錯誤，返回 400

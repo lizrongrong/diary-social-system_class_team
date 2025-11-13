@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import useAuthStore from '../store/authStore'
 import { notificationAPI, ensureAbsoluteUrl } from '../services/api'
-import { Home, Sparkles, BookOpen, TrendingUp, Users, RefreshCw, ChevronDown, User, LogOut, Menu, X, IdCard, KeyRound } from 'lucide-react'
+import { Home, Sparkles, BookOpen, TrendingUp, Users, RefreshCw, ChevronDown, User, LogOut, Menu, X, IdCard, KeyRound, HelpCircle } from 'lucide-react'
 import AnnouncementBell from './AnnouncementBell'
 import NotificationBell from './NotificationBell'
 import ChatPopup from './ChatPopup'
@@ -69,6 +69,7 @@ function Layout({ children }) {
     { path: '/diaries', label: '專屬日記', icon: BookOpen },
     { path: '/dashboard', label: '圖表分析', icon: TrendingUp },
     { path: '/follows', label: '好友管理', icon: Users },
+    { path: '/faq', label: '常見問題', icon: HelpCircle }
     // { path: '/search', label: '搜尋', icon: SearchIcon },
   ]
 

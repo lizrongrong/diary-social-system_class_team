@@ -71,6 +71,8 @@ function ProfilePage() {
     }, [authUser?.profile_image, profile?.profile_image])
     const email = profile?.email || authUser?.email || '未提供'
     const username = profile?.username || authUser?.username || '未設定'
+    const signatureRaw = profile?.signature ?? authUser?.signature
+    const signature = signatureRaw && signatureRaw.trim() ? signatureRaw.trim() : '未設定'
     const birthDate = formatDate(profile?.birth_date)
     const genderLabel = genderMap[profile?.gender] || '未設定'
     const statusLabel = statusMap[profile?.status] || '未知'
@@ -126,6 +128,10 @@ function ProfilePage() {
                     <div className="account-info-row">
                         <span className="account-info-label">用戶名稱</span>
                         <span className="account-info-value">{username}</span>
+                    </div>
+                    <div className="account-info-row">
+                        <span className="account-info-label">個性簽名</span>
+                        <span className="account-info-value">{signature}</span>
                     </div>
                     <div className="account-info-row">
                         <span className="account-info-label">真實生日</span>
