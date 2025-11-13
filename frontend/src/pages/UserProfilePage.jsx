@@ -1,160 +1,265 @@
-﻿import { useEffect, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
-import { userAPI, diaryAPI, followAPI } from '../services/api'
+﻿import { useEffect, useMemo, useState } from 'react'
+import { Link, useParams } from 'react-router-dom'
+import { BookOpen, Heart, MessageCircle, Share2, UserMinus, UserPlus, Users } from 'lucide-react'
+import { diaryAPI, ensureAbsoluteUrl, followAPI, likeAPI, userAPI } from '../services/api'
 import useAuthStore from '../store/authStore'
-import { UserPlus, UserMinus, Calendar, Heart, MessageCircle, Eye, MessageSquare } from 'lucide-react'
-import Card from '../components/ui/Card'
-import Button from '../components/ui/Button'
+import { useToast } from '../components/ui/Toast'
+import './UserProfilePage.css'
+
+const formatDate = (value) => {
+  if (!value) return ''
+  try {
+    return new Date(value).toLocaleDateString('zh-TW', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    })
+  } catch (err) {
+    return value
+  }
+}
 
 function UserProfilePage() {
   const { userId } = useParams()
   const { user: currentUser } = useAuthStore()
-  const [user, setUser] = useState(null)
-  const [followStatus, setFollowStatus] = useState({ followerCount: 0, followingCount: 0, isFollowing: false })
+  const { addToast } = useToast()
+  const [profile, setProfile] = useState(null)
+  const [stats, setStats] = useState({ followerCount: 0, diaryCount: 0 })
   const [diaries, setDiaries] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [toggling, setToggling] = useState(false)
-
-  useEffect(() => {
-    const load = async () => {
-      try {
-        // Load user profile
-        const userResponse = await userAPI.getProfile(userId)
-        setUser(userResponse.user || userResponse)
-
-        // Load follow status and counts via followers API
-        const [status, counts] = await Promise.all([
-          followAPI.checkStatus(userId),
-          followAPI.getCounts(userId)
-        ])
-        setFollowStatus({
-          followerCount: counts.followerCount,
-          followingCount: counts.followingCount,
-          isFollowing: !!status.isFriend
-        })
-
-        // Load user's public diaries
-        const diariesResponse = await diaryAPI.getUserPublicDiaries(userId)
-        setDiaries(diariesResponse.data.diaries || [])
-      } catch (e) {
-        setError(e.response?.data?.message || '無法載入用戶資料')
-      } finally {
-        setLoading(false)
-      }
-    }
-    load()
-  }, [userId])
-
-  const handleToggleFollow = async () => {
-    if (!currentUser) return
-
-    setToggling(true)
-    try {
-      if (followStatus.isFollowing) {
-        await followAPI.remove(userId)
-      } else {
-        await followAPI.add(userId)
-      }
-      const counts = await followAPI.getCounts(userId)
-      setFollowStatus({
-        followerCount: counts.followerCount,
-        followingCount: counts.followingCount,
-        isFollowing: !followStatus.isFollowing
-      })
-    } catch (e) {
-      alert('操作失敗：' + (e.response?.data?.message || e.message))
-    } finally {
-      setToggling(false)
-    }
-  }
-
-  if (loading) return (
-    <div style={{
-      padding: 'var(--spacing-2xl)',
-      textAlign: 'center',
-      paddingTop: '100px'
-    }}>
-      <div className="text-h3" style={{ color: 'var(--gray-500)' }}>載入中...</div>
-    </div>
-  )
-
-  if (error) return (
-    <div style={{
-      padding: 'var(--spacing-2xl)',
-      textAlign: 'center',
-      paddingTop: '100px'
-    }}>
-      <div className="text-h3" style={{ color: 'var(--error-red)' }}>{error}</div>
-    </div>
-  )
-
-  if (!user) return null
+  const [followState, setFollowState] = useState({ isFollowing: false, loading: false })
+  const [showUnfollowConfirm, setShowUnfollowConfirm] = useState(false)
 
   const isOwnProfile = currentUser?.user_id === userId
 
-  return (
-    <div style={{
-      padding: 'var(--spacing-xl)',
-      paddingTop: '80px',
-      maxWidth: 1000,
-      margin: '0 auto',
-      minHeight: '100vh'
-    }}>
-      {/* Profile Card */}
-      <Card className="slide-up" style={{ marginBottom: 'var(--spacing-xl)' }}>
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          marginBottom: 'var(--spacing-lg)'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
-            {/* Avatar */}
-            <div style={{
-              width: 80,
-              height: 80,
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, var(--primary-purple), var(--primary-pink))',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#FFFFFF',
-              fontSize: 32,
-              fontWeight: 700,
-              boxShadow: 'var(--shadow-lg)'
-            }}>
-              {(user.username || 'U').charAt(0).toUpperCase()}
-            </div>
+  useEffect(() => {
+    let mounted = true
 
-            <div>
-              <h2 className="text-h2" style={{ marginBottom: 'var(--spacing-xs)' }}>
-                {user.username}
-              </h2>
-              <p className="text-body" style={{ color: 'var(--gray-600)' }}>
-                @{user.username}
-              </p>
-            </div>
+    const load = async () => {
+      setLoading(true)
+      setError('')
+
+      try {
+        const publicProfile = await userAPI.getPublicById(userId)
+        if (!mounted) return
+
+        setProfile(publicProfile.user)
+        setStats(publicProfile.stats || { followerCount: 0, diaryCount: 0 })
+
+        const diariesResponse = await diaryAPI.getUserPublicDiaries(userId)
+        if (!mounted) return
+        const diariesData = diariesResponse?.diaries || diariesResponse || []
+        const ordered = [...diariesData].sort((a, b) => {
+          const aDate = new Date(a.created_at || a.createdAt || 0)
+          const bDate = new Date(b.created_at || b.createdAt || 0)
+          return bDate - aDate
+        })
+        setDiaries(ordered)
+        setStats((prev) => ({
+          followerCount: prev.followerCount,
+          diaryCount: publicProfile.stats?.diaryCount ?? ordered.length
+        }))
+
+        if (currentUser && currentUser.user_id !== userId) {
+          try {
+            const status = await followAPI.checkStatus(userId)
+            if (!mounted) return
+            setFollowState((prev) => ({ ...prev, isFollowing: !!status.isFriend }))
+          } catch (statusError) {
+            console.warn('Unable to fetch follow status:', statusError)
+          }
+        } else if (mounted) {
+          setFollowState({ isFollowing: false, loading: false })
+        }
+      } catch (err) {
+        if (!mounted) return
+        const message = err.response?.data?.message || err.response?.data?.error || '無法載入會員資料'
+        setError(message)
+      } finally {
+        if (mounted) setLoading(false)
+      }
+    }
+
+    load()
+
+    return () => {
+      mounted = false
+    }
+  }, [userId, currentUser?.user_id])
+
+  const avatarUrl = useMemo(() => ensureAbsoluteUrl(profile?.profile_image), [profile?.profile_image])
+  const initials = useMemo(() => (profile?.username || 'U').charAt(0).toUpperCase(), [profile?.username])
+  const displayName = useMemo(() => {
+    if (!profile) return ''
+    return (profile.display_name && profile.display_name.trim()) || profile.username || ''
+  }, [profile])
+  const userHandle = useMemo(() => (profile?.username ? `@${profile.username}` : ''), [profile?.username])
+  const profileBio = useMemo(() => {
+    if (!profile) return ''
+    return profile.signature || profile.bio || profile.introduction || profile.self_intro || ''
+  }, [profile])
+
+  const handleLike = async (diaryId) => {
+    if (!currentUser) {
+      addToast('請先登入後再按讚', 'warning')
+      return
+    }
+
+    try {
+      await likeAPI.toggle('diary', diaryId)
+      setDiaries((prev) =>
+        prev.map((item) => {
+          if (item.diary_id !== diaryId) return item
+          const currentCount = Number.isFinite(item.like_count)
+            ? item.like_count
+            : Number(item.likes ?? 0)
+          const isLiked = !item.is_liked
+          const nextCount = isLiked ? currentCount + 1 : Math.max(0, currentCount - 1)
+          return {
+            ...item,
+            is_liked: isLiked,
+            like_count: nextCount,
+            likes: nextCount
+          }
+        })
+      )
+    } catch (err) {
+      console.error('Toggle like failed:', err)
+      addToast('按讚失敗，請稍後再試', 'error')
+    }
+  }
+
+  const handleShare = async (diaryId) => {
+    const shareUrl = `${window.location.origin}/diaries/${diaryId}`
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareUrl)
+        addToast('連結已複製', 'success')
+      } else {
+        window.prompt('請複製連結', shareUrl)
+      }
+    } catch (err) {
+      console.error('Copy share url failed:', err)
+      addToast('複製連結失敗', 'error')
+    }
+  }
+
+  const followUser = async () => {
+    setFollowState((prev) => ({ ...prev, loading: true }))
+    try {
+      await followAPI.add(userId)
+      setFollowState({ isFollowing: true, loading: false })
+      setStats((prev) => ({
+        ...prev,
+        followerCount: prev.followerCount + 1
+      }))
+    } catch (err) {
+      console.error('Follow failed:', err)
+      alert('操作失敗：' + (err.response?.data?.message || err.message))
+      setFollowState((prev) => ({ ...prev, loading: false }))
+    }
+  }
+
+  const unfollowUser = async () => {
+    setFollowState((prev) => ({ ...prev, loading: true }))
+    try {
+      await followAPI.remove(userId)
+      setFollowState({ isFollowing: false, loading: false })
+      setStats((prev) => ({
+        ...prev,
+        followerCount: Math.max(0, prev.followerCount - 1)
+      }))
+    } catch (err) {
+      console.error('Unfollow failed:', err)
+      alert('操作失敗：' + (err.response?.data?.message || err.message))
+      setFollowState((prev) => ({ ...prev, loading: false }))
+    } finally {
+      setShowUnfollowConfirm(false)
+    }
+  }
+
+  const handleToggleFollow = () => {
+    if (!currentUser) {
+      alert('請先登入後再追蹤其他會員')
+      return
+    }
+    if (!profile) return
+
+    if (followState.isFollowing) {
+      setShowUnfollowConfirm(true)
+      return
+    }
+
+    followUser()
+  }
+
+  const handleConfirmUnfollow = () => {
+    unfollowUser()
+  }
+
+  const handleCancelUnfollow = () => {
+    if (followState.loading) return
+    setShowUnfollowConfirm(false)
+  }
+
+  if (loading) {
+    return (
+      <div className="user-profile-page loading">
+        <div className="user-profile-loading">載入中...</div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="user-profile-page error">
+        <div className="user-profile-error">{error}</div>
+      </div>
+    )
+  }
+
+  if (!profile) return null
+
+  return (
+    <div className="user-profile-page">
+      <section className="user-profile-hero">
+        <div className="user-profile-metrics">
+          <div className="user-profile-metric">
+            <Users size={18} />
+            <span>追蹤數 {stats.followerCount} 人</span>
+          </div>
+          <div className="user-profile-metric">
+            <BookOpen size={18} />
+            <span>日記數 {stats.diaryCount} 篇</span>
+          </div>
+        </div>
+
+        <div className="user-profile-banner">
+          <div className="user-profile-avatar">
+            {avatarUrl ? (
+              <img src={avatarUrl} alt={`${displayName || profile.username} 的大頭貼`} />
+            ) : (
+              <span>{initials}</span>
+            )}
           </div>
 
-          {/* Follow Button */}
-          {!isOwnProfile && currentUser && (
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <Link to={`/messages/${userId}`} state={{ follow: user }} style={{ textDecoration: 'none' }}>
-                <Button variant="outline">
-                  <MessageSquare size={16} /> 聊天
-                </Button>
-              </Link>
+          <div className="user-profile-banner-body">
+            <h1 className="user-profile-display-name">{displayName}</h1>
+            {userHandle && <p className="user-profile-username">{userHandle}</p>}
+            {profileBio && <p className="user-profile-bio">{profileBio}</p>}
 
-              <Button
-                variant={followStatus.isFollowing ? 'outline' : 'primary'}
+            {!isOwnProfile && (
+              <button
+                type="button"
+                className={`user-profile-follow-btn ${followState.isFollowing ? 'is-following' : ''}`}
                 onClick={handleToggleFollow}
-                disabled={toggling}
+                disabled={followState.loading}
               >
-                {followStatus.isFollowing ? (
+                {followState.isFollowing ? (
                   <>
                     <UserMinus size={16} />
-                    取消追蹤
+                    已追蹤
                   </>
                 ) : (
                   <>
@@ -162,189 +267,139 @@ function UserProfilePage() {
                     追蹤
                   </>
                 )}
-              </Button>
-            </div>
-          )}
-
-          {isOwnProfile && (
-            <Link to="/profile" style={{ textDecoration: 'none' }}>
-              <Button variant="primary">
-                編輯個人資料
-              </Button>
-            </Link>
-          )}
-        </div>
-
-        {/* Bio */}
-        {user.bio && (
-          <p className="text-body" style={{
-            color: 'var(--gray-700)',
-            marginBottom: 'var(--spacing-lg)',
-            paddingTop: 'var(--spacing-md)',
-            borderTop: '1px solid var(--gray-200)'
-          }}>
-            {user.bio}
-          </p>
-        )}
-
-        {/* Stats */}
-        <div style={{
-          display: 'flex',
-          gap: 'var(--spacing-xl)',
-          paddingTop: 'var(--spacing-md)',
-          borderTop: '1px solid var(--gray-200)'
-        }}>
-          <div>
-            <strong className="text-h3" style={{ color: 'var(--primary-purple)' }}>
-              {followStatus.followerCount}
-            </strong>
-            <span className="text-body" style={{ marginLeft: 'var(--spacing-xs)', color: 'var(--gray-600)' }}>
-              粉絲
-            </span>
-          </div>
-          <div>
-            <strong className="text-h3" style={{ color: 'var(--primary-purple)' }}>
-              {followStatus.followingCount}
-            </strong>
-            <span className="text-body" style={{ marginLeft: 'var(--spacing-xs)', color: 'var(--gray-600)' }}>
-              追蹤中
-            </span>
-          </div>
-          <div>
-            <strong className="text-h3" style={{ color: 'var(--primary-purple)' }}>
-              {diaries.length}
-            </strong>
-            <span className="text-body" style={{ marginLeft: 'var(--spacing-xs)', color: 'var(--gray-600)' }}>
-              公開日記
-            </span>
+              </button>
+            )}
           </div>
         </div>
-      </Card>
+      </section>
 
-      {/* Public Diaries */}
-      <div>
-        <h3 className="text-h3" style={{
-          marginBottom: 'var(--spacing-lg)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 'var(--spacing-sm)'
-        }}>
-          <Eye size={24} style={{ color: 'var(--primary-purple)' }} />
-          公開日記
-        </h3>
-
+      <section className="user-profile-diaries">
         {diaries.length === 0 ? (
-          <Card style={{ textAlign: 'center', padding: 'var(--spacing-3xl)' }}>
-            <Calendar size={64} style={{ color: 'var(--gray-300)', margin: '0 auto var(--spacing-lg)' }} />
-            <h4 className="text-h4" style={{ color: 'var(--gray-600)', marginBottom: 'var(--spacing-sm)' }}>
-              還沒有公開日記
-            </h4>
-            <p className="text-body" style={{ color: 'var(--gray-500)' }}>
-              {isOwnProfile ? '開始寫下第一篇日記吧！' : '這位用戶還沒有公開的日記'}
-            </p>
-          </Card>
+          <div className="user-profile-empty">
+            <p>{isOwnProfile ? '還沒有公開日記，開始分享你的故事吧！' : '這位會員尚未發佈公開日記。'}</p>
+          </div>
         ) : (
-          <div style={{
-            display: 'grid',
-            gap: 'var(--spacing-lg)'
-          }}>
-            {diaries.map((diary, index) => (
-              <Card
-                key={diary.diary_id}
-                hoverable
-                className="slide-up"
-                style={{ animationDelay: `${index * 0.05}s` }}
-              >
-                <Link
-                  to={`/diaries/${diary.diary_id}`}
-                  style={{ textDecoration: 'none', color: 'inherit' }}
+          <div className="user-profile-diary-list">
+            {diaries.map((diary, index) => {
+              const diaryAvatar = ensureAbsoluteUrl(diary.avatar_url) || avatarUrl
+              const diaryDate = formatDate(diary.created_at || diary.createdAt)
+              const tags = Array.isArray(diary.tags) ? diary.tags : []
+              const emotionTags = tags.filter((tag) => tag.tag_type === 'emotion')
+              const weatherTag = tags.find((tag) => tag.tag_type === 'weather')
+              const keywordTags = tags.filter((tag) => tag.tag_type === 'keyword')
+              const likeCount = diary.like_count ?? diary.likes ?? 0
+              const commentCount = diary.comment_count ?? diary.comments ?? 0
+              const diaryOwnerName = diary.username || displayName || profile.username
+
+              return (
+                <article
+                  key={diary.diary_id}
+                  className={`user-profile-diary-card ${index === 0 ? 'is-featured' : ''}`}
                 >
-                  <div style={{ marginBottom: 'var(--spacing-sm)' }}>
-                    <h4 className="text-h4" style={{
-                      marginBottom: 'var(--spacing-xs)',
-                      color: 'var(--dark-purple)'
-                    }}>
-                      {diary.title || '無標題'}
-                    </h4>
-                    <div className="text-small" style={{
-                      color: 'var(--gray-500)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 'var(--spacing-xs)'
-                    }}>
-                      <Calendar size={14} />
-                      {new Date(diary.created_at).toLocaleDateString('zh-TW', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                      })}
+                  <header className="diary-card-header">
+                    <div className="diary-author">
+                      <div className="diary-author-avatar">
+                        {diaryAvatar ? (
+                          <img src={diaryAvatar} alt={`${diaryOwnerName} 的大頭貼`} />
+                        ) : (
+                          <span>{(diaryOwnerName || 'U').charAt(0).toUpperCase()}</span>
+                        )}
+                      </div>
+                      <div className="diary-author-details">
+                        <h3 className="diary-author-name">{diaryOwnerName}</h3>
+                        <span className="diary-post-date">{diaryDate}</span>
+                      </div>
                     </div>
+                  </header>
+
+                  <div className="diary-card-body">
+                    <Link
+                      to={`/diaries/${diary.diary_id}`}
+                      className="diary-card-title"
+                    >
+                      {diary.title || '未命名日記'}
+                    </Link>
+
+                    {(emotionTags.length > 0 || weatherTag || keywordTags.length > 0) && (
+                      <div className="diary-card-tags">
+                        {emotionTags.slice(0, 3).map((tag, tagIndex) => (
+                          <span key={`emotion-${tagIndex}`} className="diary-tag diary-tag--emotion">
+                            {tag.tag_value}
+                          </span>
+                        ))}
+                        {weatherTag && (
+                          <span className="diary-tag diary-tag--weather">{weatherTag.tag_value}</span>
+                        )}
+                        {keywordTags.slice(0, 3).map((tag, tagIndex) => (
+                          <span key={`keyword-${tagIndex}`} className="diary-tag diary-tag--keyword">
+                            #{tag.tag_value}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {diary.content && (
+                      <p className="diary-card-content">{diary.content}</p>
+                    )}
                   </div>
 
-                  {/* Preview Content */}
-                  {diary.content && (
-                    <p className="text-body" style={{
-                      color: 'var(--gray-700)',
-                      marginBottom: 'var(--spacing-md)',
-                      lineHeight: 1.6,
-                      display: '-webkit-box',
-                      WebkitLineClamp: 3,
-                      WebkitBoxOrient: 'vertical',
-                      overflow: 'hidden'
-                    }}>
-                      {diary.content}
-                    </p>
-                  )}
-
-                  {/* Tags */}
-                  {diary.tags && diary.tags.length > 0 && (
-                    <div style={{
-                      display: 'flex',
-                      gap: 'var(--spacing-xs)',
-                      flexWrap: 'wrap',
-                      marginBottom: 'var(--spacing-md)'
-                    }}>
-                      {diary.tags.slice(0, 5).map((tag, i) => (
-                        <span
-                          key={i}
-                          className="text-tiny"
-                          style={{
-                            background: tag.tag_type === 'emotion' ? 'var(--emotion-pink)' : 'var(--weather-blue)',
-                            color: 'var(--dark-purple)',
-                            padding: '4px 10px',
-                            borderRadius: 'var(--radius-full)',
-                            fontWeight: 500
-                          }}
-                        >
-                          {tag.tag_value}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Stats */}
-                  <div style={{
-                    display: 'flex',
-                    gap: 'var(--spacing-lg)',
-                    paddingTop: 'var(--spacing-md)',
-                    borderTop: '1px solid var(--gray-200)',
-                    color: 'var(--gray-500)'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)' }}>
-                      <Heart size={16} />
-                      <span className="text-small">{diary.like_count || 0}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)' }}>
-                      <MessageCircle size={16} />
-                      <span className="text-small">{diary.comment_count || 0}</span>
-                    </div>
-                  </div>
-                </Link>
-              </Card>
-            ))}
+                  <footer className="diary-card-footer">
+                    <button
+                      type="button"
+                      className={`diary-card-action ${diary.is_liked ? 'is-active' : ''}`}
+                      onClick={() => handleLike(diary.diary_id)}
+                    >
+                      <Heart size={20} fill={diary.is_liked ? '#FF9393' : 'none'} />
+                      <span>{likeCount}</span>
+                    </button>
+                    <Link to={`/diaries/${diary.diary_id}`} className="diary-card-action">
+                      <MessageCircle size={20} />
+                      <span>{commentCount}</span>
+                    </Link>
+                    <button
+                      type="button"
+                      className="diary-card-action diary-card-action-share"
+                      onClick={() => handleShare(diary.diary_id)}
+                    >
+                      <Share2 size={20} />
+                      分享
+                    </button>
+                  </footer>
+                </article>
+              )
+            })}
           </div>
         )}
-      </div>
+      </section>
+
+      {showUnfollowConfirm && (
+        <div className="user-profile-confirm-backdrop" role="presentation">
+          <div
+            className="user-profile-confirm"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="user-profile-confirm-title"
+          >
+            <h3 id="user-profile-confirm-title">取消追蹤</h3>
+            <p>
+              確定要取消追蹤 {displayName || profile.username} 嗎？
+            </p>
+            <div className="user-profile-confirm-actions">
+              <button type="button" className="confirm-cancel" onClick={handleCancelUnfollow}>
+                返回
+              </button>
+              <button
+                type="button"
+                className="confirm-submit"
+                onClick={handleConfirmUnfollow}
+                disabled={followState.loading}
+              >
+                確定
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

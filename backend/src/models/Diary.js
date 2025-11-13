@@ -323,6 +323,25 @@ class Diary {
   }
 
   /**
+   * 統計指定使用者的公開日記數量
+   * @param {string} userId - 使用者 ID
+   * @returns {Promise<number>} 公開日記數量
+   */
+  static async countPublicByUser(userId) {
+    const hasStatus = await checkStatusColumn()
+    const statusClause = hasStatus ? " AND status = 'published'" : ''
+
+    const query = `
+      SELECT COUNT(*) as count
+      FROM diaries
+      WHERE user_id = ? AND visibility = 'public'${statusClause}
+    `;
+
+    const [rows] = await db.execute(query, [userId]);
+    return rows[0]?.count || 0;
+  }
+
+  /**
    * 新增日記標籤
    * @param {string} diaryId - 日記 ID
    * @param {string} tagType - 標籤類型 (emotion/weather/keyword)

@@ -10,7 +10,7 @@ function LoginPage() {
   const navigate = useNavigate();
   const login = useAuthStore((state) => state.login);
   const { addToast } = useToast();
-  
+
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -20,7 +20,7 @@ function LoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    
+
     try {
       await login(formData);
       addToast('登入成功！', 'success');

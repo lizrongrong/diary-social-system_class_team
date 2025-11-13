@@ -299,6 +299,22 @@ class User {
     const [rows] = await db.query(query, params);
     return rows;
   }
+
+  /**
+   * 統計追蹤該使用者的人數
+   * @param {string} userId - 使用者 ID
+   * @returns {Promise<number>} 粉絲數量
+   */
+  static async countFollowers(userId) {
+    const query = `
+      SELECT COUNT(*) AS count
+      FROM followers
+      WHERE following_id = ? AND status = 'active'
+    `;
+
+    const [rows] = await db.query(query, [userId]);
+    return rows[0]?.count || 0;
+  }
 }
 
 module.exports = User;
