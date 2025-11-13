@@ -30,10 +30,10 @@ const checkStatusColumn = async () => {
  */
 class Diary {
   /**
-   * 建立新日記
-   * @param {Object} diaryData - 日記資料
-   * @returns {Promise<string>} 日記 ID
-   */
+    * 建立新日記
+    * @param {Object} diaryData - 日記資料
+    * @returns {Promise<string>} 日記 ID
+    */
   static async create(diaryData) {
     const diaryId = uuidv4();
     const now = new Date();
@@ -91,13 +91,13 @@ class Diary {
   }
 
   /**
-   * 根據 ID 查找日記
-   * @param {string} diaryId - 日記 ID
-   * @returns {Promise<Object|null>}
-   */
+    * 根據 ID 查找日記
+    * @param {string} diaryId - 日記 ID
+    * @returns {Promise<Object|null>}
+    */
   static async findById(diaryId) {
     const query = `
-  SELECT d.*, u.username, u.profile_image AS avatar_url
+   SELECT d.*, u.username, u.profile_image AS avatar_url
       FROM diaries d
       JOIN users u ON d.user_id = u.user_id
       WHERE d.diary_id = ?`;
@@ -115,11 +115,11 @@ class Diary {
   }
 
   /**
-   * 取得使用者的日記列表
-   * @param {string} userId - 使用者 ID
-   * @param {Object} options - 查詢選項
-   * @returns {Promise<Array>}
-   */
+    * 取得使用者的日記列表
+    * @param {string} userId - 使用者 ID
+    * @param {Object} options - 查詢選項
+    * @returns {Promise<Array>}
+    */
   static async findByUserId(userId, options = {}) {
     const {
       visibility = null,
@@ -137,7 +137,7 @@ class Diary {
     const offsetNum = Math.max(0, toSafeInt(offset, 0))
 
     let query = `
-  SELECT d.*, u.username, u.profile_image AS avatar_url
+   SELECT d.*, u.username, u.profile_image AS avatar_url
       FROM diaries d
       JOIN users u ON d.user_id = u.user_id
       WHERE d.user_id = ?
@@ -157,18 +157,21 @@ class Diary {
       params.push(visibility);
     }
 
-    query += ` ORDER BY d.${safeOrderBy} ${safeOrder} LIMIT ? OFFSET ?`;
-    params.push(limitNum, offsetNum);
+    // --- 修正點 (1) ---
+    // 將 limit/offset 變數直接寫入 SQL 字串
+    query += ` ORDER BY d.${safeOrderBy} ${safeOrder} LIMIT ${limitNum} OFFSET ${offsetNum}`;
+    // 不再將 limitNum, offsetNum 傳入 params
+    // params.push(limitNum, offsetNum); // <-- 移除
 
     const [rows] = await db.query(query, params);
     return rows;
   }
 
   /**
-   * 取得公開日記列表（探索頁面）
-   * @param {Object} options - 查詢選項
-   * @returns {Promise<Array>}
-   */
+    * 取得公開日記列表（探索頁面）
+    * @param {Object} options - 查詢選項
+    * @returns {Promise<Array>}
+    */
   static async findPublic(options = {}) {
     try {
       const {
@@ -188,16 +191,19 @@ class Diary {
       const hasStatus = await checkStatusColumn()
       const statusClause = hasStatus ? " AND d.status = 'published'" : ''
 
+      // --- 修正點 (2) ---
+      // 將 limit/offset 變數直接寫入 SQL 字串
       const query = `
           SELECT d.*, u.username, u.profile_image AS avatar_url
-        FROM diaries d
-        JOIN users u ON d.user_id = u.user_id
-        WHERE d.visibility = 'public'${statusClause}
-        ORDER BY d.${safeOrderBy} ${safeOrder}
-        LIMIT ? OFFSET ?
+          FROM diaries d
+          JOIN users u ON d.user_id = u.user_id
+          WHERE d.visibility = 'public'${statusClause}
+          ORDER BY d.${safeOrderBy} ${safeOrder}
+          LIMIT ${limitNum} OFFSET ${offsetNum}
       `;
 
-      const [rows] = await db.query(query, [limitNum, offsetNum]);
+      // 查詢本身沒有 ? 佔位符，參數陣列為空
+      const [rows] = await db.query(query, []);
       return rows;
     } catch (err) {
       console.error('Diary.findPublic error:', err && err.stack ? err.stack : err);
@@ -206,11 +212,11 @@ class Diary {
   }
 
   /**
-   * 更新日記
-   * @param {string} diaryId - 日記 ID
-   * @param {Object} updates - 要更新的欄位
-   * @returns {Promise<boolean>}
-   */
+    * 更新日記
+    * @param {string} diaryId - 日記 ID
+    * @param {Object} updates - 要更新的欄位
+    * @returns {Promise<boolean>}
+    */
   static async update(diaryId, updates) {
     const allowedFields = ['title', 'content', 'visibility', 'status'];
     const updateFields = [];
@@ -264,10 +270,10 @@ class Diary {
   }
 
   /**
-   * 刪除日記（軟刪除）
-   * @param {string} diaryId - 日記 ID
-   * @returns {Promise<boolean>}
-   */
+    * 刪除日記（軟刪除）
+    * @param {string} diaryId - 日記 ID
+    * @returns {Promise<boolean>}
+    */
   static async delete(diaryId) {
     const hasStatus = await checkStatusColumn();
     if (hasStatus) {
@@ -287,11 +293,11 @@ class Diary {
   }
 
   /**
-   * 檢查日記所有權
-   * @param {string} diaryId - 日記 ID
-   * @param {string} userId - 使用者 ID
-   * @returns {Promise<boolean>}
-   */
+    * 檢查日記所有權
+    * @param {string} diaryId - 日記 ID
+    * @param {string} userId - 使用者 ID
+    * @returns {Promise<boolean>}
+    */
   static async isOwner(diaryId, userId) {
     const query = `
       SELECT COUNT(*) as count 
@@ -304,10 +310,10 @@ class Diary {
   }
 
   /**
-   * 統計使用者的日記數量
-   * @param {string} userId - 使用者 ID
-   * @returns {Promise<number>}
-   */
+    * 統計使用者的日記數量
+    * @param {string} userId - 使用者 ID
+    * @returns {Promise<number>}
+    */
   static async countByUserId(userId) {
     const hasStatus = await checkStatusColumn()
     const statusClause = hasStatus ? " AND status = 'published'" : ''
@@ -323,10 +329,10 @@ class Diary {
   }
 
   /**
-   * 統計指定使用者的公開日記數量
-   * @param {string} userId - 使用者 ID
-   * @returns {Promise<number>} 公開日記數量
-   */
+    * 統計指定使用者的公開日記數量
+    * @param {string} userId - 使用者 ID
+    * @returns {Promise<number>} 公開日記數量
+    */
   static async countPublicByUser(userId) {
     const hasStatus = await checkStatusColumn()
     const statusClause = hasStatus ? " AND status = 'published'" : ''
@@ -342,12 +348,12 @@ class Diary {
   }
 
   /**
-   * 新增日記標籤
-   * @param {string} diaryId - 日記 ID
-   * @param {string} tagType - 標籤類型 (emotion/weather/keyword)
-   * @param {string} tagValue - 標籤值
-   * @returns {Promise<string>} 標籤 ID
-   */
+    * 新增日記標籤
+    * @param {string} diaryId - 日記 ID
+    * @param {string} tagType - 標籤類型 (emotion/weather/keyword)
+    * @param {string} tagValue - 標籤值
+    * @returns {Promise<string>} 標籤 ID
+    */
   static async addTag(diaryId, tagType, tagValue) {
     const tagId = uuidv4();
 
@@ -361,10 +367,10 @@ class Diary {
   }
 
   /**
-   * 取得日記的所有標籤
-   * @param {string} diaryId - 日記 ID
-   * @returns {Promise<Array>}
-   */
+    * 取得日記的所有標籤
+    * @param {string} diaryId - 日記 ID
+    * @returns {Promise<Array>}
+    */
   static async getTags(diaryId) {
     const query = `
       SELECT * FROM diary_tags 
@@ -377,10 +383,10 @@ class Diary {
   }
 
   /**
-   * 刪除日記的所有標籤
-   * @param {string} diaryId - 日記 ID
-   * @returns {Promise<boolean>}
-   */
+    * 刪除日記的所有標籤
+    * @param {string} diaryId - 日記 ID
+    * @returns {Promise<boolean>}
+    */
   static async deleteTags(diaryId) {
     const query = `DELETE FROM diary_tags WHERE diary_id = ?`;
     const [result] = await db.execute(query, [diaryId]);
@@ -388,13 +394,13 @@ class Diary {
   }
 
   /**
-   * 新增日記附件
-   * @param {string} diaryId - 日記 ID
-   * @param {string} fileUrl - 檔案 URL
-   * @param {string} fileType - 檔案類型
-   * @param {number} fileSize - 檔案大小
-   * @returns {Promise<string>} 附件 ID
-   */
+    * 新增日記附件
+    * @param {string} diaryId - 日記 ID
+    * @param {string} fileUrl - 檔案 URL
+    * @param {string} fileType - 檔案類型
+    * @param {number} fileSize - 檔案大小
+    * @returns {Promise<string>} 附件 ID
+    */
   static async addMedia(diaryId, fileUrl, fileType, fileSize) {
     const mediaId = uuidv4();
 
@@ -408,10 +414,10 @@ class Diary {
   }
 
   /**
-   * 取得日記的所有附件
-   * @param {string} diaryId - 日記 ID
-   * @returns {Promise<Array>}
-   */
+    * 取得日記的所有附件
+    * @param {string} diaryId - 日記 ID
+    * @returns {Promise<Array>}
+    */
   static async getMedia(diaryId) {
     const query = `
       SELECT *
@@ -425,10 +431,10 @@ class Diary {
   }
 
   /**
-   * 刪除單個附件
-   * @param {string} mediaId - 附件 ID
-   * @returns {Promise<boolean>}
-   */
+    * 刪除單個附件
+    * @param {string} mediaId - 附件 ID
+    * @returns {Promise<boolean>}
+    */
   static async deleteMedia(mediaId) {
     const query = `DELETE FROM diary_media WHERE media_id = ? `;
     const [result] = await db.execute(query, [mediaId]);
@@ -436,10 +442,10 @@ class Diary {
   }
 
   /**
-   * 刪除日記的所有附件
-   * @param {string} diaryId - 日記 ID
-   * @returns {Promise<boolean>}
-   */
+    * 刪除日記的所有附件
+    * @param {string} diaryId - 日記 ID
+    * @returns {Promise<boolean>}
+    */
   static async deleteAllMedia(diaryId) {
     const query = `DELETE FROM diary_media WHERE diary_id = ? `;
     const [result] = await db.execute(query, [diaryId]);
@@ -447,10 +453,10 @@ class Diary {
   }
 
   /**
-   * 搜尋公開日記
-   * @param {Object} filters - 搜尋條件
-   * @returns {Promise<Array>}
-   */
+    * 搜尋公開日記
+    * @param {Object} filters - 搜尋條件
+    * @returns {Promise<Array>}
+    */
   static async search(filters = {}) {
     const {
       keyword = null,
@@ -529,37 +535,45 @@ class Diary {
       const safeOrderDir = 'DESC'
       query += ` ORDER BY d.${safeOrderBy} ${safeOrderDir}`;
     }
-    query += ' LIMIT ? OFFSET ?';
-    params.push(safeLimit, safeOffset);
+
+    // --- 修正點 (3) ---
+    // 將 limit/offset 變數直接寫入 SQL 字串
+    query += ` LIMIT ${safeLimit} OFFSET ${safeOffset}`;
+    // 不再將 limitNum, offsetNum 傳入 params
+    // params.push(safeLimit, safeOffset); // <-- 移除
 
     const [rows] = await db.execute(query, params);
     return rows;
   }
 
   /**
-   * 取得指定使用者的公開日記
-   * @param {string} userId - 使用者 ID
-   * @param {number} limit - 限制數量
-   * @param {number} offset - 偏移量
-   * @returns {Promise<Array>}
-   */
+    * 取得指定使用者的公開日記
+    * @param {string} userId - 使用者 ID
+    * @param {number} limit - 限制數量
+    * @param {number} offset - 偏移量
+    * @returns {Promise<Array>}
+    */
   static async findPublicByUser(userId, limit = 20, offset = 0) {
     const limitNum = Math.max(1, Math.min(100, toSafeInt(limit, 20)))
     const offsetNum = Math.max(0, toSafeInt(offset, 0))
 
-    const hasStatus = await checkStatusColumn()
+    // (採用同學的 .catch() 版本，更安全)
+    const hasStatus = await checkStatusColumn().catch(() => false)
     const statusClause = hasStatus ? " AND d.status = 'published'" : ''
 
+    // --- 修正點 (4) ---
+    // 將 limit/offset 變數直接寫入 SQL 字串
     const query = `
       SELECT d.*, u.username, u.profile_image AS avatar_url
       FROM diaries d
       JOIN users u ON d.user_id = u.user_id
       WHERE d.user_id = ? AND d.visibility = 'public'${statusClause}
       ORDER BY d.created_at DESC
-      LIMIT ? OFFSET ?
+      LIMIT ${limitNum} OFFSET ${offsetNum}
     `;
 
-    const [rows] = await db.execute(query, [userId, limitNum, offsetNum]);
+    const normalizedUserId = typeof userId === 'number' ? userId : String(userId).trim();
+    const [rows] = await db.execute(query, [normalizedUserId]);
     return rows;
   }
 }
