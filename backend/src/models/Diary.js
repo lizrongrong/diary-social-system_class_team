@@ -547,7 +547,7 @@ class Diary {
     const limitNum = Math.max(1, Math.min(100, toSafeInt(limit, 20)))
     const offsetNum = Math.max(0, toSafeInt(offset, 0))
 
-    const hasStatus = await checkStatusColumn().catch(() => false)
+    const hasStatus = await checkStatusColumn()
     const statusClause = hasStatus ? " AND d.status = 'published'" : ''
 
     const query = `
@@ -556,13 +556,12 @@ class Diary {
       JOIN users u ON d.user_id = u.user_id
       WHERE d.user_id = ? AND d.visibility = 'public'${statusClause}
       ORDER BY d.created_at DESC
-      LIMIT ${limitNum} OFFSET ${offsetNum}
+      LIMIT ? OFFSET ?
     `;
 
-    const [rows] = await db.execute(query, [Number(userId)]);
+    const [rows] = await db.execute(query, [userId, limitNum, offsetNum]);
     return rows;
   }
-
 }
 
 module.exports = Diary;
