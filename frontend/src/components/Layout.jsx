@@ -67,7 +67,7 @@ function Layout({ children }) {
     { path: '/', label: '首頁', icon: Home },
     { path: '/lucky-card', label: '幸運小卡', icon: Sparkles },
     { path: '/diaries', label: '專屬日記', icon: BookOpen },
-    { path: '/dashboard', label: '圖表分析', icon: TrendingUp },
+    { path: '/dashboard', label: '回顧與分析', icon: TrendingUp },
     { path: '/follows', label: '好友管理', icon: Users },
     { path: '/faq', label: '常見問題', icon: HelpCircle }
     // { path: '/search', label: '搜尋', icon: SearchIcon },
