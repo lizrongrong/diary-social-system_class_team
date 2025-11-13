@@ -361,4 +361,12 @@ export const messageAPI = {
   }
 }
 
+// 問題回饋 API
+export const feedbackAPI = {
+  submit: async (payload) => {
+    const response = await api.post('/feedbacks', payload)
+    return response.data
+  }
+}
+
 export default api
