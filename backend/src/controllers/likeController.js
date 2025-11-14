@@ -16,16 +16,20 @@ exports.toggleLike = async (req, res) => {
 
     // Create notification if liked
     if (result.liked && targetType === 'diary') {
-      const diary = await Diary.findById(targetId);
-      if (diary && diary.user_id !== userId) {
-        await Notification.create(
-          diary.user_id,
-          'like',
-          '新的按讚',
-          `${req.user.username} 對你的日記按了讚`,
-          userId,
-          targetId
-        );
+      try {
+        const diary = await Diary.findById(targetId);
+        if (diary && diary.user_id !== userId) {
+          await Notification.create(
+            diary.user_id,
+            'like',
+            '新的按讚',
+            `${req.user.username} 對你的日記按了讚`,
+            userId,
+            targetId
+          );
+        }
+      } catch (notifyError) {
+        console.error('Failed to create like notification:', notifyError);
       }
     }
 

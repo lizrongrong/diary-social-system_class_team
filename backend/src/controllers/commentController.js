@@ -15,35 +15,41 @@ exports.createComment = async (req, res) => {
     const commentId = await Comment.create(diaryId, userId, content, parentCommentId);
     const comment = await Comment.findById(commentId);
 
-    // Create notification for diary owner
-    const diary = await Diary.findById(diaryId);
-    if (diary && diary.user_id !== userId) {
-      await Notification.create(
-        diary.user_id,
-        'comment',
-        '新的留言',
-        `${req.user.username} 留言了：${content.substring(0, 50)}...`,
-        userId,
-        diaryId
-      );
-    }
-
-    // If reply, notify parent comment owner
-    if (parentCommentId) {
-      const parentComment = await Comment.findById(parentCommentId);
-      if (parentComment && parentComment.user_id !== userId) {
+    try {
+      const diary = await Diary.findById(diaryId);
+      if (diary && diary.user_id !== userId) {
         await Notification.create(
-          parentComment.user_id,
+          diary.user_id,
           'comment',
-          '新的回覆',
-          `${req.user.username} 回覆了你的留言：${content.substring(0, 50)}...`,
+          '新的留言',
+          `${req.user.username} 留言了：${content.substring(0, 50)}...`,
           userId,
           diaryId
         );
       }
+
+      if (parentCommentId) {
+        const parentComment = await Comment.findById(parentCommentId);
+        if (parentComment && parentComment.user_id !== userId) {
+          await Notification.create(
+            parentComment.user_id,
+            'comment',
+            '新的回覆',
+            `${req.user.username} 回覆了你的留言：${content.substring(0, 50)}...`,
+            userId,
+            diaryId
+          );
+        }
+      }
+    } catch (notificationError) {
+      console.error('Create comment notification error:', notificationError);
     }
 
-    res.status(201).json(comment);
+    res.status(201).json({
+      ...comment,
+      like_count: 0,
+      is_liked: false
+    });
   } catch (error) {
     console.error('Create comment error:', error);
     res.status(500).json({ message: 'Server error' });
