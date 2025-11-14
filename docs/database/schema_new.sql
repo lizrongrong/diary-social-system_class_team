@@ -315,7 +315,7 @@ DROP TABLE IF EXISTS `feedbacks`;
 CREATE TABLE `feedbacks` (
   `feedback_id` CHAR(36) NOT NULL COMMENT '問題ID',
   `user_id` VARCHAR(10) NOT NULL COMMENT '提交者',
-  `category` ENUM('bug', 'feature', 'complaint', 'other') NOT NULL COMMENT '問題類別',
+  `category` ENUM('general', 'feature', 'account', 'diary', 'followers', 'card', 'analysis', 'other') NOT NULL COMMENT '問題類別',
   `subject` VARCHAR(200) NOT NULL COMMENT '問題主旨',
   `description` TEXT NOT NULL COMMENT '詳細描述',
   `status` ENUM('pending', 'in_progress', 'resolved', 'closed') NOT NULL DEFAULT 'pending' COMMENT '狀態',
