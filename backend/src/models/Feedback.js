@@ -79,6 +79,33 @@ class Feedback {
     const [rows] = await db.execute(query, [userId, limit, offset]);
     return rows;
   }
+
+  // 管理員：列出所有回饋
+  static async findAll(options = {}) {
+    const limit = Math.max(1, Math.min(Number(options.limit) || DEFAULT_PAGE_SIZE, 500));
+    const offset = Math.max(0, Number(options.offset) || 0);
+
+    const query = `
+      SELECT feedback_id, user_id, category, subject, description, status, admin_reply, created_at, updated_at, resolved_at
+      FROM feedbacks
+      ORDER BY created_at DESC
+      LIMIT ? OFFSET ?
+    `;
+
+    const [rows] = await db.execute(query, [limit, offset]);
+    return rows;
+  }
+
+  // 管理員：回覆並標記為 resolved/in_progress
+  static async reply(feedbackId, adminReply, status = 'in_progress') {
+    const allowed = ['pending', 'in_progress', 'resolved', 'closed'];
+    const finalStatus = allowed.includes(status) ? status : 'in_progress';
+    const resolvedAt = finalStatus === 'resolved' ? new Date() : null;
+    const sql = `UPDATE feedbacks SET admin_reply = ?, status = ?, resolved_at = ? WHERE feedback_id = ?`;
+    const params = [adminReply, finalStatus, resolvedAt, feedbackId];
+    const [result] = await db.execute(sql, params);
+    return result.affectedRows > 0;
+  }
 }
 
 module.exports = Feedback;

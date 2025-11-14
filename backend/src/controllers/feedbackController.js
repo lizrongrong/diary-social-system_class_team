@@ -99,3 +99,32 @@ exports.getMyFeedbacks = async (req, res) => {
     });
   }
 };
+
+// 管理員：查詢所有回饋
+exports.adminList = async (req, res) => {
+  try {
+    const { limit, offset } = req.query || {};
+    const feedbacks = await Feedback.findAll({ limit, offset });
+    res.json({ feedbacks });
+  } catch (error) {
+    console.error('Admin get feedbacks error:', error);
+    res.status(500).json({ error: 'Server error', code: 'SERVER_ERROR' });
+  }
+};
+
+// 管理員：回覆回饋
+exports.adminReply = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { admin_reply, status } = req.body || {};
+    if (!admin_reply || typeof admin_reply !== 'string' || admin_reply.trim().length < 1) {
+      return res.status(400).json({ error: 'Invalid reply' });
+    }
+    const ok = await Feedback.reply(id, admin_reply.trim(), status);
+    if (!ok) return res.status(404).json({ message: 'Feedback not found' });
+    res.json({ message: 'Replied' });
+  } catch (error) {
+    console.error('Admin reply error:', error);
+    res.status(500).json({ error: 'Server error', code: 'SERVER_ERROR' });
+  }
+};
