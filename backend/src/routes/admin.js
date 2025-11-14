@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/adminController');
+const announcementController = require('../controllers/announcementController');
+const feedbackController = require('../controllers/feedbackController');
 const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 
 // 所有路由都需要管理員權限
@@ -21,5 +23,14 @@ router.put('/users/:userId/status', adminController.updateUserStatus);
 
 // DELETE /api/v1/admin/diaries/:diaryId - 刪除日記
 router.delete('/diaries/:diaryId', adminController.deleteDiary);
+
+// Announcement 管理
+router.get('/announcements', announcementController.listAll);
+router.post('/announcements', announcementController.create);
+router.delete('/announcements/:id', announcementController.delete);
+
+// Feedback 管理
+router.get('/feedbacks', feedbackController.adminList);
+router.put('/feedbacks/:id/reply', feedbackController.adminReply);
 
 module.exports = router;

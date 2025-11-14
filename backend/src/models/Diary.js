@@ -2,7 +2,9 @@ const db = require('../config/db');
 const { v4: uuidv4 } = require('uuid');
 
 // 輔助：對排序欄位與排序方向做白名單檢查，避免 SQL 注入或非法欄位導致查詢失敗
-const ALLOWED_ORDER_COLUMNS = new Set(['created_at', 'published_at', 'updated_at', 'diary_id', 'title']);
+// Keep allowed order columns aligned with schema_new.sql (diaries table)
+// Note: schema_new.sql does not include `published_at` by default, so do not allow it here
+const ALLOWED_ORDER_COLUMNS = new Set(['created_at', 'updated_at', 'diary_id', 'title']);
 const sanitizeOrderBy = (col) => (ALLOWED_ORDER_COLUMNS.has(col) ? col : 'created_at');
 const sanitizeOrder = (ord) => (String(ord).toUpperCase() === 'ASC' ? 'ASC' : 'DESC');
 const toSafeInt = (v, fallback) => {

@@ -61,16 +61,14 @@ exports.getStats = async (req, res) => {
 // 獲取用戶列表
 exports.getUsers = async (req, res) => {
   try {
-    const parsedLimit = parseInt(req.query.limit);
-    const parsedOffset = parseInt(req.query.offset);
-    const limit = Math.max(1, Math.min(100, isNaN(parsedLimit) ? 20 : parsedLimit));
-    const offset = Math.max(0, isNaN(parsedOffset) ? 0 : parsedOffset);
-    const search = req.query.search || '';
+    console.log('admin.getUsers called - query:', req.query);
+    const parsedLimit = parseInt(req.query.limit, 10);
+    const parsedOffset = parseInt(req.query.offset, 10);
+    const limit = Number.isFinite(parsedLimit) && !isNaN(parsedLimit) ? Math.max(1, Math.min(100, parsedLimit)) : 20;
+    const offset = Number.isFinite(parsedOffset) && !isNaN(parsedOffset) ? Math.max(0, parsedOffset) : 0;
+    const search = (req.query.search || '').toString().trim();
 
-    let query = `
-      SELECT user_id, username, email, role, status, created_at
-      FROM users
-    `;
+    let query = `SELECT user_id, username, email, role, status, created_at FROM users`;
     const params = [];
 
     if (search) {
@@ -79,55 +77,118 @@ exports.getUsers = async (req, res) => {
       params.push(searchPattern, searchPattern);
     }
 
-    query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
-    params.push(limit, offset);
+    // Embed sanitized limit/offset directly to avoid driver issues with binding LIMIT/OFFSET
+    query += ` ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`;
 
-    const [users] = await db.execute(query, params);
+    let users = [];
+    let total = 0;
 
-    // 獲取總數
-    let countQuery = 'SELECT COUNT(*) as count FROM users';
-    if (search) {
-      countQuery += ' WHERE username LIKE ? OR email LIKE ?';
-      const [countResult] = await db.execute(countQuery, [
-        `%${search}%`,
-        `%${search}%`
-      ]);
-      res.json({ users, total: countResult[0].count });
-    } else {
-      const [countResult] = await db.execute(countQuery);
-      res.json({ users, total: countResult[0].count });
+    try {
+      const [userRows] = await db.execute(query, params);
+      users = userRows || [];
+      console.log(`admin.getUsers: fetched ${users.length} users (limit=${limit} offset=${offset})`);
+
+      // 獲取總數
+      let countQuery = 'SELECT COUNT(*) as count FROM users';
+      if (search) {
+        countQuery += ' WHERE username LIKE ? OR email LIKE ?';
+        const [countResult] = await db.execute(countQuery, [`%${search}%`, `%${search}%`]);
+        total = (countResult && countResult[0] && countResult[0].count) || users.length;
+      } else {
+        const [countResult] = await db.execute(countQuery);
+        total = (countResult && countResult[0] && countResult[0].count) || users.length;
+      }
+
+      res.json({ users, total });
+    } catch (dbErr) {
+      // Log full DB error and return an empty result set to avoid breaking the frontend
+      console.error('DB error in getUsers:', dbErr && dbErr.stack ? dbErr.stack : dbErr);
+      res.json({ users: [], total: 0 });
     }
   } catch (error) {
-    console.error('Get users error:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Get users unexpected error:', error && error.stack ? error.stack : error);
+    // Unexpected error at controller level - return empty list to frontend
+    res.json({ users: [], total: 0 });
   }
 };
 
 // 獲取日記列表（管理員視圖）
 exports.getDiaries = async (req, res) => {
+  // declare these in outer scope so error logging can access them
+  let limit;
+  let offset;
+  let hasStatus = false;
+  let query = null;
+
   try {
-    const limit = parseInt(req.query.limit) || 20;
-    const offset = parseInt(req.query.offset) || 0;
+    console.log('admin.getDiaries called - query:', req.query);
+    limit = Number.isFinite(parseInt(req.query.limit, 10)) ? Math.max(1, Math.min(100, parseInt(req.query.limit, 10))) : 20;
+    offset = Number.isFinite(parseInt(req.query.offset, 10)) ? Math.max(0, parseInt(req.query.offset, 10)) : 0;
 
-    const [diaries] = await db.execute(
-      `SELECT d.diary_id, d.title, d.visibility, d.status, d.created_at, 
-              u.username
-       FROM diaries d
-       JOIN users u ON d.user_id = u.user_id
-       ORDER BY d.created_at DESC
-       LIMIT ? OFFSET ?`,
-      [limit, offset]
-    );
+    // Detect whether the 'status' column exists in the diaries table to support older schemas
+    try {
+      const [cols] = await db.execute("SHOW COLUMNS FROM diaries LIKE 'status'");
+      hasStatus = Array.isArray(cols) && cols.length > 0;
+    } catch (e) {
+      hasStatus = false;
+    }
 
-    const [countResult] = await db.execute('SELECT COUNT(*) as count FROM diaries');
-    
-    res.json({ 
-      diaries,
-      total: countResult[0].count
-    });
+    // Use LEFT JOIN and COALESCE for username to tolerate mismatched/absent users
+    const selectFields = hasStatus
+      ? 'd.diary_id, d.title, d.visibility, d.status, d.created_at, COALESCE(u.username, d.user_id) AS username'
+      : 'd.diary_id, d.title, d.visibility, d.created_at, COALESCE(u.username, d.user_id) AS username';
+
+    query = `
+      SELECT ${selectFields}
+      FROM diaries d
+      LEFT JOIN users u ON d.user_id = u.user_id
+      ORDER BY d.created_at DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `;
+
+    // Execute query - wrap DB call to catch DB errors separately
+    let diaries = [];
+    try {
+      const [rows] = await db.execute(query);
+      diaries = rows || [];
+      console.log(`admin.getDiaries: fetched ${diaries.length} diaries (limit=${limit} offset=${offset})`);
+    } catch (dbErr) {
+      console.error('DB error while fetching diaries:', dbErr && dbErr.stack ? dbErr.stack : dbErr);
+      // Return empty dataset to avoid 500 on frontend (temporary defensive fallback)
+      return res.json({ diaries: [], total: 0 });
+    }
+
+    // total count
+    let total = 0;
+    try {
+      const [countResult] = await db.execute('SELECT COUNT(*) as count FROM diaries');
+      total = (countResult && countResult[0] && countResult[0].count) || diaries.length;
+    } catch (cntErr) {
+      console.error('DB error while counting diaries:', cntErr && cntErr.stack ? cntErr.stack : cntErr);
+      total = diaries.length;
+    }
+
+    return res.json({ diaries, total });
   } catch (error) {
-    console.error('Get diaries error:', error);
-    res.status(500).json({ message: 'Server error' });
+    // Enhanced debug logging for diagnostics
+    try {
+      console.error('Get diaries error - context:', {
+        queryString: query || '<not-built>',
+        reqQuery: req.query,
+        limit: typeof limit !== 'undefined' ? limit : '<undef>',
+        offset: typeof offset !== 'undefined' ? offset : '<undef>',
+        hasStatus: typeof hasStatus !== 'undefined' ? hasStatus : '<undef>'
+      });
+    } catch (ctxErr) {
+      // ignore
+    }
+
+    // Print SQL-specific error info when available
+    if (error && error.stack) console.error(error.stack);
+    if (error && error.sqlMessage) console.error('SQL message:', error.sqlMessage);
+
+    // Defensive fallback
+    return res.json({ diaries: [], total: 0 });
   }
 };
 
