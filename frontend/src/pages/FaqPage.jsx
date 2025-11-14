@@ -1,16 +1,23 @@
 import { useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import './FaqPage.css'
 
 function FaqPage() {
+  const navigate = useNavigate()
   const faqs = useMemo(
     () => [
       {
         question: '我想要加好友，應該要怎麼加呢？',
-        answer: '可以到好友管理中搜尋好友的 ID，帳號 ID 在會員管理中可以找到。'
+        answer: '可以到好友管理中搜尋好友的用戶名稱，用戶名稱可在會員管理中找到。'
       },
       {
-        question: '新增日記是否有上限？',
-        answer: '有的，會員一篇日記字數上限 800 字。'
+        question: '日記李可以新增圖片嗎？',
+        answer: '可以新增圖片，但圖片大小限制為5MB，請在上傳時注意一下檔案格式。'
+      }
+      ,
+      {
+        question: '圖片檔案是否有限制？',
+        answer: '圖片檔案大小上限為 5MB，且僅支援 JPG、PNG 格式。'
       }
     ],
     []
@@ -38,9 +45,9 @@ function FaqPage() {
       <button
         type="button"
         className="faq-feedback"
-        onClick={() => window.dispatchEvent(new CustomEvent('faqFeedbackClick'))}
+        onClick={() => navigate('/feedback')}
       >
-        問題回饋 &gt;&gt;
+        問題回饋
       </button>
     </div>
   )
