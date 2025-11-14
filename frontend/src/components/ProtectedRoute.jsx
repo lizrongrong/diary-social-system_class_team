@@ -9,14 +9,17 @@ function ProtectedRoute() {
   const isLoading = useAuthStore((state) => state.isLoading)
   const fetchUser = useAuthStore((state) => state.fetchUser)
   const token = useAuthStore((state) => state.token)
+  const user = useAuthStore((state) => state.user)
   const { addToast } = useToast()
 
   useEffect(() => {
-    if (!isAuthenticated && token) {
-      // 嘗試以現有 token 取得使用者
+    // If we have a token but user info hasn't been loaded yet, fetch it.
+    // This handles page refresh where `isAuthenticated` may be true (token exists)
+    // but `user` is null because the store was recreated.
+    if (token && !user) {
       fetchUser()
     }
-  }, [isAuthenticated, token, fetchUser])
+  }, [token, user, fetchUser])
 
   useEffect(() => {
     // 未登入且不在載入狀態時顯示提示
@@ -39,6 +42,14 @@ function ProtectedRoute() {
   }, [isLoading, isAuthenticated, addToast])
 
   if (isLoading) {
+    return (
+      <div style={{ padding: '2rem', textAlign: 'center' }}>載入中…</div>
+    )
+  }
+
+  // If we have a token but user info hasn't been loaded yet, show loading
+  // to avoid immediate redirect to login on page refresh while fetchUser runs.
+  if (!isLoading && token && !user) {
     return (
       <div style={{ padding: '2rem', textAlign: 'center' }}>載入中…</div>
     )

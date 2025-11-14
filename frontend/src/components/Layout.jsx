@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import useAuthStore from '../store/authStore'
 import { notificationAPI, ensureAbsoluteUrl } from '../services/api'
-import { Home, Sparkles, BookOpen, TrendingUp, Users, RefreshCw, ChevronDown, User, LogOut, Menu, X, IdCard, KeyRound, HelpCircle } from 'lucide-react'
+import { Home, Sparkles, BookOpen, TrendingUp, Users, RefreshCw, ChevronDown, User, LogOut, Menu, X, IdCard, KeyRound, HelpCircle, Shield, AlertCircle, MessageSquare } from 'lucide-react'
 import AnnouncementBell from './AnnouncementBell'
 import NotificationBell from './NotificationBell'
 import ChatPopup from './ChatPopup'
@@ -63,7 +63,7 @@ function Layout({ children }) {
     navigate('/')
   }
 
-  const navItems = [
+  const defaultNavItems = [
     { path: '/', label: '首頁', icon: Home },
     { path: '/lucky-card', label: '幸運小卡', icon: Sparkles },
     { path: '/diaries', label: '專屬日記', icon: BookOpen },
@@ -72,6 +72,17 @@ function Layout({ children }) {
     { path: '/faq', label: '常見問題', icon: HelpCircle }
     // { path: '/search', label: '搜尋', icon: SearchIcon },
   ]
+
+  // 後台專用側邊欄（只在 admin route 顯示）
+  const adminNavItems = [
+    { path: '/admin/announcements', label: '系統公告', icon: AlertCircle },
+    { path: '/admin/users', label: '用戶管理', icon: Users },
+    { path: '/admin', label: '後臺分析', icon: Shield },
+    { path: '/admin/feedback', label: '意見回饋', icon: MessageSquare }
+  ]
+
+  // 顯示側欄項目僅以使用者角色判斷（若為 admin 顯示 admin 專屬連結；否則為一般導航）
+  const navItems = (user && user.role === 'admin') ? adminNavItems : defaultNavItems
 
   return (
     <div className="app-layout">
