@@ -19,6 +19,8 @@ import FollowPage from './pages/FollowPage'
 import MessagesPage from './pages/messages/MessagesPage'
 import LuckyCardPage from './pages/lucky/LuckyCardPage'
 import AdminDashboard from './pages/admin/AdminDashboard'
+import FaqPage from './pages/FaqPage'
+import FeedbackPage from './pages/FeedbackPage'
 import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
 import { ToastProvider } from './components/ui/Toast'
@@ -57,6 +59,8 @@ function App() {
               <Route path="/account/edit-profile" element={<EditProfilePage />} />
               <Route path="/account/change-password" element={<ChangePasswordPage />} />
               <Route path="/lucky-card" element={<LuckyCardPage />} />
+              <Route path="/faq" element={<FaqPage />} />
+              <Route path="/feedback" element={<FeedbackPage />} />
               <Route path="/admin" element={<AdminDashboard />} />
             </Route>
 

@@ -186,16 +186,14 @@ export const diaryAPI = {
 
   getUserPublicDiaries: async (userId, params) => {
     const response = await api.get(`/users/${userId}/diaries`, { params })
-    return response
+    return response.data
   }
 }
 
 // 使用者 API
 export const userAPI = {
-  getProfile: async (userId) => {
-    // 如果有 userId，獲取該用戶的公開資料；否則獲取自己的資料
-    const url = userId ? `/users/${userId}` : '/users/profile'
-    const res = await api.get(url)
+  getProfile: async () => {
+    const res = await api.get('/users/profile')
     return res.data
   },
   updateProfile: async (data) => {
@@ -206,6 +204,10 @@ export const userAPI = {
     const res = await api.put('/users/password', data)
     return res.data
   },
+  getPublicById: async (userId) => {
+    const res = await api.get(`/users/id/${userId}`)
+    return res.data
+  },
   getPublic: async (username) => {
     const res = await api.get(`/users/${username}`)
     return res.data
@@ -213,12 +215,6 @@ export const userAPI = {
   search: async (keyword, options = {}) => {
     const params = { keyword, ...options }
     const res = await api.get('/users/search', { params })
-    return res.data
-  },
-  search: async (keyword, params = {}) => {
-    const res = await api.get('/users/search', {
-      params: { keyword, ...params }
-    })
     return res.data
   }
 }
@@ -343,6 +339,32 @@ export const luckyCardAPI = {
   },
   drawCard: async (cardSlot) => {
     const response = await api.post('/cards/draw', { cardSlot })
+    return response.data
+  }
+}
+
+// 訊息 API（輕量，對應 backend/src/routes/messages.js）
+export const messageAPI = {
+  getConversations: async () => {
+    const res = await api.get('/messages')
+    return res.data
+  },
+
+  getMessagesWith: async (otherId) => {
+    const res = await api.get(`/messages/${otherId}/messages`)
+    return res.data
+  },
+
+  sendMessageTo: async (otherId, payload) => {
+    const res = await api.post(`/messages/${otherId}/messages`, payload)
+    return res.data
+  }
+}
+
+// 問題回饋 API
+export const feedbackAPI = {
+  submit: async (payload) => {
+    const response = await api.post('/feedbacks', payload)
     return response.data
   }
 }

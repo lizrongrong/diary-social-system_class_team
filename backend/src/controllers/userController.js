@@ -1,6 +1,20 @@
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
+const Diary = require('../models/Diary');
 const { generateAvatar } = require('../services/avatarGenerator');
+
+const buildPublicProfileResponse = (user, followerCount, diaryCount) => ({
+  user: {
+    user_id: user.user_id,
+    username: user.username,
+    profile_image: user.profile_image,
+    created_at: user.created_at
+  },
+  stats: {
+    followerCount,
+    diaryCount
+  }
+});
 
 /**
  * 取得使用者個人資料
@@ -23,6 +37,7 @@ exports.getProfile = async (req, res) => {
         user_id: user.user_id,
         email: user.email,
         username: user.username,
+        signature: user.signature ?? null,
         gender: user.gender,
         birth_date: user.birth_date,
         role: user.role,
@@ -48,7 +63,7 @@ exports.getProfile = async (req, res) => {
  */
 exports.updateProfile = async (req, res) => {
   try {
-    const { username, gender, birth_date, profile_image } = req.body;
+    const { username, gender, birth_date, profile_image, signature } = req.body;
 
     const currentUser = await User.findById(req.user.user_id);
 
@@ -87,6 +102,18 @@ exports.updateProfile = async (req, res) => {
         : generateAvatar(nextUsername || req.user.user_id);
     }
 
+    if (signature !== undefined) {
+      const trimmedSignature = typeof signature === 'string' ? signature.trim() : '';
+      if (trimmedSignature.length > 50) {
+        return res.status(400).json({
+          error: 'Signature too long',
+          code: 'SIGNATURE_TOO_LONG',
+          message: '個性簽名長度不可超過 50 字'
+        });
+      }
+      updates.signature = trimmedSignature.length > 0 ? trimmedSignature : null;
+    }
+
     const success = await User.update(req.user.user_id, updates);
 
     if (!success) {
@@ -105,6 +132,7 @@ exports.updateProfile = async (req, res) => {
         user_id: updatedUser.user_id,
         email: updatedUser.email,
         username: updatedUser.username,
+        signature: updatedUser.signature ?? null,
         gender: updatedUser.gender,
         birth_date: updatedUser.birth_date,
         role: updatedUser.role,
@@ -212,6 +240,38 @@ exports.searchUsers = async (req, res) => {
 };
 
 /**
+ * 透過使用者 ID 取得公開資料
+ * @route GET /api/v1/users/id/:userId
+ * @access Public
+ */
+exports.getUserByIdPublic = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        error: 'User not found',
+        code: 'USER_NOT_FOUND'
+      });
+    }
+
+    const [followerCount, diaryCount] = await Promise.all([
+      User.countFollowers(user.user_id),
+      Diary.countPublicByUser(user.user_id)
+    ]);
+
+    res.json(buildPublicProfileResponse(user, followerCount, diaryCount));
+  } catch (error) {
+    console.error('Get user by id error:', error);
+    res.status(500).json({
+      error: 'Server error',
+      code: 'SERVER_ERROR'
+    });
+  }
+};
+
+/**
  * 取得指定使用者的公開資料
  * @route GET /api/v1/users/:username
  * @access Public
@@ -229,15 +289,12 @@ exports.getUserByUsername = async (req, res) => {
       });
     }
 
-    // 只返回公開資料
-    res.json({
-      user: {
-        user_id: user.user_id,
-        username: user.username,
-        profile_image: user.profile_image,
-        created_at: user.created_at
-      }
-    });
+    const [followerCount, diaryCount] = await Promise.all([
+      User.countFollowers(user.user_id),
+      Diary.countPublicByUser(user.user_id)
+    ]);
+
+    res.json(buildPublicProfileResponse(user, followerCount, diaryCount));
   } catch (error) {
     console.error('Get user by username error:', error);
     res.status(500).json({

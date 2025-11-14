@@ -46,7 +46,8 @@
 
 /* 漢堡選單按鈕（手機版） */
 .hamburger-btn {
-  display: none; /* 桌面版隱藏 */
+  display: none;
+  /* 桌面版隱藏 */
   width: 44px;
   height: 44px;
   border-radius: var(--radius-md);
@@ -77,7 +78,7 @@
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.2);
+  background: #A18DDD;
   border: none;
   color: #FFFFFF;
   display: flex;
@@ -85,19 +86,21 @@
   justify-content: center;
   cursor: pointer;
   transition: all var(--transition-base);
+  padding: 0px;
+  margin: 15px;
 }
 
 .header-icon-btn svg {
-  width: 20px;
-  height: 20px;
-  stroke: currentColor;
+  width: 40px;
+  height: 40px;
+  /* stroke: currentColor;
   stroke-width: 2;
-  fill: none;
+  fill: none; */
 }
 
 .header-icon-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
-  transform: scale(1.05);
+  background: #A18DDD;
+  /* transform: scale(1.05); */
 }
 
 .notification-badge {
@@ -168,6 +171,26 @@
   background: rgba(255, 255, 255, 0.3);
 }
 
+.user-menu-btn .user-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  padding: 15px 20px;
+  background: #FFFFFF;
+  color: var(--primary-purple);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-size: cover;
+  background-position: center;
+  overflow: hidden;
+}
+
+.user-menu-btn .user-name {
+  font-weight: 600;
+  font-size: 20px;
+}
+
 .user-avatar {
   width: 32px;
   height: 32px;
@@ -177,6 +200,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  background-size: cover;
+  background-position: center;
+  overflow: hidden;
 }
 
 .user-name {
@@ -207,6 +233,7 @@
     opacity: 0;
     transform: translateY(-10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -233,6 +260,22 @@
 .dropdown-item:hover {
   background: var(--gray-50);
   color: var(--primary-purple);
+}
+
+.header-icon-group {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.header-icon-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.header-icon-multi {
+  gap: var(--spacing-sm);
 }
 
 .dropdown-item.logout {
@@ -467,6 +510,7 @@
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }

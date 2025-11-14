@@ -1,19 +1,12 @@
-﻿import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import useAuthStore from '../store/authStore'
+﻿import useAuthStore from '../store/authStore'
 import { useToast } from '../components/ui/Toast'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import axios from 'axios'
 import Card from '../components/ui/Card'
-import Input from '../components/ui/Input'
-import Select from '../components/ui/Select'
-import Button from '../components/ui/Button'
-import { Search, Heart, MessageCircle, SlidersHorizontal, X } from 'lucide-react'
+import { Heart, MessageCircle } from 'lucide-react'
 
 const API_URL = 'http://localhost:3000/api/v1'
-
-const EMOTIONS = ['開心', '平靜', '興奮', '難過', '焦慮', '憤怒', '感恩', '疲憊']
-const WEATHERS = ['晴天', '陰天', '雨天', '雪天', '多雲', '颱風']
 
 function SearchPage() {
   const [searchParams] = useSearchParams()
@@ -23,7 +16,6 @@ function SearchPage() {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [sortBy, setSortBy] = useState('created_at')
-  const [showFilters, setShowFilters] = useState(false)
 
   const [diaries, setDiaries] = useState([])
   const [loading, setLoading] = useState(false)
@@ -31,16 +23,40 @@ function SearchPage() {
   const [searched, setSearched] = useState(false)
 
   // 從URL參數初始化搜尋
-  useEffect(() => {
-    const q = searchParams.get('q')
-    if (q) {
-      setKeyword(q)
-      // 自動執行搜尋
-      setTimeout(() => {
-        handleSearch()
-      }, 100)
+  const filterParams = useMemo(() => {
+    const params = {
+      keyword: searchParams.get('keyword') || searchParams.get('q') || '',
+      emotion: searchParams.get('emotion') || '',
+      weather: searchParams.get('weather') || '',
+      dateFrom: searchParams.get('dateFrom') || '',
+      dateTo: searchParams.get('dateTo') || '',
+      sortBy: searchParams.get('sortBy') || 'created_at'
     }
+    return params
   }, [searchParams])
+
+  useEffect(() => {
+    setKeyword(filterParams.keyword)
+    setEmotion(filterParams.emotion)
+    setWeather(filterParams.weather)
+    setDateFrom(filterParams.dateFrom)
+    setDateTo(filterParams.dateTo)
+    setSortBy(filterParams.sortBy)
+
+    const hasCriteria = Object.values(filterParams).some((value, index) => {
+      if (index === 5) {
+        return value && value !== 'created_at'
+      }
+      return value && value.trim() !== ''
+    })
+
+    if (hasCriteria) {
+      handleSearch(undefined, filterParams)
+    } else {
+      setDiaries([])
+      setSearched(false)
+    }
+  }, [filterParams])
 
   // 若為訪客，強制跳轉至登入頁（不在此處顯示提示，由 ProtectedRoute 處理或其他共通邏輯負責提示）
   const navigate = useNavigate()
@@ -69,42 +85,42 @@ function SearchPage() {
     }
   }, [isAuthLoading, isAuthenticated, navigate])
 
-  const handleSearch = async (e) => {
+  const handleSearch = async (e, overrides) => {
     if (e) e.preventDefault()
-    
+
+    const criteria = overrides || {
+      keyword,
+      emotion,
+      weather,
+      dateFrom,
+      dateTo,
+      sortBy
+    }
+
     setLoading(true)
     setError('')
     setSearched(true)
-    
+
     try {
-  const token = sessionStorage.getItem('token')
+      const token = sessionStorage.getItem('token')
       const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {}
-      
+
       const params = new URLSearchParams()
-      if (keyword) params.append('keyword', keyword)
-      if (emotion) params.append('emotion', emotion)
-      if (weather) params.append('weather', weather)
-      if (dateFrom) params.append('dateFrom', dateFrom)
-      if (dateTo) params.append('dateTo', dateTo)
-      params.append('sortBy', sortBy)
-      
+      if (criteria.keyword) params.append('keyword', criteria.keyword)
+      if (criteria.emotion) params.append('emotion', criteria.emotion)
+      if (criteria.weather) params.append('weather', criteria.weather)
+      if (criteria.dateFrom) params.append('dateFrom', criteria.dateFrom)
+      if (criteria.dateTo) params.append('dateTo', criteria.dateTo)
+      params.append('sortBy', criteria.sortBy || 'created_at')
+
       const response = await axios.get(`${API_URL}/diaries/search?${params.toString()}`, config)
       setDiaries(response.data.diaries || [])
-    } catch (e) {
-      setError(e.response?.data?.message || '搜尋失敗')
+    } catch (err) {
+      setError(err.response?.data?.message || '搜尋失敗')
       setDiaries([])
     } finally {
       setLoading(false)
     }
-  }
-
-  const clearFilters = () => {
-    setKeyword('')
-    setEmotion('')
-    setWeather('')
-    setDateFrom('')
-    setDateTo('')
-    setSortBy('created_at')
   }
 
   return (
@@ -116,143 +132,13 @@ function SearchPage() {
         </p>
       </div>
 
-      {/* Search Bar */}
-      <Card style={{ marginBottom: 'var(--spacing-lg)' }}>
-        <form onSubmit={handleSearch}>
-          <div style={{ display: 'flex', gap: 'var(--spacing-md)', flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, minWidth: 300 }}>
-              <Input
-                type="text"
-                name="keyword"
-                value={keyword}
-                onChange={(e) => setKeyword(e.target.value)}
-                placeholder="搜尋標題或內容..."
-                leftIcon={<Search size={20} />}
-                disabled={loading}
-                autoComplete="off"
-              />
-            </div>
-            <Button
-              type="button"
-              variant={showFilters ? 'primary' : 'outline'}
-              onClick={() => setShowFilters(!showFilters)}
-            >
-              <SlidersHorizontal size={18} style={{ marginRight: 'var(--spacing-xs)' }} />
-              篩選
-            </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              disabled={loading}
-            >
-              {loading ? '搜尋中...' : '搜尋'}
-            </Button>
-          </div>
-        </form>
-      </Card>
-
-      {/* Filters Panel */}
-      {showFilters && (
-        <Card className="slide-up" style={{ marginBottom: 'var(--spacing-lg)' }}>
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center',
-            marginBottom: 'var(--spacing-lg)',
-            paddingBottom: 'var(--spacing-md)',
-            borderBottom: '2px solid var(--gray-200)'
-          }}>
-            <h4 className="text-h4" style={{ color: 'var(--primary-purple)' }}>進階篩選</h4>
-            <button
-              onClick={() => setShowFilters(false)}
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                color: 'var(--gray-600)',
-                padding: 'var(--spacing-xs)'
-              }}
-            >
-              <X size={20} />
-            </button>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 'var(--spacing-md)' }}>
-            <Select
-              label="情緒"
-              name="emotion"
-              value={emotion}
-              onChange={(e) => setEmotion(e.target.value)}
-              options={[
-                { value: '', label: '全部' },
-                ...EMOTIONS.map(e => ({ value: e, label: e }))
-              ]}
-              autoComplete="off"
-            />
-
-            <Select
-              label="天氣"
-              name="weather"
-              value={weather}
-              onChange={(e) => setWeather(e.target.value)}
-              options={[
-                { value: '', label: '全部' },
-                ...WEATHERS.map(w => ({ value: w, label: w }))
-              ]}
-              autoComplete="off"
-            />
-
-            <Input
-              type="date"
-              name="dateFrom"
-              label="開始日期"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              autoComplete="off"
-            />
-
-            <Input
-              type="date"
-              name="dateTo"
-              label="結束日期"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              autoComplete="off"
-            />
-
-            <Select
-              label="排序方式"
-              name="sortBy"
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              options={[
-                { value: 'created_at', label: '最新優先' },
-                { value: 'like_count', label: '最多讚' },
-                { value: 'comment_count', label: '最多留言' }
-              ]}
-              autoComplete="off"
-            />
-          </div>
-
-          <div style={{ marginTop: 'var(--spacing-lg)', display: 'flex', justifyContent: 'flex-end' }}>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={clearFilters}
-            >
-              清除篩選
-            </Button>
-          </div>
-        </Card>
-      )}
-
       {/* Error */}
       {error && (
         <Card style={{ marginBottom: 'var(--spacing-lg)' }}>
-          <div style={{ 
-            textAlign: 'center', 
-            padding: 'var(--spacing-lg)', 
-            color: 'var(--error-color)' 
+          <div style={{
+            textAlign: 'center',
+            padding: 'var(--spacing-lg)',
+            color: 'var(--error-color)'
           }}>
             <p className="text-body">{error}</p>
           </div>
@@ -279,15 +165,15 @@ function SearchPage() {
       ) : diaries.length > 0 ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-lg)' }}>
           {diaries.map((diary, index) => (
-            <Card 
-              key={diary.diary_id} 
+            <Card
+              key={diary.diary_id}
               hoverable
               className="slide-up"
               style={{ animationDelay: `${index * 0.05}s` }}
             >
               {/* Author info */}
-              <div style={{ 
-                display: 'flex', 
+              <div style={{
+                display: 'flex',
                 alignItems: 'center',
                 marginBottom: 'var(--spacing-md)',
                 paddingBottom: 'var(--spacing-md)',
@@ -310,7 +196,7 @@ function SearchPage() {
                   </div>
                 </Link>
                 <div>
-                  <Link 
+                  <Link
                     to={`/users/${diary.user_id}`}
                     style={{ textDecoration: 'none', color: 'inherit' }}
                   >
@@ -325,11 +211,11 @@ function SearchPage() {
               </div>
 
               {/* Content */}
-              <Link 
+              <Link
                 to={`/diaries/${diary.diary_id}`}
                 style={{ textDecoration: 'none', color: 'inherit' }}
               >
-                <h3 className="text-h3" style={{ 
+                <h3 className="text-h3" style={{
                   marginBottom: 'var(--spacing-md)',
                   color: 'var(--gray-900)'
                 }}>
@@ -338,18 +224,18 @@ function SearchPage() {
 
                 {/* Tags */}
                 {diary.tags && diary.tags.length > 0 && (
-                  <div style={{ 
-                    display: 'flex', 
-                    flexWrap: 'wrap', 
-                    gap: 'var(--spacing-xs)', 
-                    marginBottom: 'var(--spacing-md)' 
+                  <div style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: 'var(--spacing-xs)',
+                    marginBottom: 'var(--spacing-md)'
                   }}>
                     {diary.tags.filter(t => t.tag_type === 'emotion').slice(0, 2).map((t, i) => (
-                      <span 
-                        key={i} 
-                        style={{ 
-                          padding: '4px 12px', 
-                          background: 'var(--emotion-pink)', 
+                      <span
+                        key={i}
+                        style={{
+                          padding: '4px 12px',
+                          background: 'var(--emotion-pink)',
                           borderRadius: 'var(--radius-full)',
                           fontSize: '0.875rem',
                           fontWeight: 500,
@@ -360,10 +246,10 @@ function SearchPage() {
                       </span>
                     ))}
                     {diary.tags.find(t => t.tag_type === 'weather') && (
-                      <span 
-                        style={{ 
-                          padding: '4px 12px', 
-                          background: '#B2EBF2', 
+                      <span
+                        style={{
+                          padding: '4px 12px',
+                          background: '#B2EBF2',
                           borderRadius: 'var(--radius-full)',
                           fontSize: '0.875rem',
                           fontWeight: 500,
@@ -392,8 +278,8 @@ function SearchPage() {
               </Link>
 
               {/* Stats */}
-              <div style={{ 
-                display: 'flex', 
+              <div style={{
+                display: 'flex',
                 gap: 'var(--spacing-lg)',
                 paddingTop: 'var(--spacing-md)',
                 borderTop: '1px solid var(--gray-200)'

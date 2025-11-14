@@ -217,8 +217,10 @@ const commentRoutes = safeRequire('./routes/comment');
 const followRoutes = safeRequire('./routes/follow');
 const notificationRoutes = safeRequire('./routes/notification');
 const announcementRoutes = safeRequire('./routes/announcement');
+const messagesRoutes = safeRequire('./routes/messages');
 const cardRoutes = safeRequire('./routes/card');
 const adminRoutes = safeRequire('./routes/admin');
+const feedbackRoutes = safeRequire('./routes/feedback');
 
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
@@ -230,8 +232,10 @@ app.use('/api/v1/comments', commentRoutes);
 app.use('/api/v1/followers', followRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1/announcements', announcementRoutes);
+app.use('/api/v1/messages', messagesRoutes);
 app.use('/api/v1/cards', cardRoutes);
 app.use('/api/v1/admin', adminRoutes);
+app.use('/api/v1/feedbacks', feedbackRoutes);
 
 // Development-only helper: create/find a test user and return a JWT for quick testing
 if ((process.env.NODE_ENV || 'development') !== 'production') {

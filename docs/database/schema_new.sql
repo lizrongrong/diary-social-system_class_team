@@ -19,7 +19,8 @@ CREATE TABLE IF NOT EXISTS `users` (
   `status` ENUM('active', 'suspended', 'deleted') NOT NULL DEFAULT 'active' COMMENT '狀態',
   `gender` ENUM('male', 'female', 'other', 'prefer_not_to_say') NOT NULL DEFAULT 'prefer_not_to_say' COMMENT '性別',
   `birth_date` DATE NOT NULL COMMENT '生日 (需 ≥13歲)',
-   `profile_image` VARCHAR(500) DEFAULT NULL COMMENT '個人頭貼圖片',
+  `profile_image` VARCHAR(500) DEFAULT NULL COMMENT '個人頭貼圖片 (Base64/URL，<=9MB)',
+  `signature` VARCHAR(50) DEFAULT NULL COMMENT '個性簽名',
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '建立時間',
   `updated_at` TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT '更新時間',
   `reset_token` VARCHAR(255) DEFAULT NULL COMMENT '密碼重設 Token',
@@ -193,11 +194,11 @@ CREATE TABLE `messages` (
   KEY `idx_sender_receiver` (`sender_id`, `receiver_id`),
   KEY `idx_is_read` (`is_read`),
   KEY `idx_created_at` (`created_at` DESC),
+  KEY `idx_receiver_is_read_created` (`receiver_id`, `is_read`, `created_at`),
   CONSTRAINT `fk_messages_sender` FOREIGN KEY (`sender_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE,
   CONSTRAINT `fk_messages_receiver` FOREIGN KEY (`receiver_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE,
   CONSTRAINT `chk_no_self_msg` CHECK (`sender_id` != `receiver_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='私訊表';
-
 
 -- ---------------------------------------------------------
 -- 11. 幸運小卡抽卡紀錄表
@@ -276,7 +277,7 @@ CREATE TABLE `notifications` (
   `title` VARCHAR(200) NOT NULL COMMENT '通知標題',
   `content` TEXT NULL COMMENT '通知內容，可為 NULL',
   `source_user_id` VARCHAR(10) NULL COMMENT '觸發者 ID（如按讚、留言的使用者）',
-  `related_diary_id` VARCHAR(10) NULL COMMENT '相關日記 ID（若通知與日記有關）',
+  `related_diary_id` CHAR(36) DEFAULT NULL COMMENT '相關日記 ID（若通知與日記有關）',
   `is_read` BOOLEAN NOT NULL DEFAULT FALSE COMMENT '已讀狀態',
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '建立時間',
   PRIMARY KEY (`notification_id`),
@@ -314,7 +315,7 @@ DROP TABLE IF EXISTS `feedbacks`;
 CREATE TABLE `feedbacks` (
   `feedback_id` CHAR(36) NOT NULL COMMENT '問題ID',
   `user_id` VARCHAR(10) NOT NULL COMMENT '提交者',
-  `category` ENUM('bug', 'feature', 'complaint', 'other') NOT NULL COMMENT '問題類別',
+  `category` ENUM('general', 'feature', 'account', 'diary', 'followers', 'card', 'analysis', 'other') NOT NULL COMMENT '問題類別',
   `subject` VARCHAR(200) NOT NULL COMMENT '問題主旨',
   `description` TEXT NOT NULL COMMENT '詳細描述',
   `status` ENUM('pending', 'in_progress', 'resolved', 'closed') NOT NULL DEFAULT 'pending' COMMENT '狀態',

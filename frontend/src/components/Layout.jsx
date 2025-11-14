@@ -1,10 +1,11 @@
 ﻿import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import useAuthStore from '../store/authStore'
-import { notificationAPI } from '../services/api'
-import { Home, Sparkles, BookOpen, TrendingUp, Users, RefreshCw, Search as SearchIcon, ChevronDown, User, LogOut, Menu, X, IdCard, KeyRound } from 'lucide-react'
+import { notificationAPI, ensureAbsoluteUrl } from '../services/api'
+import { Home, Sparkles, BookOpen, TrendingUp, Users, RefreshCw, ChevronDown, User, LogOut, Menu, X, IdCard, KeyRound, HelpCircle } from 'lucide-react'
 import AnnouncementBell from './AnnouncementBell'
 import NotificationBell from './NotificationBell'
+import ChatPopup from './ChatPopup'
 import './Layout.css'
 
 function Layout({ children }) {
@@ -15,6 +16,8 @@ function Layout({ children }) {
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const avatarSrc = user?.profile_image || user?.avatar_url
+  const resolvedAvatar = avatarSrc ? ensureAbsoluteUrl(avatarSrc) : ''
 
   // 獲取未讀通知數量
   useEffect(() => {
@@ -64,9 +67,10 @@ function Layout({ children }) {
     { path: '/', label: '首頁', icon: Home },
     { path: '/lucky-card', label: '幸運小卡', icon: Sparkles },
     { path: '/diaries', label: '專屬日記', icon: BookOpen },
-    { path: '/dashboard', label: '圖表分析', icon: TrendingUp },
+    { path: '/dashboard', label: '回顧與分析', icon: TrendingUp },
     { path: '/follows', label: '好友管理', icon: Users },
-    { path: '/search', label: '搜尋', icon: SearchIcon },
+    { path: '/faq', label: '常見問題', icon: HelpCircle }
+    // { path: '/search', label: '搜尋', icon: SearchIcon },
   ]
 
   return (
@@ -88,8 +92,10 @@ function Layout({ children }) {
           {user ? (
             <>
               {/* 通知/公告：NotificationBell 保留訊息/通知，AnnouncementBell 顯示系統公告 */}
-              <AnnouncementBell />
-              <NotificationBell />
+              <div className="header-icon-group">
+                <AnnouncementBell iconColor="#FFFFFF" />
+                <NotificationBell iconColor="#FFFFFF" />
+              </div>
 
               {/* 使用者選單 */}
               <div className="user-menu-container">
@@ -97,8 +103,11 @@ function Layout({ children }) {
                   className="user-menu-btn"
                   onClick={() => setShowUserMenu(!showUserMenu)}
                 >
-                  <div className="user-avatar">
-                    <User size={18} />
+                  <div
+                    className="user-avatar"
+                    style={resolvedAvatar ? { backgroundImage: `url(${resolvedAvatar})`, color: 'transparent' } : undefined}
+                  >
+                    {!resolvedAvatar && <User size={18} />}
                   </div>
                   <span className="user-name">{user.username}</span>
                   <ChevronDown size={16} className={showUserMenu ? 'rotate' : ''} />
@@ -176,24 +185,12 @@ function Layout({ children }) {
         </aside>
 
         <div className="main-content">
-          {/* 只在首頁顯示頂部工具列 */}
-          {location.pathname === '/' && (
-            <div className="content-topbar">
-              <button className="refresh-btn" onClick={handleRefresh} title="重新整理">
-                <RefreshCw size={20} />
-              </button>
-              <button
-                className="search-icon-btn"
-                onClick={() => navigate('/search')}
-                title="搜尋"
-              >
-                <SearchIcon size={20} />
-              </button>
-            </div>
-          )}
+
           <main className="page-content">{children}</main>
         </div>
       </div>
+      {/* 全域聊天彈窗（右下） */}
+      <ChatPopup />
     </div>
   )
 }

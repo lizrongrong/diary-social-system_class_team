@@ -31,7 +31,7 @@ function MessagesPage() {
       if (!follow) {
         try {
           setLoading(true)
-          const data = await userAPI.getProfile(userId)
+          const data = await userAPI.getPublicById(userId)
           setFollow(data?.user || data || null)
         } catch (err) {
           console.error('Failed to load friend profile', err)
