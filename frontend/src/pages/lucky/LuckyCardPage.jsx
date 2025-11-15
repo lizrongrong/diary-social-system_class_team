@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './LuckyCardPage.css';
-import { luckyCardAPI } from '../../services/api';
+import html2canvas from 'html2canvas';
+import { luckyCardAPI, uploadAPI } from '../../services/api';
+import { useAuthStore } from '../../store/authStore';
 
 // 匯入卡牌圖片
 import cardFront1 from '../../assets/images/card-front-1.png';
@@ -15,6 +17,26 @@ const cards = [
   { id: 4, frontImage: cardFront4, label: '星象卡四' }
 ];
 
+const pad2 = (value) => value.toString().padStart(2, '0');
+
+const formatTimestampForFilename = (date) => {
+  const year = date.getFullYear();
+  const month = pad2(date.getMonth() + 1);
+  const day = pad2(date.getDate());
+  const hour = pad2(date.getHours());
+  const minute = pad2(date.getMinutes());
+  return `${year}${month}${day}_${hour}_${minute}`;
+};
+
+const sanitizeFilenameSegment = (value = '') => {
+  const safeValue = value
+    .toString()
+    .trim()
+    .replace(/[^0-9a-zA-Z_-]/g, '')
+    .slice(0, 64);
+  return safeValue || 'user';
+};
+
 const LuckyCardPage = () => {
   const [selectedCard, setSelectedCard] = useState(null);
   const [fortune, setFortune] = useState(null);
@@ -23,6 +45,12 @@ const LuckyCardPage = () => {
   const [statusMessage, setStatusMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [shareFeedback, setShareFeedback] = useState('');
+  const [shareLink, setShareLink] = useState('');
+  const [sharePending, setSharePending] = useState(false);
+  const [isCapturing, setIsCapturing] = useState(false);
+  const cardCaptureRef = useRef(null);
+
+  const currentUser = useAuthStore((state) => state.user);
 
   useEffect(() => {
     const loadTodayFortune = async () => {
@@ -80,6 +108,7 @@ const LuckyCardPage = () => {
         setHasDrawn(true);
         setStatusMessage('為你揭露今日幸運小卡 ✨');
         setShareFeedback('');
+        setShareLink('');
       } else {
         setErrorMessage('抽卡結果異常，請稍後再試。');
       }
@@ -93,28 +122,79 @@ const LuckyCardPage = () => {
     }
   };
 
-  const handleShare = async (fortuneData) => {
-    if (!fortuneData) return;
+  const handleShare = async () => {
+    if (!fortune || sharePending) return;
 
-    const shareText = `${fortuneData.title}\n${fortuneData.message}`;
-    const sharePayload = {
-      title: '今日運勢',
-      text: shareText
-    };
+    const node = cardCaptureRef.current;
+    if (!node) {
+      setShareFeedback('找不到卡牌內容，請稍後再試。');
+      return;
+    }
+
+    setSharePending(true);
+    setShareFeedback('');
+    setShareLink('');
+    setIsCapturing(true);
+
+    // 等待下一個渲染幀，確保分享按鈕已從畫面移除再進行截圖
+    await new Promise((resolve) => requestAnimationFrame(() => resolve()));
+    await new Promise((resolve) => requestAnimationFrame(() => resolve()));
 
     try {
-      if (navigator.share) {
-        await navigator.share(sharePayload);
-        setShareFeedback('分享成功，祝朋友也幸運滿滿！');
-      } else if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(shareText);
-        setShareFeedback('已複製到剪貼簿，快分享給朋友吧！');
-      } else {
-        setShareFeedback('此裝置暫不支援分享功能，請手動複製內容。');
+      const canvas = await html2canvas(node, {
+        scale: window.devicePixelRatio ? Math.min(window.devicePixelRatio * 1.5, 3) : 2,
+        backgroundColor: '#000000',
+        logging: false,
+        useCORS: true,
+        onclone: (documentClone) => {
+          const captureEl = documentClone.querySelector('[data-card-capture="true"]');
+          if (captureEl) {
+            captureEl.style.transform = 'none';
+            captureEl.style.backfaceVisibility = 'visible';
+          }
+        }
+      });
+
+      const dataUrl = canvas.toDataURL('image/png');
+      const response = await fetch(dataUrl);
+      const blob = await response.blob();
+      const userSegment = sanitizeFilenameSegment(
+        currentUser?.user_id || currentUser?.username || 'user'
+      );
+      const timestampSegment = formatTimestampForFilename(new Date());
+      const baseFileName = `${userSegment}_${timestampSegment}`;
+      const file = new File([blob], `${baseFileName}.png`, { type: 'image/png' });
+
+      const uploaded = await uploadAPI.uploadImage(file, { fileName: baseFileName });
+      if (!uploaded?.absoluteUrl) {
+        throw new Error('UPLOAD_FAILED');
       }
-    } catch (err) {
-      console.warn('Share failed:', err);
-      setShareFeedback('分享未完成，稍後再試看看。');
+
+      const generatedLink = uploaded.absoluteUrl;
+      setShareLink(generatedLink);
+
+      let copied = false;
+
+      if (navigator.clipboard?.writeText) {
+        try {
+          await navigator.clipboard.writeText(generatedLink);
+          copied = true;
+          setShareFeedback('分享連結已複製，快傳給朋友吧！');
+        } catch (clipboardError) {
+          console.warn('Clipboard write failed:', clipboardError);
+        }
+      }
+
+      if (!copied) {
+        setShareFeedback('裝置不支援自動複製，請使用下方連結分享。');
+      }
+    } catch (error) {
+      console.error('Generate share link failed:', error);
+      setShareFeedback('無法產生分享連結，請稍後再試。');
+      setShareLink('');
+    } finally {
+      setIsCapturing(false);
+      setSharePending(false);
     }
   };
 
@@ -153,7 +233,11 @@ const LuckyCardPage = () => {
                   <div className="card-face card-face-front">
                     <img src={card.frontImage} alt={card.label} />
                   </div>
-                  <div className="card-face card-face-back">
+                  <div
+                    className="card-face card-face-back"
+                    data-card-capture={isFlipped ? 'true' : 'false'}
+                    ref={isFlipped ? cardCaptureRef : null}
+                  >
                     <div className="card-back-content">
                       {isFlipped && fortune ? (
                         <>
@@ -167,16 +251,17 @@ const LuckyCardPage = () => {
                         </>
                       )}
                     </div>
-                    {isFlipped && fortune && (
+                    {isFlipped && fortune && !isCapturing && (
                       <button
                         type="button"
                         className="card-share-button"
                         onClick={(event) => {
                           event.stopPropagation();
-                          handleShare(fortune);
+                          handleShare();
                         }}
+                        disabled={sharePending}
                       >
-                        分享
+                        {sharePending ? '處理中...' : '分享'}
                       </button>
                     )}
                   </div>
@@ -191,6 +276,13 @@ const LuckyCardPage = () => {
         {loading && <p className="status-info">正在為你準備幸運小卡...</p>}
         {!loading && statusMessage && <p className="status-info">{statusMessage}</p>}
         {shareFeedback && <p className="status-info">{shareFeedback}</p>}
+        {shareLink && (
+          <p className="status-info">
+            <a href={shareLink} target="_blank" rel="noopener noreferrer">
+              {shareLink}
+            </a>
+          </p>
+        )}
         {errorMessage && <p className="status-error">{errorMessage}</p>}
       </div>
     </div>

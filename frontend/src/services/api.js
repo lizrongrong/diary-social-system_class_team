@@ -56,7 +56,7 @@ api.interceptors.response.use(
       // Don't force-redirect for auth-related endpoints (login/register/etc.) to avoid
       // race-conditions where a 401 from an auth endpoint would immediately send the
       // user back to the login page.
-      const url = error.config?.url || '';
+      const url = error.config?.url || ''
       const authPaths = [
         '/auth/login',
         '/auth/register',
@@ -66,22 +66,22 @@ api.interceptors.response.use(
         '/auth/forgot-password',
         '/auth/verify-reset',
         '/auth/reset-password'
-      ];
+      ]
 
-      const isAuthEndpoint = authPaths.some(p => url.includes(p));
+      const isAuthEndpoint = authPaths.some((p) => url.includes(p))
 
       // Only treat 401 as a session-expiry / logout when the backend returns
       // an explicit auth-related failure code. This avoids clearing session
       // when unrelated endpoints momentarily return 401 or during race
       // conditions. If the backend provides a code, respect it.
-      const code = error.response?.data?.code;
-      const authFailureCodes = ['TOKEN_EXPIRED', 'INVALID_TOKEN', 'NO_TOKEN', 'USER_NOT_FOUND'];
+      const code = error.response?.data?.code
+      const authFailureCodes = ['TOKEN_EXPIRED', 'INVALID_TOKEN', 'NO_TOKEN', 'USER_NOT_FOUND']
 
       if (code && authFailureCodes.includes(code)) {
         // clear token and redirect to login
-        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('token')
         if (window.location.pathname !== '/login') {
-          window.location.href = '/login';
+          window.location.href = '/login'
         }
       }
 
@@ -224,24 +224,36 @@ export const userAPI = {
 }
 
 // 檔案上傳 API
+const uploadFiles = async (files, options = {}) => {
+  const formData = new FormData()
+
+  if (options.fileName) {
+    formData.append('fileName', options.fileName)
+  }
+
+  files.forEach((file) => formData.append('files', file))
+
+  const res = await api.post('/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+
+  const uploadedFiles = (res.data?.files || []).map((uploaded) => ({
+    ...uploaded,
+    absoluteUrl: ensureAbsoluteUrl(uploaded.url)
+  }))
+
+  return uploadedFiles
+}
+
 export const uploadAPI = {
+  uploadFiles,
   uploadAvatar: async (file) => {
-    const formData = new FormData()
-    formData.append('files', file)
-
-    const res = await api.post('/upload', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    })
-
-    const [uploaded] = res.data?.files || []
-    if (!uploaded) {
-      return null
-    }
-
-    return {
-      ...uploaded,
-      absoluteUrl: ensureAbsoluteUrl(uploaded.url)
-    }
+    const [uploaded] = await uploadFiles([file])
+    return uploaded || null
+  },
+  uploadImage: async (file, options = {}) => {
+    const [uploaded] = await uploadFiles([file], options)
+    return uploaded || null
   }
 }
 
