@@ -59,7 +59,7 @@ exports.createComment = async (req, res) => {
 exports.getComments = async (req, res) => {
   try {
     const { diaryId } = req.params;
-    const userId = req.user?.userId;
+    const userId = req.user?.user_id;
 
     let comments = await Comment.findByDiary(diaryId);
 

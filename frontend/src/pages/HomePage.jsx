@@ -23,6 +23,8 @@ function HomePage() {
   const [mutualFollows, setMutualFollows] = useState(new Set()) // 儲存互相追蹤的用戶ID
   const [followLoadingIds, setFollowLoadingIds] = useState(() => new Set())
   const [unfollowConfirm, setUnfollowConfirm] = useState({ open: false, targetId: null, targetName: '' })
+  const [deleteConfirm, setDeleteConfirm] = useState({ open: false, diaryId: null, diaryTitle: '' })
+  const [deletePending, setDeletePending] = useState(false)
   const [likePendingIds, setLikePendingIds] = useState(() => new Set())
   const [keyword, setKeyword] = useState('')
   const [emotion, setEmotion] = useState('')
@@ -454,26 +456,44 @@ function HomePage() {
     navigate(`/diaries/${diaryId}/edit`)
   }
 
-  const handleDeleteDiary = async (event, diaryId) => {
+  const handleDeleteDiary = (event, targetPost) => {
     if (event) {
       event.preventDefault()
       event.stopPropagation()
     }
 
-    const confirmed = window.confirm('確定要刪除此日記嗎？刪除後將無法恢復。')
-    if (!confirmed) return
+    if (!targetPost || !targetPost.diary_id) return
 
+    setDeleteConfirm({
+      open: true,
+      diaryId: targetPost.diary_id,
+      diaryTitle: targetPost.title && targetPost.title.trim() ? targetPost.title : '(未命名)'
+    })
+  }
+
+  const handleCancelDeleteDiary = () => {
+    if (deletePending) return
+    setDeleteConfirm({ open: false, diaryId: null, diaryTitle: '' })
+  }
+
+  const handleConfirmDeleteDiary = async () => {
+    if (!deleteConfirm.diaryId) return
+
+    setDeletePending(true)
     try {
-      await diaryAPI.delete(diaryId)
+      await diaryAPI.delete(deleteConfirm.diaryId)
       addToast('日記已刪除', 'success')
       setPosts(prev => {
-        const next = Array.isArray(prev) ? prev.filter(post => post.diary_id !== diaryId) : []
+        const next = Array.isArray(prev) ? prev.filter(post => post.diary_id !== deleteConfirm.diaryId) : []
         setFilteredPosts(applyFilters(next))
         return next
       })
+      setDeleteConfirm({ open: false, diaryId: null, diaryTitle: '' })
     } catch (err) {
       const message = err?.response?.data?.message || err?.response?.data?.error || '刪除失敗'
       addToast(message, 'error')
+    } finally {
+      setDeletePending(false)
     }
   }
 
@@ -759,7 +779,7 @@ function HomePage() {
                       <button
                         type="button"
                         className="owner-action-btn owner-action-delete"
-                        onClick={(event) => handleDeleteDiary(event, post.diary_id)}
+                        onClick={(event) => handleDeleteDiary(event, post)}
                         aria-label="刪除日記"
                       >
                         <Trash2 size={18} />
@@ -931,6 +951,45 @@ function HomePage() {
                 disabled={unfollowConfirm.targetId ? isFollowLoading(unfollowConfirm.targetId) : false}
               >
                 確定
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {deleteConfirm.open && (
+        <div
+          className="home-delete-confirm-backdrop"
+          role="presentation"
+          onClick={handleCancelDeleteDiary}
+        >
+          <div
+            className="home-delete-confirm-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="home-delete-confirm-title"
+            aria-describedby="home-delete-confirm-description"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 id="home-delete-confirm-title">刪除日記</h3>
+            <p id="home-delete-confirm-description" className="home-delete-confirm-text">
+              確定要刪除「{deleteConfirm.diaryTitle || '這篇日記'}」嗎？此動作無法復原。
+            </p>
+            <div className="home-delete-confirm-actions">
+              <button
+                type="button"
+                className="home-delete-confirm-btn secondary"
+                onClick={handleCancelDeleteDiary}
+                disabled={deletePending}
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                className="home-delete-confirm-btn danger"
+                onClick={handleConfirmDeleteDiary}
+                disabled={deletePending}
+              >
+                {deletePending ? '刪除中...' : '確認刪除'}
               </button>
             </div>
           </div>

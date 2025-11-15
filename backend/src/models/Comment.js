@@ -13,7 +13,7 @@ class Comment {
 
   static async findById(commentId) {
     const [rows] = await db.execute(
-      'SELECT c.*, u.username FROM comments c JOIN users u ON c.user_id = u.user_id WHERE c.comment_id = ? AND c.status = ?',
+      'SELECT c.*, u.username, u.profile_image AS avatar_url FROM comments c JOIN users u ON c.user_id = u.user_id WHERE c.comment_id = ? AND c.status = ?',
       [commentId, 'active']
     );
     return rows[0] || null;
@@ -21,7 +21,7 @@ class Comment {
 
   static async findByDiary(diaryId) {
     const [rows] = await db.execute(
-      'SELECT c.*, u.username FROM comments c JOIN users u ON c.user_id = u.user_id WHERE c.diary_id = ? AND c.status = ? ORDER BY c.created_at ASC',
+      'SELECT c.*, u.username, u.profile_image AS avatar_url FROM comments c JOIN users u ON c.user_id = u.user_id WHERE c.diary_id = ? AND c.status = ? ORDER BY c.created_at ASC',
       [diaryId, 'active']
     );
     return rows;
