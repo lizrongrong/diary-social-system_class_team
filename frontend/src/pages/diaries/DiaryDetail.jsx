@@ -6,12 +6,14 @@ import likeAPI from '../../services/likeAPI'
 import commentAPI from '../../services/commentAPI'
 import useAuthStore from '../../store/authStore'
 import GuestModal from '../../components/ui/GuestModal'
+import { useToast } from '../../components/ui/Toast'
 import './DiaryDetail.css'
 
 function DiaryDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { user } = useAuthStore()
+  const { addToast } = useToast()
   const [diary, setDiary] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -33,6 +35,7 @@ function DiaryDetail() {
   const [commentError, setCommentError] = useState('')
   const [deleting, setDeleting] = useState(false)
   const [expandedReplies, setExpandedReplies] = useState({})
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const commentInputRef = useRef(null)
   const replyInputRef = useRef(null)
   const REPLY_COLLAPSE_LIMIT = 2
@@ -113,7 +116,7 @@ function DiaryDetail() {
     navigate(`/diaries/${id}/edit`)
   }
 
-  const handleDeleteDiary = async (event) => {
+  const handleDeleteDiary = (event) => {
     if (event) {
       event.preventDefault()
       event.stopPropagation()
@@ -121,17 +124,27 @@ function DiaryDetail() {
 
     if (deleting) return
 
-    const confirmed = window.confirm('確定要刪除此日記嗎？刪除後將無法恢復。')
-    if (!confirmed) return
+    setShowDeleteConfirm(true)
+  }
+
+  const handleCancelDeleteDiary = () => {
+    if (deleting) return
+    setShowDeleteConfirm(false)
+  }
+
+  const handleConfirmDeleteDiary = async () => {
+    if (deleting) return
 
     try {
       setDeleting(true)
       await diaryAPI.delete(id)
-      alert('日記已刪除')
+      setShowDeleteConfirm(false)
+      addToast('日記已刪除', 'success')
       window.dispatchEvent(new Event('homepageRefresh'))
       navigate('/')
     } catch (e) {
-      alert('刪除失敗：' + (e.response?.data?.message || e.message))
+      const message = e.response?.data?.message || e.message || '刪除失敗'
+      addToast(message, 'error')
     } finally {
       setDeleting(false)
     }
@@ -725,6 +738,46 @@ function DiaryDetail() {
         onClose={() => setShowGuestModal(false)}
         message="登入後即可查看完整日記內容、按讚和留言"
       />
+
+      {showDeleteConfirm && (
+        <div
+          className="diary-delete-confirm-backdrop"
+          role="presentation"
+          onClick={handleCancelDeleteDiary}
+        >
+          <div
+            className="diary-delete-confirm-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="diary-delete-confirm-title"
+            aria-describedby="diary-delete-confirm-description"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 id="diary-delete-confirm-title">刪除日記</h3>
+            <p id="diary-delete-confirm-description" className="diary-delete-confirm-text">
+              確定要刪除「{diary.title || '(未命名)'}」嗎？此動作無法復原。
+            </p>
+            <div className="diary-delete-confirm-actions">
+              <button
+                type="button"
+                className="diary-delete-confirm-btn secondary"
+                onClick={handleCancelDeleteDiary}
+                disabled={deleting}
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                className="diary-delete-confirm-btn danger"
+                onClick={handleConfirmDeleteDiary}
+                disabled={deleting}
+              >
+                {deleting ? '刪除中...' : '確認刪除'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
