@@ -3,6 +3,7 @@ import './LuckyCardPage.css';
 import html2canvas from 'html2canvas';
 import { luckyCardAPI, uploadAPI } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
+import { useToast } from '../../components/ui/Toast';
 
 // 匯入卡牌圖片
 import cardFront1 from '../../assets/images/card-front-1.png';
@@ -51,6 +52,7 @@ const LuckyCardPage = () => {
   const cardCaptureRef = useRef(null);
 
   const currentUser = useAuthStore((state) => state.user);
+  const { addToast } = useToast();
 
   useEffect(() => {
     const loadTodayFortune = async () => {
@@ -151,6 +153,24 @@ const LuckyCardPage = () => {
           if (captureEl) {
             captureEl.style.transform = 'none';
             captureEl.style.backfaceVisibility = 'visible';
+            captureEl.style.webkitBackfaceVisibility = 'visible';
+            captureEl.style.position = 'relative';
+
+            const cardObject = captureEl.closest('.card-object');
+            if (cardObject) {
+              cardObject.style.transform = 'none';
+              cardObject.style.transformStyle = 'flat';
+            }
+
+            const cardScene = captureEl.closest('.card-scene');
+            if (cardScene) {
+              cardScene.style.perspective = 'none';
+            }
+
+            const frontFace = captureEl.parentElement?.querySelector('.card-face-front');
+            if (frontFace) {
+              frontFace.style.display = 'none';
+            }
           }
         }
       });
@@ -179,18 +199,23 @@ const LuckyCardPage = () => {
         try {
           await navigator.clipboard.writeText(generatedLink);
           copied = true;
-          setShareFeedback('分享連結已複製，快傳給朋友吧！');
+          addToast('已成功複製卡牌連結', 'success');
+          setShareFeedback('');
         } catch (clipboardError) {
           console.warn('Clipboard write failed:', clipboardError);
         }
       }
 
       if (!copied) {
-        setShareFeedback('裝置不支援自動複製，請使用下方連結分享。');
+        const fallbackMessage = '裝置不支援自動複製，請使用下方連結分享。';
+        addToast(fallbackMessage, 'warning');
+        setShareFeedback(fallbackMessage);
       }
     } catch (error) {
       console.error('Generate share link failed:', error);
-      setShareFeedback('無法產生分享連結，請稍後再試。');
+      const errorMessage = '無法產生分享連結，請稍後再試。';
+      addToast(errorMessage, 'error');
+      setShareFeedback(errorMessage);
       setShareLink('');
     } finally {
       setIsCapturing(false);
