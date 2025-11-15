@@ -81,12 +81,20 @@
   padding: var(--spacing-xl);
   transition: all var(--transition-base);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  cursor: pointer;
+  outline: none;
 }
 
 .post-card:hover {
   box-shadow: 0 4px 16px rgba(205, 121, 213, 0.15);
   transform: translateY(-2px);
   border-color: var(--primary-purple);
+}
+
+.post-card:focus-visible {
+  outline: 3px solid var(--primary-purple);
+  outline-offset: 4px;
+  box-shadow: 0 0 0 6px rgba(205, 121, 213, 0.2);
 }
 
 /* 文章頭部 */
@@ -139,9 +147,9 @@
 
 /* 加好友按鈕 */
 .follow-btn {
-  background: var(--primary-purple);
-  color: #FFFFFF;
-  border: none;
+  background: #FFF;
+  color: #a500c2;
+  border: 1px solid #a500c2;
   border-radius: var(--radius-full);
   padding: var(--spacing-sm) var(--spacing-lg);
   font-family: "Inter", sans-serif;
@@ -155,19 +163,57 @@
   height: 36px;
 }
 
+.post-owner-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.owner-action-btn {
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: var(--radius-md);
+  padding: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #666666;
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.owner-action-btn:hover {
+  border-color: var(--primary-purple);
+  color: var(--primary-purple);
+  background: #f9f5ff;
+}
+
+.owner-action-delete:hover {
+  border-color: #d9534f;
+  color: #d9534f;
+  background: #fff5f5;
+}
+
 .follow-btn:hover:not(:disabled) {
-  background: var(--dark-purple);
+  background: #a500c2;
+  color: #FFF;
   transform: scale(1.05);
 }
 
 .follow-btn.is-friend {
-  background: var(--gray-400);
-  cursor: not-allowed;
+  background: #b501be;
+  color: #FFF;
 }
 
 .follow-btn.is-mutual {
-  background: linear-gradient(135deg, #FA8BFF 0%, #2BD2FF 100%);
-  cursor: not-allowed;
+  background: linear-gradient(135deg, #9dc9f9 10%, #f57ae4 80%);
+  color: #FFF;
+  font-weight: 700;
+}
+
+.follow-btn.is-mutual:hover:not(:disabled) {
+  background: linear-gradient(135deg, #9dc9f9 10%, #eb7dff 80%);
+  color: #FFF;
   font-weight: 700;
 }
 
@@ -179,6 +225,22 @@
 /* 文章內容 */
 .post-content {
   margin-bottom: var(--spacing-lg);
+}
+
+.post-media-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-md);
+}
+
+.post-media-grid img {
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
 }
 
 .post-title {
@@ -243,20 +305,6 @@
   min-width: 20px;
 }
 
-.post-action.share-btn {
-  background: #FFFFFF;
-  border: 1px solid #E0E0E0;
-  border-radius: var(--radius-md);
-  padding: var(--spacing-xs) var(--spacing-md);
-  margin-left: auto;
-}
-
-.post-action.share-btn:hover {
-  background: var(--primary-purple);
-  border-color: var(--primary-purple);
-  color: #FFFFFF;
-}
-
 /* 點讚按鈕激活狀態 */
 .post-action.liked {
   color: var(--primary-purple);
@@ -264,6 +312,11 @@
 
 .post-action.liked:hover {
   color: var(--dark-purple);
+}
+
+.post-action.liked svg {
+  fill: currentColor;
+  stroke: currentColor;
 }
 
 /* Link樣式重置 */
@@ -316,6 +369,82 @@
   background: transparent;
   color: #FFFFFF;
   border: 2px solid #FFFFFF;
+}
+
+.home-delete-confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 24px;
+}
+
+.home-delete-confirm-dialog {
+  width: min(360px, 100%);
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.22);
+  padding: 28px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.home-delete-confirm-dialog h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #3d2132;
+}
+
+.home-delete-confirm-text {
+  margin: 0;
+  font-size: 0.98rem;
+  color: #6d4a62;
+  line-height: 1.6;
+}
+
+.home-delete-confirm-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.home-delete-confirm-btn {
+  flex: 1;
+  border: none;
+  border-radius: 999px;
+  padding: 12px 0;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.home-delete-confirm-btn.secondary {
+  background: #f2ecf7;
+  color: #6f5b8f;
+}
+
+.home-delete-confirm-btn.danger {
+  background: linear-gradient(135deg, #f07a8c, #e0485a);
+  color: #ffffff;
+}
+
+.home-delete-confirm-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.home-delete-confirm-btn:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.18);
 }
 
 /* 空狀態 */
@@ -386,6 +515,10 @@
   .post-content p {
     font-size: 14px;
     line-height: 1.5;
+  }
+
+  .post-media-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   }
 
   .post-action {

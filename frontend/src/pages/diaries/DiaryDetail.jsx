@@ -1,32 +1,56 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useRef, useState } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
-import { diaryAPI } from '../../services/api'
-import { Heart, MessageCircle, Send, ArrowLeft } from 'lucide-react'
+import { diaryAPI, ensureAbsoluteUrl } from '../../services/api'
+import { Heart, MessageCircle, Send, ArrowLeft, PencilLine, Trash2 } from 'lucide-react'
 import likeAPI from '../../services/likeAPI'
 import commentAPI from '../../services/commentAPI'
 import useAuthStore from '../../store/authStore'
 import GuestModal from '../../components/ui/GuestModal'
+import { useToast } from '../../components/ui/Toast'
+import './DiaryDetail.css'
 
 function DiaryDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { user } = useAuthStore()
+  const { addToast } = useToast()
   const [diary, setDiary] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  
+
   // Guest restriction (10 seconds blur)
   const [guestTimer, setGuestTimer] = useState(10)
   const [showGuestModal, setShowGuestModal] = useState(false)
   const [isBlurred, setIsBlurred] = useState(false)
-  
+
   // Social states
   const [likeCount, setLikeCount] = useState(0)
   const [isLiked, setIsLiked] = useState(false)
   const [comments, setComments] = useState([])
   const [commentInput, setCommentInput] = useState('')
   const [replyTo, setReplyTo] = useState(null)
+  const [replyDraft, setReplyDraft] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [replySubmitting, setReplySubmitting] = useState(false)
+  const [commentError, setCommentError] = useState('')
+  const [deleting, setDeleting] = useState(false)
+  const [expandedReplies, setExpandedReplies] = useState({})
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const commentInputRef = useRef(null)
+  const replyInputRef = useRef(null)
+  const REPLY_COLLAPSE_LIMIT = 2
+
+  const formatComments = (items) => {
+    return (Array.isArray(items) ? items : []).map(comment => ({
+      ...comment,
+      replies: Array.isArray(comment.replies)
+        ? comment.replies.map(reply => ({
+          ...reply,
+          parent_username: comment.username
+        }))
+        : []
+    }))
+  }
 
   // Guest timer countdown
   useEffect(() => {
@@ -42,7 +66,7 @@ function DiaryDetail() {
           return prev - 1
         })
       }, 1000)
-      
+
       return () => clearInterval(timer)
     }
   }, [user, diary])
@@ -51,18 +75,16 @@ function DiaryDetail() {
     const load = async () => {
       try {
         const data = await diaryAPI.getById(id)
-        // 支援多種後端回傳 shape：{ diary: {...} }、{ item: {...} }、或直接 diary 物件
         const diaryData = data?.diary || data?.item || data
         if (!diaryData) throw new Error('找不到日記資料')
         setDiary(diaryData)
         setLikeCount(diaryData.like_count || 0)
         setIsLiked(diaryData.is_liked || false)
 
-        // Load comments（後端可能回傳陣列或包在物件內）
         const commentsData = await commentAPI.getComments(id)
-        setComments(commentsData?.comments || commentsData || [])
+        const rawComments = commentsData?.comments || commentsData || []
+        setComments(formatComments(rawComments))
       } catch (e) {
-        // 印出原始錯誤以利除錯
         console.error('DiaryDetail load error:', e)
         setError(e.response?.data?.message || e.message || '找不到這篇日記或沒有權限')
       } finally {
@@ -86,32 +108,89 @@ function DiaryDetail() {
     }
   }
 
-  const handleCommentSubmit = async (e) => {
-    e.preventDefault()
+  const handleEditDiary = (event) => {
+    if (event) {
+      event.preventDefault()
+      event.stopPropagation()
+    }
+    navigate(`/diaries/${id}/edit`)
+  }
+
+  const handleDeleteDiary = (event) => {
+    if (event) {
+      event.preventDefault()
+      event.stopPropagation()
+    }
+
+    if (deleting) return
+
+    setShowDeleteConfirm(true)
+  }
+
+  const handleCancelDeleteDiary = () => {
+    if (deleting) return
+    setShowDeleteConfirm(false)
+  }
+
+  const handleConfirmDeleteDiary = async () => {
+    if (deleting) return
+
+    try {
+      setDeleting(true)
+      await diaryAPI.delete(id)
+      setShowDeleteConfirm(false)
+      addToast('日記已刪除', 'success')
+      window.dispatchEvent(new Event('homepageRefresh'))
+      navigate('/')
+    } catch (e) {
+      const message = e.response?.data?.message || e.message || '刪除失敗'
+      addToast(message, 'error')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const getInitial = (value) => {
+    if (!value || typeof value !== 'string') return '用'
+    const trimmed = value.trim()
+    if (!trimmed) return '用'
+    return trimmed[0].toUpperCase()
+  }
+
+  const handleCommentButtonClick = () => {
     if (!user) {
       setShowGuestModal(true)
       return
     }
-    if (!commentInput.trim()) return
-    
+
+    if (commentInputRef.current) {
+      commentInputRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      // Delay focus slightly so scroll completes first
+      setTimeout(() => {
+        commentInputRef.current?.focus({ preventScroll: true })
+      }, 200)
+    }
+  }
+
+  const handleCommentSubmit = async (event) => {
+    event.preventDefault()
+    if (!user) {
+      setShowGuestModal(true)
+      return
+    }
+
+    const content = commentInput.trim()
+    if (!content) {
+      setCommentError('請輸入留言內容')
+      return
+    }
+
     setSubmitting(true)
     try {
-      const newComment = await commentAPI.createComment(id, commentInput.trim(), replyTo?.comment_id || null)
-      
-      if (replyTo) {
-        // Add reply to parent comment
-        setComments(comments.map(c => 
-          c.comment_id === replyTo.comment_id 
-            ? { ...c, replies: [...(c.replies || []), newComment] }
-            : c
-        ))
-      } else {
-        // Add top-level comment
-        setComments([...comments, { ...newComment, replies: [] }])
-      }
-      
+      const newComment = await commentAPI.createComment(id, content, null)
+      setComments(prev => [...prev, { ...newComment, replies: [] }])
       setCommentInput('')
-      setReplyTo(null)
+      setCommentError('')
     } catch (e) {
       alert('留言失敗：' + (e.response?.data?.message || e.message))
     } finally {
@@ -119,22 +198,111 @@ function DiaryDetail() {
     }
   }
 
+  const handleReplyClick = (comment) => {
+    if (!user) {
+      setShowGuestModal(true)
+      return
+    }
+    if (replyTo?.comment_id === comment.comment_id) {
+      setReplyTo(null)
+      setReplyDraft('')
+      return
+    }
+
+    setReplyTo(comment)
+    setReplyDraft('')
+
+    const focusReplyInput = () => {
+      replyInputRef.current?.focus()
+    }
+
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(focusReplyInput)
+    } else {
+      setTimeout(focusReplyInput, 0)
+    }
+  }
+
+  const handleReplyCancel = () => {
+    setReplyTo(null)
+    setReplyDraft('')
+  }
+
+  const handleReplySubmit = async (event) => {
+    event.preventDefault()
+    if (!user) {
+      setShowGuestModal(true)
+      return
+    }
+    if (!replyTo) return
+
+    const content = replyDraft.trim()
+    if (!content) return
+
+    setReplySubmitting(true)
+    try {
+      const newReply = await commentAPI.createComment(id, content, replyTo.comment_id)
+      const formattedReply = {
+        ...newReply,
+        parent_username: replyTo.username
+      }
+
+      setComments(prev => prev.map(comment =>
+        comment.comment_id === replyTo.comment_id
+          ? { ...comment, replies: [...(comment.replies || []), formattedReply] }
+          : comment
+      ))
+
+      setExpandedReplies(prev => ({
+        ...prev,
+        [replyTo.comment_id]: true
+      }))
+
+      setReplyDraft('')
+      setReplyTo(null)
+    } catch (e) {
+      alert('回覆失敗：' + (e.response?.data?.message || e.message))
+    } finally {
+      setReplySubmitting(false)
+    }
+  }
+
+  const handleToggleReplies = (commentId) => {
+    setExpandedReplies(prev => ({
+      ...prev,
+      [commentId]: !prev[commentId]
+    }))
+  }
+
   const handleDeleteComment = async (commentId, parentId = null) => {
     if (!confirm('確定要刪除此留言？')) return
-    
+
     try {
       await commentAPI.deleteComment(commentId)
-      
+
+      if (replyTo?.comment_id === commentId) {
+        handleReplyCancel()
+      }
+
+      setExpandedReplies(prev => {
+        const next = { ...prev }
+        delete next[commentId]
+        return next
+      })
+
       if (parentId) {
-        // Remove reply
-        setComments(comments.map(c => 
-          c.comment_id === parentId 
-            ? { ...c, replies: c.replies.filter(r => r.comment_id !== commentId) }
-            : c
+        setComments(prev => prev.map(comment =>
+          comment.comment_id === parentId
+            ? {
+              ...comment,
+              replies: Array.isArray(comment.replies)
+                ? comment.replies.filter(reply => reply.comment_id !== commentId)
+                : []
+            }
+            : comment
         ))
       } else {
-        // Remove top-level comment
-        setComments(comments.filter(c => c.comment_id !== commentId))
+        setComments(prev => prev.filter(comment => comment.comment_id !== commentId))
       }
     } catch (e) {
       alert('刪除失敗：' + (e.response?.data?.message || e.message))
@@ -143,356 +311,473 @@ function DiaryDetail() {
 
   const handleCommentLike = async (commentId, parentId = null) => {
     if (!user) return
-    
+
     try {
       const result = await likeAPI.toggleLike('comment', commentId)
-      
-      const updateLike = (c) => 
-        c.comment_id === commentId 
-          ? { ...c, is_liked: result.liked, like_count: result.count }
-          : c
-      
-      if (parentId) {
-        setComments(comments.map(c => 
-          c.comment_id === parentId 
-            ? { ...c, replies: c.replies.map(updateLike) }
-            : c
-        ))
-      } else {
-        setComments(comments.map(updateLike))
-      }
+
+      const updateLikeStatus = (comment) =>
+        comment.comment_id === commentId
+          ? { ...comment, is_liked: result.liked, like_count: result.count }
+          : comment
+
+      setComments(prev => {
+        if (parentId) {
+          return prev.map(comment =>
+            comment.comment_id === parentId
+              ? {
+                ...comment,
+                replies: Array.isArray(comment.replies)
+                  ? comment.replies.map(updateLikeStatus)
+                  : []
+              }
+              : comment
+          )
+        }
+        return prev.map(updateLikeStatus)
+      })
     } catch (e) {
       console.error('Comment like error:', e)
     }
   }
 
-  if (loading) return <div style={{ padding: '1rem' }}>載入中…</div>
+  if (loading) return <div style={{ padding: '1rem' }}>載入中...</div>
   if (error) return <div style={{ padding: '1rem', color: 'crimson' }}>{error}</div>
   if (!diary) return null
 
-  return (
-    <div className="page diary-detail" style={{ padding: '1rem', maxWidth: 800, margin: '0 auto' }}>
-      {/* Guest Timer Warning */}
-      {!user && diary.visibility === 'public' && guestTimer > 0 && (
-        <div style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 100,
-          background: '#FFF3CD',
-          border: '1px solid #FFC107',
-          borderRadius: 8,
-          padding: '12px 16px',
-          marginBottom: 16,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          animation: 'slideInLeft 0.3s ease'
-        }}>
-          <span style={{ fontSize: 14, color: '#856404' }}>
-            ⏱️ 訪客預覽模式：{guestTimer} 秒後內容將模糊，請登入以查看完整內容
-          </span>
-        </div>
-      )}
+  const emotionTags = Array.isArray(diary.tags)
+    ? diary.tags.filter(tag => tag.tag_type === 'emotion')
+    : []
+  const weatherTag = Array.isArray(diary.tags)
+    ? diary.tags.find(tag => tag.tag_type === 'weather')
+    : null
+  const keywordTags = Array.isArray(diary.tags)
+    ? diary.tags.filter(tag => tag.tag_type === 'keyword')
+    : []
+  const mediaItems = Array.isArray(diary.media) ? diary.media : []
+  const createdAt = new Date(diary.created_at || diary.createdAt || Date.now())
+  const isOwner = Boolean(user && diary && user.user_id === diary.user_id)
+  const totalCommentCount = comments.reduce((total, comment) => {
+    const replyCount = Array.isArray(comment.replies) ? comment.replies.length : 0
+    return total + 1 + replyCount
+  }, 0)
 
-      {/* 返回按鈕 */}
-      <div style={{ marginBottom: 16 }}>
-        <button 
+  return (
+    <div className="page diary-detail-page">
+      <div className="diary-detail-container">
+        <button
+          type="button"
+          className="diary-detail-back-btn"
           onClick={() => navigate(-1)}
-          style={{
-            background: 'none',
-            border: '1px solid var(--gray-300)',
-            borderRadius: 'var(--radius-md)',
-            padding: '8px 16px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            cursor: 'pointer',
-            color: 'var(--gray-700)',
-            fontSize: '14px',
-            transition: 'all var(--transition-base)'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'var(--gray-50)'
-            e.currentTarget.style.borderColor = 'var(--primary-purple)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'none'
-            e.currentTarget.style.borderColor = 'var(--gray-300)'
-          }}
         >
           <ArrowLeft size={16} />
           返回上一頁
         </button>
-      </div>
-      
-      <h2 style={{ marginBottom: 8 }}>{diary.title || '(未命名)'}</h2>
-      
-      <div style={{ fontSize: 12, color: '#666', marginBottom: 16, display: 'flex', gap: 12, alignItems: 'center' }}>
-        <span>{new Date(diary.created_at || diary.createdAt || Date.now()).toLocaleString()}</span>
-        {diary.status === 'draft' && <span style={{ padding: '2px 8px', background: '#FFE4B5', borderRadius: 4 }}>草稿</span>}
-        <span style={{ padding: '2px 8px', background: diary.visibility === 'public' ? '#E0F7FA' : '#f0f0f0', borderRadius: 4 }}>
-          {diary.visibility === 'public' ? '公開' : '私人'}
-        </span>
-      </div>
 
-      {/* 標籤 */}
-      {diary.tags && diary.tags.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {diary.tags.filter(t => t.tag_type === 'emotion').map((t, i) => (
-              <span key={i} style={{ padding: '6px 12px', background: '#E1B1E8', borderRadius: 16, fontSize: 14 }}>
-                {t.tag_value}
-              </span>
-            ))}
-            {diary.tags.find(t => t.tag_type === 'weather') && (
-              <span style={{ padding: '6px 12px', background: '#B2EBF2', borderRadius: 16, fontSize: 14 }}>
-                {diary.tags.find(t => t.tag_type === 'weather').tag_value}
-              </span>
-            )}
-            {diary.tags.filter(t => t.tag_type === 'keyword').map((t, i) => (
-              <span key={i} style={{ padding: '6px 12px', background: '#f0f0f0', borderRadius: 16, fontSize: 14 }}>
-                #{t.tag_value}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
+        <div className="diary-detail-card">
+          {!user && diary.visibility === 'public' && guestTimer > 0 && (
+            <div className="diary-detail-guest-banner">
+              ⏱️ 訪客預覽模式：{guestTimer} 秒後內容將模糊，請登入以查看完整內容
+            </div>
+          )}
 
-      {/* 附件 */}
-      {diary.media && diary.media.length > 0 && (
-        <div style={{ marginBottom: 16 }} className={isBlurred ? 'blur-content' : ''}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
-            {diary.media.map((m, idx) => (
-              <img key={idx} src={`http://localhost:3000${m.file_url}`} alt="" style={{ width: '100%', borderRadius: 8, border: '1px solid #ddd' }} />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* 內容 */}
-      <div 
-        className={isBlurred ? 'blur-content' : ''}
-        style={{ 
-          whiteSpace: 'pre-wrap', 
-          lineHeight: 1.7, 
-          fontSize: 16, 
-          marginBottom: 24,
-          position: 'relative'
-        }}
-      >
-        {diary.content}
-      </div>
-
-      {/* Social Actions */}
-      <div style={{ display: 'flex', gap: 24, paddingY: 16, borderTop: '1px solid #eee', borderBottom: '1px solid #eee', marginBottom: 24 }}>
-        <button 
-          onClick={handleLike}
-          disabled={!user}
-          style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: 8, 
-            background: 'none', 
-            border: 'none', 
-            cursor: user ? 'pointer' : 'not-allowed',
-            fontSize: 16,
-            color: isLiked ? '#CD79D5' : '#666'
-          }}
-        >
-          <Heart size={20} fill={isLiked ? '#CD79D5' : 'none'} />
-          <span>{likeCount}</span>
-        </button>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 16, color: '#666' }}>
-          <MessageCircle size={20} />
-          <span>{comments.length}</span>
-        </div>
-      </div>
-
-      {/* Comments Section */}
-      <div style={{ marginBottom: 24 }}>
-        <h3 style={{ marginBottom: 16, fontSize: 18 }}>留言 ({comments.length})</h3>
-        
-        {/* Comment Form */}
-        {user ? (
-          <form onSubmit={handleCommentSubmit} style={{ marginBottom: 24 }}>
-            {replyTo && (
-              <div style={{ padding: 8, background: '#f0f0f0', borderRadius: 4, marginBottom: 8, fontSize: 14 }}>
-                回覆 @{replyTo.username}
-                <button 
-                  type="button" 
-                  onClick={() => setReplyTo(null)}
-                  style={{ marginLeft: 12, padding: '2px 8px', background: '#fff', border: '1px solid #ccc', borderRadius: 4, cursor: 'pointer' }}
-                >
-                  取消
-                </button>
-              </div>
-            )}
-            <div style={{ display: 'flex', gap: 8 }}>
-              <input
-                name="comment"
-                id="comment-input"
-                autoComplete="off"
-                type="text"
-                value={commentInput}
-                onChange={(e) => setCommentInput(e.target.value)}
-                placeholder={replyTo ? `回覆 ${replyTo.username}...` : '寫下你的留言...'}
-                maxLength={1000}
-                style={{ 
-                  flex: 1, 
-                  padding: '10px 12px', 
-                  border: '1px solid #ddd', 
-                  borderRadius: 8,
-                  fontSize: 14
+          <div className="diary-detail-header">
+            <div className="diary-detail-author">
+              <Link
+                to={`/users/${diary.user_id}`}
+                className="diary-detail-author-avatar"
+                style={{
+                  backgroundImage: diary.avatar_url ? `url(${ensureAbsoluteUrl(diary.avatar_url)})` : 'none'
                 }}
               />
-              <button
-                type="submit"
-                disabled={!commentInput.trim() || submitting}
-                style={{
-                  padding: '10px 20px',
-                  background: commentInput.trim() ? '#CD79D5' : '#ccc',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 8,
-                  cursor: commentInput.trim() ? 'pointer' : 'not-allowed',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6
-                }}
-              >
-                <Send size={16} />
-                {submitting ? '送出中...' : '送出'}
-              </button>
-            </div>
-          </form>
-        ) : (
-          <div style={{ padding: 16, background: '#f9f9f9', borderRadius: 8, marginBottom: 24, textAlign: 'center' }}>
-            <Link to="/login" style={{ color: '#CD79D5' }}>登入</Link> 後即可留言
-          </div>
-        )}
-
-        {/* Comments List */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {comments.map(comment => (
-            <div key={comment.comment_id} style={{ padding: 12, background: '#f9f9f9', borderRadius: 8 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Link 
-                    to={`/users/${comment.user_id}`} 
-                    style={{ textDecoration: 'none', color: '#333', fontWeight: 600, fontSize: 14 }}
-                  >
-                    {comment.username}
-                  </Link>
-                  <span style={{ fontSize: 12, color: '#999' }}>
-                    {new Date(comment.created_at).toLocaleString()}
+              <div className="diary-detail-author-info">
+                <Link to={`/users/${diary.user_id}`} className="diary-detail-author-name">
+                  {diary.username || '匿名用戶'}
+                </Link>
+                <div style={{ display: 'flex' }}>
+                  <span className="diary-detail-author-date" style={{ paddingRight: '0.5rem' }}>{createdAt.toLocaleString()}  </span>
+                  <span className={`diary-detail-badge ${diary.visibility === 'public' ? 'diary-detail-badge--public' : 'diary-detail-badge--private'}`}>
+                    {diary.visibility === 'public' ? '公開' : '私人'}
                   </span>
                 </div>
-                {user && user.user_id === comment.user_id && (
-                  <button
-                    onClick={() => handleDeleteComment(comment.comment_id)}
-                    style={{ padding: '2px 8px', background: 'none', border: '1px solid #ccc', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}
-                  >
-                    刪除
-                  </button>
-                )}
               </div>
-              <div style={{ marginBottom: 8, fontSize: 14, lineHeight: 1.5 }}>{comment.content}</div>
-              <div style={{ display: 'flex', gap: 16, fontSize: 13 }}>
-                <button
-                  onClick={() => handleCommentLike(comment.comment_id)}
-                  disabled={!user}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 4,
-                    background: 'none',
-                    border: 'none',
-                    cursor: user ? 'pointer' : 'not-allowed',
-                    color: comment.is_liked ? '#CD79D5' : '#666'
-                  }}
-                >
-                  <Heart size={14} fill={comment.is_liked ? '#CD79D5' : 'none'} />
-                  <span>{comment.like_count || 0}</span>
-                </button>
-                {user && (
-                  <button
-                    onClick={() => setReplyTo(comment)}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      color: '#666',
-                      fontSize: 13
-                    }}
-                  >
-                    回覆
-                  </button>
-                )}
-              </div>
-
-              {/* Replies */}
-              {comment.replies && comment.replies.length > 0 && (
-                <div style={{ marginTop: 12, marginLeft: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {comment.replies.map(reply => (
-                    <div key={reply.comment_id} style={{ padding: 10, background: '#fff', borderRadius: 6, border: '1px solid #eee' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <Link 
-                            to={`/users/${reply.user_id}`} 
-                            style={{ textDecoration: 'none', color: '#333', fontWeight: 600, fontSize: 13 }}
-                          >
-                            {reply.username}
-                          </Link>
-                          <span style={{ fontSize: 11, color: '#999' }}>
-                            {new Date(reply.created_at).toLocaleString()}
-                          </span>
-                        </div>
-                        {user && user.user_id === reply.user_id && (
-                          <button
-                            onClick={() => handleDeleteComment(reply.comment_id, comment.comment_id)}
-                            style={{ padding: '2px 6px', background: 'none', border: '1px solid #ccc', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}
-                          >
-                            刪除
-                          </button>
-                        )}
-                      </div>
-                      <div style={{ fontSize: 13, lineHeight: 1.5, marginBottom: 6 }}>{reply.content}</div>
-                      <button
-                        onClick={() => handleCommentLike(reply.comment_id, comment.comment_id)}
-                        disabled={!user}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 4,
-                          background: 'none',
-                          border: 'none',
-                          cursor: user ? 'pointer' : 'not-allowed',
-                          color: reply.is_liked ? '#CD79D5' : '#666',
-                          fontSize: 12
-                        }}
-                      >
-                        <Heart size={12} fill={reply.is_liked ? '#CD79D5' : 'none'} />
-                        <span>{reply.like_count || 0}</span>
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
-          ))}
+            {isOwner && (
+              <div className="post-owner-actions">
+                <button
+                  type="button"
+                  className="owner-action-btn"
+                  onClick={handleEditDiary}
+                  aria-label="編輯日記"
+                >
+                  <PencilLine size={18} />
+                </button>
+                <button
+                  type="button"
+                  className="owner-action-btn owner-action-delete"
+                  onClick={handleDeleteDiary}
+                  aria-label="刪除日記"
+                  disabled={deleting}
+                >
+                  <Trash2 size={18} />
+                </button>
+              </div>
+            )}
+          </div>
+
+          <h2 className="diary-detail-title">{diary.title || '(未命名)'}</h2>
+
+          <div className="diary-detail-meta">
+            {diary.status === 'draft' && (
+              <span className="diary-detail-badge diary-detail-badge--draft">草稿</span>
+            )}
+
+          </div>
+
+          {diary.tags && diary.tags.length > 0 && (
+            <div className="diary-detail-tags">
+              {emotionTags.map((tag, index) => (
+                <span key={`emotion-${index}`} className="diary-detail-tag diary-detail-tag--emotion">
+                  {tag.tag_value}
+                </span>
+              ))}
+              {weatherTag && (
+                <span className="diary-detail-tag diary-detail-tag--weather">
+                  {weatherTag.tag_value}
+                </span>
+              )}
+              {keywordTags.map((tag, index) => (
+                <span key={`keyword-${index}`} className="diary-detail-tag diary-detail-tag--keyword">
+                  #{tag.tag_value}
+                </span>
+              ))}
+            </div>
+          )}
+
+          <div className={`diary-detail-content ${isBlurred ? 'blur-content' : ''}`}>
+            {diary.content}
+          </div>
+
+          {mediaItems.length > 0 && (
+            <div className={`diary-detail-media ${isBlurred ? 'blur-content' : ''}`}>
+              {mediaItems.map((mediaItem, index) => {
+                const imageUrl = ensureAbsoluteUrl(mediaItem.file_url || mediaItem.url || '')
+                if (!imageUrl) return null
+                return (
+                  <img
+                    key={index}
+                    src={imageUrl}
+                    alt="日記附件"
+                  />
+                )
+              })}
+            </div>
+          )}
+
+          <div className="diary-detail-actions">
+            <button
+              type="button"
+              onClick={handleLike}
+              disabled={!user}
+              className={`diary-detail-like-button ${isLiked ? 'liked' : ''}`}
+              aria-pressed={isLiked}
+            >
+              <Heart size={20} color="currentColor" fill={isLiked ? 'currentColor' : 'none'} />
+              <span>{likeCount} 個讚</span>
+            </button>
+            <button
+              type="button"
+              className="diary-detail-comment-button"
+              onClick={handleCommentButtonClick}
+            >
+              <MessageCircle size={20} />
+              <span>{totalCommentCount} 則留言</span>
+            </button>
+          </div>
+
+          <div className="diary-detail-comments">
+            <h3>留言 ({totalCommentCount})</h3>
+
+            {user ? (
+              <form onSubmit={handleCommentSubmit} className="diary-detail-comment-form">
+                <div className="diary-detail-comment-input">
+                  <input
+                    name="comment"
+                    id="comment-input"
+                    autoComplete="off"
+                    type="text"
+                    value={commentInput}
+                    onChange={(event) => {
+                      if (commentError) setCommentError('')
+                      setCommentInput(event.target.value)
+                    }}
+                    placeholder="寫下你的留言..."
+                    maxLength={1000}
+                    ref={commentInputRef}
+                  />
+                  <button type="submit" disabled={submitting}>
+                    <Send size={16} />
+                    {submitting ? '送出中...' : '送出'}
+                  </button>
+                </div>
+                {commentError && <p className="diary-detail-comment-error">{commentError}</p>}
+              </form>
+            ) : (
+              <div className="diary-detail-login-hint">
+                <Link to="/login">登入</Link> 後即可留言
+              </div>
+            )}
+
+            <div className="diary-detail-comments-list">
+              {comments.map(comment => {
+                const commentInitial = getInitial(comment.username)
+                const commentAvatarUrl = comment.avatar_url ? ensureAbsoluteUrl(comment.avatar_url) : ''
+                const commentProfileUrl = comment.user_id ? `/users/${comment.user_id}` : '#'
+                const commentTimestamp = comment.created_at ? new Date(comment.created_at).toLocaleString() : ''
+                const preventCommentNav = !comment.user_id
+                  ? (event) => event.preventDefault()
+                  : undefined
+                const commentReplies = Array.isArray(comment.replies) ? comment.replies : []
+                const replyCount = commentReplies.length
+                const shouldCollapseReplies = replyCount > REPLY_COLLAPSE_LIMIT
+                const isExpanded = Boolean(expandedReplies[comment.comment_id])
+                const visibleReplies = shouldCollapseReplies && !isExpanded
+                  ? []
+                  : commentReplies
+                const hiddenCount = shouldCollapseReplies ? replyCount : 0
+
+                return (
+                  <div key={comment.comment_id} className="diary-detail-comment-item">
+                    <div className="diary-detail-comment-row">
+                      <div className="diary-detail-comment-main">
+                        <Link
+                          to={commentProfileUrl}
+                          className="diary-detail-comment-avatar"
+                          aria-label={`${comment.username || '使用者'} 的個人頁面`}
+                          onClick={preventCommentNav}
+                        >
+                          {commentAvatarUrl ? (
+                            <span
+                              className="diary-detail-comment-avatar-image"
+                              style={{ backgroundImage: `url(${commentAvatarUrl})` }}
+                            />
+                          ) : (
+                            <span className="diary-detail-comment-avatar-initial">{commentInitial}</span>
+                          )}
+                        </Link>
+                        <div className="diary-detail-comment-content">
+                          <div className="diary-detail-comment-header">
+                            <div className="diary-detail-comment-meta">
+                              <Link
+                                to={commentProfileUrl}
+                                className="diary-detail-comment-name"
+                                onClick={preventCommentNav}
+                              >
+                                {comment.username || '匿名用戶'}
+                              </Link>
+                              <span className="diary-detail-comment-time">{commentTimestamp}</span>
+                            </div>
+                            {user && user.user_id === comment.user_id && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteComment(comment.comment_id)}
+                                className="diary-detail-comment-delete"
+                              >
+                                刪除
+                              </button>
+                            )}
+                          </div>
+                          <div className="diary-detail-comment-text">{comment.content}</div>
+                          <div className="diary-detail-comment-footer">
+                            {user && (
+                              <button
+                                type="button"
+                                onClick={() => handleReplyClick(comment)}
+                                className="diary-detail-comment-reply"
+                              >
+                                回覆
+                              </button>
+                            )}
+                          </div>
+                          {replyTo?.comment_id === comment.comment_id && (
+                            <form className="diary-detail-inline-reply" onSubmit={handleReplySubmit}>
+                              <textarea
+                                ref={replyInputRef}
+                                value={replyDraft}
+                                onChange={(event) => setReplyDraft(event.target.value)}
+                                placeholder={`回覆 ${comment.username || '這則留言'}...`}
+                                maxLength={1000}
+                                rows={3}
+                              />
+                              <div className="diary-detail-inline-reply-actions">
+                                <button type="button" onClick={handleReplyCancel} disabled={replySubmitting}>
+                                  取消
+                                </button>
+                                <button
+                                  type="submit"
+                                  disabled={replySubmitting || !replyDraft.trim()}
+                                >
+                                  <Send size={14} />
+                                  送出
+                                </button>
+                              </div>
+                            </form>
+                          )}
+                        </div>
+                      </div>
+                      <div className="diary-detail-comment-likes">
+                        <button
+                          type="button"
+                          onClick={() => handleCommentLike(comment.comment_id)}
+                          disabled={!user}
+                          className={`diary-detail-comment-like-btn ${comment.is_liked ? 'liked' : ''}`}
+                          aria-pressed={Boolean(comment.is_liked)}
+                          aria-label={`對${comment.username || '這則'}留言按讚`}
+                        >
+                          <Heart size={18} color="currentColor" fill={comment.is_liked ? 'currentColor' : 'none'} />
+                        </button>
+                        <span className="diary-detail-comment-like-count">{comment.like_count || 0}</span>
+                      </div>
+                    </div>
+
+                    {visibleReplies.length > 0 && (
+                      <div className="diary-detail-replies">
+                        {visibleReplies.map(reply => {
+                          const replyInitial = getInitial(reply.username)
+                          const replyAvatarUrl = reply.avatar_url ? ensureAbsoluteUrl(reply.avatar_url) : ''
+                          const replyProfileUrl = reply.user_id ? `/users/${reply.user_id}` : '#'
+                          const replyTimestamp = reply.created_at ? new Date(reply.created_at).toLocaleString() : ''
+                          const preventReplyNav = !reply.user_id
+                            ? (event) => event.preventDefault()
+                            : undefined
+
+                          return (
+                            <div key={reply.comment_id} className="diary-detail-reply-item">
+                              <div className="diary-detail-reply-main">
+                                <Link
+                                  to={replyProfileUrl}
+                                  className="diary-detail-reply-avatar"
+                                  aria-label={`${reply.username || '使用者'} 的個人頁面`}
+                                  onClick={preventReplyNav}
+                                >
+                                  {replyAvatarUrl ? (
+                                    <span
+                                      className="diary-detail-reply-avatar-image"
+                                      style={{ backgroundImage: `url(${replyAvatarUrl})` }}
+                                    />
+                                  ) : (
+                                    <span className="diary-detail-reply-avatar-initial">{replyInitial}</span>
+                                  )}
+                                </Link>
+                                <div className="diary-detail-reply-body">
+                                  <div className="diary-detail-reply-header">
+                                    <div className="diary-detail-reply-meta">
+                                      <Link
+                                        to={replyProfileUrl}
+                                        className="diary-detail-reply-name"
+                                        onClick={preventReplyNav}
+                                      >
+                                        {reply.username || '匿名用戶'}
+                                      </Link>
+                                      <span className="diary-detail-reply-time">{replyTimestamp}</span>
+                                    </div>
+                                    {user && user.user_id === reply.user_id && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDeleteComment(reply.comment_id, comment.comment_id)}
+                                        className="diary-detail-reply-delete"
+                                      >
+                                        刪除
+                                      </button>
+                                    )}
+                                  </div>
+                                  <div className="diary-detail-reply-target">
+                                    回覆 @{reply.parent_username || comment.username || '留言者'}
+                                  </div>
+                                  <div className="diary-detail-reply-text">{reply.content}</div>
+                                </div>
+                              </div>
+                              <div className="diary-detail-reply-like-stack">
+                                <button
+                                  type="button"
+                                  onClick={() => handleCommentLike(reply.comment_id, comment.comment_id)}
+                                  disabled={!user}
+                                  className={`diary-detail-reply-like-btn ${reply.is_liked ? 'liked' : ''}`}
+                                  aria-pressed={Boolean(reply.is_liked)}
+                                  aria-label={`對${reply.username || '這則'}回覆按讚`}
+                                >
+                                  <Heart size={14} color="currentColor" fill={reply.is_liked ? 'currentColor' : 'none'} />
+                                </button>
+                                <span className="diary-detail-reply-like-count">{reply.like_count || 0}</span>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                    {shouldCollapseReplies && (
+                      <button
+                        type="button"
+                        className="diary-detail-replies-toggle"
+                        onClick={() => handleToggleReplies(comment.comment_id)}
+                      >
+                        {isExpanded ? '收合回覆' : `顯示更多回覆 (${hiddenCount})`}
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+
         </div>
       </div>
-      
-      <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid #eee' }}>
-        <Link to={`/diaries/${id}/edit`} style={{ padding: '10px 20px', background: '#CD79D5', color: '#fff', textDecoration: 'none', borderRadius: 8, marginRight: 12 }}>編輯</Link>
-      </div>
 
-      {/* Guest Modal */}
-      <GuestModal 
-        isOpen={showGuestModal} 
+      <GuestModal
+        isOpen={showGuestModal}
         onClose={() => setShowGuestModal(false)}
         message="登入後即可查看完整日記內容、按讚和留言"
       />
+
+      {showDeleteConfirm && (
+        <div
+          className="diary-delete-confirm-backdrop"
+          role="presentation"
+          onClick={handleCancelDeleteDiary}
+        >
+          <div
+            className="diary-delete-confirm-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="diary-delete-confirm-title"
+            aria-describedby="diary-delete-confirm-description"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 id="diary-delete-confirm-title">刪除日記</h3>
+            <p id="diary-delete-confirm-description" className="diary-delete-confirm-text">
+              確定要刪除「{diary.title || '(未命名)'}」嗎？此動作無法復原。
+            </p>
+            <div className="diary-delete-confirm-actions">
+              <button
+                type="button"
+                className="diary-delete-confirm-btn secondary"
+                onClick={handleCancelDeleteDiary}
+                disabled={deleting}
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                className="diary-delete-confirm-btn danger"
+                onClick={handleConfirmDeleteDiary}
+                disabled={deleting}
+              >
+                {deleting ? '刪除中...' : '確認刪除'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
