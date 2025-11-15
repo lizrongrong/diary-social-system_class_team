@@ -212,6 +212,10 @@ export const userAPI = {
     const res = await api.get(`/users/${username}`)
     return res.data
   },
+  deleteAccount: async () => {
+    const res = await api.delete('/users/account')
+    return res.data
+  },
   search: async (keyword, options = {}) => {
     const params = { keyword, ...options }
     const res = await api.get('/users/search', { params })

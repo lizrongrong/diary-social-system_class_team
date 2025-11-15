@@ -93,6 +93,9 @@ router.put('/profile', authMiddleware, validateUpdateProfile, userController.upd
 // PUT /api/v1/users/password - 修改密碼
 router.put('/password', authMiddleware, validateChangePassword, userController.changePassword);
 
+// DELETE /api/v1/users/account - 刪除帳號
+router.delete('/account', authMiddleware, userController.deleteAccount);
+
 // GET /api/v1/users/:username - 取得指定使用者公開資料
 router.get('/:username', userController.getUserByUsername);
 
