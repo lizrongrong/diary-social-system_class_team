@@ -1,6 +1,6 @@
-﻿import { Link } from 'react-router-dom'
+﻿import { Link, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { Heart, MessageCircle, Share2, UserPlus, UserCheck, Users, RefreshCw, SlidersHorizontal, X } from 'lucide-react'
+import { Heart, MessageCircle, Share2, UserPlus, UserCheck, Users, RefreshCw, SlidersHorizontal, X, PencilLine, Trash2 } from 'lucide-react'
 import useAuthStore from '../store/authStore'
 import { diaryAPI, ensureAbsoluteUrl, followAPI, likeAPI } from '../services/api'
 import { useToast } from '../components/ui/Toast'
@@ -13,6 +13,7 @@ import './HomePage.css'
 
 function HomePage() {
   const { user } = useAuthStore()
+  const navigate = useNavigate()
   const { addToast } = useToast()
   const [posts, setPosts] = useState([])
   const [filteredPosts, setFilteredPosts] = useState([])
@@ -20,6 +21,11 @@ function HomePage() {
   const [error, setError] = useState(null)
   const [follows, setFollows] = useState([])
   const [mutualFollows, setMutualFollows] = useState(new Set()) // 儲存互相追蹤的用戶ID
+  const [followLoadingIds, setFollowLoadingIds] = useState(() => new Set())
+  const [unfollowConfirm, setUnfollowConfirm] = useState({ open: false, targetId: null, targetName: '' })
+  const [deleteConfirm, setDeleteConfirm] = useState({ open: false, diaryId: null, diaryTitle: '' })
+  const [deletePending, setDeletePending] = useState(false)
+  const [likePendingIds, setLikePendingIds] = useState(() => new Set())
   const [keyword, setKeyword] = useState('')
   const [emotion, setEmotion] = useState('')
   const [weather, setWeather] = useState('')
@@ -27,6 +33,101 @@ function HomePage() {
   const [dateTo, setDateTo] = useState('')
   const [sortBy, setSortBy] = useState('created_at')
   const [showFilters, setShowFilters] = useState(false)
+
+  const updateFollowLoading = (targetId, isLoading) => {
+    setFollowLoadingIds(prev => {
+      const next = new Set(prev)
+      if (isLoading) {
+        next.add(targetId)
+      } else {
+        next.delete(targetId)
+      }
+      return next
+    })
+  }
+
+  const isFollowLoading = (targetId) => followLoadingIds.has(targetId)
+  const isLikePending = (diaryId) => likePendingIds.has(diaryId)
+
+  const updateMutualFlag = (targetId, shouldBeMutual) => {
+    if (!targetId) return
+    setMutualFollows(prev => {
+      const next = new Set(prev)
+      if (shouldBeMutual) {
+        next.add(targetId)
+      } else {
+        next.delete(targetId)
+      }
+      return next
+    })
+  }
+
+  const normalizeMediaArray = (media) => {
+    if (!media) return []
+    if (Array.isArray(media)) return media
+    if (typeof media === 'string') {
+      try {
+        const parsed = JSON.parse(media)
+        return Array.isArray(parsed) ? parsed : []
+      } catch (err) {
+        console.warn('無法解析日記媒體資料', err)
+        return []
+      }
+    }
+    return []
+  }
+
+  const getImagesFromMedia = (media) => {
+    return normalizeMediaArray(media)
+      .map((item) => (typeof item === 'string' ? { file_url: item } : item))
+      .filter((item) => {
+        const type = (item?.file_type || item?.type || '').toLowerCase()
+        if (type && type.startsWith('image')) return true
+        const url = item?.file_url || item?.url || ''
+        return /\.(png|jpe?g|gif|bmp|webp|svg)$/i.test(url)
+      })
+      .map((item, index) => {
+        const url = ensureAbsoluteUrl(item.file_url || item.url || '')
+        return {
+          key: item.media_id || item.id || `${item.file_url || item.url || 'image'}-${index}`,
+          url,
+          alt: item.alt || item.description || ''
+        }
+      })
+      .filter((item) => Boolean(item.url))
+  }
+
+  const handleCardClick = (event, diaryId) => {
+    if (!diaryId) return
+    const interactive = event.target.closest('button, a, input, textarea, select, label')
+    if (interactive) return
+
+    const targetUrl = `/diaries/${diaryId}`
+    if (event.metaKey || event.ctrlKey) {
+      window.open(`${window.location.origin}${targetUrl}`, '_blank', 'noopener')
+      return
+    }
+
+    navigate(targetUrl)
+  }
+
+  const handleCardKeyDown = (event, diaryId) => {
+    if (!diaryId) return
+    const interactive = event.target.closest('button, a, input, textarea, select, label')
+    if (interactive) return
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      navigate(`/diaries/${diaryId}`)
+    }
+  }
+
+  const openUnfollowConfirm = (targetId, targetName) => {
+    setUnfollowConfirm({ open: true, targetId, targetName: targetName || '' })
+  }
+
+  const closeUnfollowConfirm = () => {
+    setUnfollowConfirm({ open: false, targetId: null, targetName: '' })
+  }
 
   const applyFilters = (data, overrides = {}) => {
     const criteria = {
@@ -195,66 +296,205 @@ function HomePage() {
     return mutualFollows.has(userId)
   }
 
-  const handleLike = async (diaryId) => {
+  const syncLikeState = (diaryId, liked, count) => {
+    setPosts(prev => {
+      if (!Array.isArray(prev) || prev.length === 0) return prev
+      const updated = prev.map((post) => {
+        if (post.diary_id !== diaryId) return post
+        const baseCount = Number(post.like_count) || 0
+        let nextCount = baseCount
+
+        if (typeof count === 'number' && Number.isFinite(count)) {
+          nextCount = count
+        } else if (liked !== undefined) {
+          if (liked && !post.is_liked) nextCount = baseCount + 1
+          else if (!liked && post.is_liked) nextCount = Math.max(0, baseCount - 1)
+        }
+
+        return {
+          ...post,
+          is_liked: liked,
+          like_count: nextCount
+        }
+      })
+      setFilteredPosts(applyFilters(updated))
+      return updated
+    })
+  }
+
+  const handleLike = async (event, diaryId) => {
+    if (event) {
+      event.preventDefault()
+      event.stopPropagation()
+    }
     if (!user) {
       addToast('請先登入', 'warning')
       return
     }
 
+    if (!diaryId || isLikePending(diaryId)) {
+      return
+    }
+
+    const currentPost = (Array.isArray(posts) ? posts : []).find(p => p.diary_id === diaryId) ||
+      (Array.isArray(filteredPosts) ? filteredPosts : []).find(p => p.diary_id === diaryId)
+
+    if (!currentPost) {
+      console.warn('找不到指定日記，無法處理按讚：', diaryId)
+      return
+    }
+
+    const previousLiked = Boolean(currentPost.is_liked)
+    const previousCount = Number(currentPost.like_count) || 0
+
+    setLikePendingIds(prev => {
+      const next = new Set(prev)
+      next.add(diaryId)
+      return next
+    })
+
+    // Optimistically reflect the toggle for responsiveness
+    syncLikeState(diaryId, !previousLiked, NaN)
+
     try {
-      await likeAPI.toggle('diary', diaryId)
-      // 更新本地狀態
-      setPosts(posts.map(post => {
-        if (post.diary_id === diaryId) {
-          return {
-            ...post,
-            is_liked: !post.is_liked,
-            like_count: post.is_liked ? post.like_count - 1 : post.like_count + 1
-          }
-        }
-        return post
-      }))
+      const response = await likeAPI.toggle('diary', diaryId)
+      const serverLiked = Boolean(response?.liked)
+      const rawCount = Number(response?.count)
+      const serverCount = Number.isFinite(rawCount) ? rawCount : NaN
+
+      syncLikeState(diaryId, serverLiked, serverCount)
     } catch (err) {
-      console.error('Error toggling like:', err)
-      addToast('操作失敗', 'error')
+      const serverMessage = err?.response?.data?.message || err?.response?.data?.error
+      console.error('Error toggling like:', serverMessage || err)
+      addToast(serverMessage || '操作失敗', 'error')
+
+      // Revert to previous state on failure
+      syncLikeState(diaryId, previousLiked, previousCount)
+    } finally {
+      setLikePendingIds(prev => {
+        const next = new Set(prev)
+        next.delete(diaryId)
+        return next
+      })
     }
   }
 
-  const handleFollow = async (userId) => {
+  const performFollowMutation = async ({ targetUserId, alreadyFriend }) => {
+    if (isFollowLoading(targetUserId)) {
+      return
+    }
+
+    updateFollowLoading(targetUserId, true)
+
+    try {
+      if (alreadyFriend) {
+        await followAPI.remove(targetUserId)
+        addToast('已取消追蹤', 'success')
+        updateMutualFlag(targetUserId, false)
+      } else {
+        const response = await followAPI.add(targetUserId)
+        addToast('追蹤成功', 'success')
+        if (response?.isMutual) {
+          updateMutualFlag(targetUserId, true)
+        }
+      }
+      await fetchFollows()
+    } catch (err) {
+      console.error('Error toggling follow:', err)
+      const errorMsg = err.response?.data?.message || (alreadyFriend ? '取消追蹤失敗' : '追蹤失敗')
+      addToast(errorMsg, 'error')
+    } finally {
+      updateFollowLoading(targetUserId, false)
+      if (alreadyFriend) {
+        closeUnfollowConfirm()
+      }
+    }
+  }
+
+  const handleToggleFollow = (targetUserId, targetUsername) => {
     if (!user) {
       addToast('請先登入', 'warning')
       return
     }
 
-    if (isFriend(userId)) {
-      addToast('已經追蹤此用戶', 'info')
+    const alreadyFriend = isFriend(targetUserId)
+
+    if (alreadyFriend) {
+      openUnfollowConfirm(targetUserId, targetUsername)
       return
     }
 
-    try {
-      console.log('Adding follow:', userId)
-      const result = await followAPI.add(userId)
+    performFollowMutation({ targetUserId, alreadyFriend: false })
+  }
 
-      // 如果是互相追蹤，顯示特別訊息
-      if (result.is_mutual) {
-        addToast('追蹤成功！你們現在互相追蹤了', 'success')
-      } else {
-        addToast('追蹤成功', 'success')
-      }
+  const handleConfirmUnfollow = () => {
+    if (!unfollowConfirm.targetId) return
+    performFollowMutation({
+      targetUserId: unfollowConfirm.targetId,
+      alreadyFriend: true
+    })
+  }
 
-      await fetchFollows() // 重新獲取追蹤列表和互相追蹤狀態
-      console.log('Friends updated after adding')
-    } catch (err) {
-      console.error('Error adding friend:', err)
-      const errorMsg = err.response?.data?.message || '追蹤失敗'
-      addToast(errorMsg, 'error')
+  const handleCancelUnfollow = () => {
+    if (unfollowConfirm.targetId && isFollowLoading(unfollowConfirm.targetId)) {
+      return
     }
+    closeUnfollowConfirm()
   }
 
   const handleShare = (diaryId) => {
     const url = `${window.location.origin}/diaries/${diaryId}`
     navigator.clipboard.writeText(url)
     addToast('連結已複製', 'success')
+  }
+
+  const handleEditDiary = (event, diaryId) => {
+    if (event) {
+      event.preventDefault()
+      event.stopPropagation()
+    }
+    navigate(`/diaries/${diaryId}/edit`)
+  }
+
+  const handleDeleteDiary = (event, targetPost) => {
+    if (event) {
+      event.preventDefault()
+      event.stopPropagation()
+    }
+
+    if (!targetPost || !targetPost.diary_id) return
+
+    setDeleteConfirm({
+      open: true,
+      diaryId: targetPost.diary_id,
+      diaryTitle: targetPost.title && targetPost.title.trim() ? targetPost.title : '(未命名)'
+    })
+  }
+
+  const handleCancelDeleteDiary = () => {
+    if (deletePending) return
+    setDeleteConfirm({ open: false, diaryId: null, diaryTitle: '' })
+  }
+
+  const handleConfirmDeleteDiary = async () => {
+    if (!deleteConfirm.diaryId) return
+
+    setDeletePending(true)
+    try {
+      await diaryAPI.delete(deleteConfirm.diaryId)
+      addToast('日記已刪除', 'success')
+      setPosts(prev => {
+        const next = Array.isArray(prev) ? prev.filter(post => post.diary_id !== deleteConfirm.diaryId) : []
+        setFilteredPosts(applyFilters(next))
+        return next
+      })
+      setDeleteConfirm({ open: false, diaryId: null, diaryTitle: '' })
+    } catch (err) {
+      const message = err?.response?.data?.message || err?.response?.data?.error || '刪除失敗'
+      addToast(message, 'error')
+    } finally {
+      setDeletePending(false)
+    }
   }
 
   const clearSearchFilters = () => {
@@ -454,148 +694,218 @@ function HomePage() {
             <p>試試不同的關鍵字或篩選條件</p>
           </div>
         ) : (
-          filteredPosts.map(post => (
-            <article key={post.diary_id} className="post-card">
-              <div className="post-header">
-                <div className="author-info">
-                  <Link
-                    to={`/users/${post.user_id}`}
-                    className="author-avatar-link"
-                    style={{ textDecoration: 'none' }}
-                  >
-                    <div
-                      className="author-avatar"
-                      style={{
-                        backgroundImage: post.avatar_url ? `url(${ensureAbsoluteUrl(post.avatar_url)})` : 'none',
-                        backgroundColor: post.avatar_url ? 'transparent' : '#E0E0E0'
-                      }}
-                    />
-                  </Link>
-                  <div className="author-details">
+          filteredPosts.map((post) => {
+            const friend = isFriend(post.user_id)
+            const mutual = isMutual(post.user_id)
+            const followLoading = isFollowLoading(post.user_id)
+            const mediaImages = getImagesFromMedia(post.media)
+
+            return (
+              <article
+                key={post.diary_id}
+                className="post-card"
+                role="link"
+                tabIndex={0}
+                aria-label={`開啟 ${post.title || '日記'} 詳細內容`}
+                onClick={(event) => handleCardClick(event, post.diary_id)}
+                onKeyDown={(event) => handleCardKeyDown(event, post.diary_id)}
+              >
+                <div className="post-header">
+                  <div className="author-info">
                     <Link
                       to={`/users/${post.user_id}`}
-                      className="author-name-link"
-                      style={{ textDecoration: 'none', color: 'inherit' }}
+                      className="author-avatar-link"
+                      style={{ textDecoration: 'none' }}
                     >
-                      <h3 className="author-name">{post.username || '匿名用戶'}</h3>
+                      <div
+                        className="author-avatar"
+                        style={{
+                          backgroundImage: post.avatar_url ? `url(${ensureAbsoluteUrl(post.avatar_url)})` : 'none',
+                          backgroundColor: post.avatar_url ? 'transparent' : '#E0E0E0'
+                        }}
+                      />
                     </Link>
-                    <span className="post-date">
-                      {new Date(post.created_at).toLocaleDateString('zh-TW')}
-                    </span>
+                    <div className="author-details">
+                      <Link
+                        to={`/users/${post.user_id}`}
+                        className="author-name-link"
+                        style={{ textDecoration: 'none', color: 'inherit' }}
+                      >
+                        <h3 className="author-name">{post.username || '匿名用戶'}</h3>
+                      </Link>
+                      <span className="post-date">
+                        {new Date(post.created_at).toLocaleDateString('zh-TW')}
+                      </span>
+                    </div>
                   </div>
+                  {user && user.user_id !== post.user_id && (
+                    <button
+                      type="button"
+                      className={`follow-btn ${mutual ? 'is-mutual' :
+                        friend ? 'is-friend' : ''
+                        }`}
+                      onClick={() => handleToggleFollow(post.user_id, post.username)}
+                      disabled={followLoading}
+                      aria-busy={followLoading}
+                    >
+                      {mutual ? (
+                        <>
+                          <Users size={16} />
+                          互相追蹤
+                        </>
+                      ) : friend ? (
+                        <>
+                          <UserCheck size={16} />
+                          已追蹤
+                        </>
+                      ) : (
+                        <>
+                          <UserPlus size={16} />
+                          追蹤
+                        </>
+                      )}
+                    </button>
+                  )}
+                  {user && user.user_id === post.user_id && (
+                    <div className="post-owner-actions">
+                      <button
+                        type="button"
+                        className="owner-action-btn"
+                        onClick={(event) => handleEditDiary(event, post.diary_id)}
+                        aria-label="編輯日記"
+                      >
+                        <PencilLine size={18} />
+                      </button>
+                      <button
+                        type="button"
+                        className="owner-action-btn owner-action-delete"
+                        onClick={(event) => handleDeleteDiary(event, post)}
+                        aria-label="刪除日記"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                  )}
                 </div>
-                {user && user.user_id !== post.user_id && (
-                  <button
-                    className={`follow-btn ${isMutual(post.user_id) ? 'is-mutual' :
-                      isFriend(post.user_id) ? 'is-friend' : ''
-                      }`}
-                    onClick={() => handleFollow(post.user_id)}
-                    disabled={isFriend(post.user_id)}
+
+                <div className="post-content" role="presentation">
+                  <Link
+                    to={`/diaries/${post.diary_id}`}
+                    style={{ textDecoration: 'none', color: 'inherit' }}
                   >
-                    {isMutual(post.user_id) ? (
-                      <>
-                        <Users size={16} />
-                        互相追蹤
-                      </>
-                    ) : isFriend(post.user_id) ? (
-                      <>
-                        <UserCheck size={16} />
-                        已追蹤
-                      </>
-                    ) : (
-                      <>
-                        <UserPlus size={16} />
-                        追蹤
-                      </>
-                    )}
+                    <h3 className="post-title">{post.title || '(未命名)'}</h3>
+                  </Link>
+
+                  {/* 標籤 */}
+                  {post.tags && post.tags.length > 0 && (
+                    <div style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: '6px',
+                      marginBottom: '12px'
+                    }}>
+                      {post.tags.filter(t => t.tag_type === 'emotion').slice(0, 2).map((t, i) => (
+                        <span
+                          key={i}
+                          style={{
+                            padding: '3px 10px',
+                            background: 'var(--emotion-pink)',
+                            borderRadius: '12px',
+                            fontSize: '0.75rem',
+                            fontWeight: 500,
+                            color: 'var(--dark-purple)'
+                          }}
+                        >
+                          {t.tag_value}
+                        </span>
+                      ))}
+                      {post.tags.find(t => t.tag_type === 'weather') && (
+                        <span
+                          style={{
+                            padding: '3px 10px',
+                            background: '#B2EBF2',
+                            borderRadius: '12px',
+                            fontSize: '0.75rem',
+                            fontWeight: 500,
+                            color: '#006064'
+                          }}
+                        >
+                          {post.tags.find(t => t.tag_type === 'weather').tag_value}
+                        </span>
+                      )}
+                      {post.tags.filter(t => t.tag_type === 'keyword').slice(0, 3).map((t, i) => (
+                        <span
+                          key={i}
+                          style={{
+                            padding: '3px 10px',
+                            background: 'var(--gray-200)',
+                            borderRadius: '12px',
+                            fontSize: '0.75rem',
+                            color: 'var(--gray-700)'
+                          }}
+                        >
+                          #{t.tag_value}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {post.content && <p>{post.content}</p>}
+
+                  {mediaImages.length > 0 && (
+                    <div className="post-media-grid">
+                      {mediaImages.map((image, idx) => (
+                        <img
+                          key={image.key || idx}
+                          src={image.url}
+                          alt={image.alt || `${post.username || '用戶'} 的日記圖片 ${idx + 1}`}
+                          loading="lazy"
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div
+                  className="post-footer"
+                  role="presentation"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') event.stopPropagation()
+                  }}
+                >
+                  <button
+                    type="button"
+                    className={`post-action ${post.is_liked ? 'liked' : ''}`}
+                    onClick={(event) => handleLike(event, post.diary_id)}
+                    disabled={isLikePending(post.diary_id)}
+                    aria-busy={isLikePending(post.diary_id)}
+                  >
+                    <Heart
+                      size={20}
+                      color={post.is_liked ? '#CD79D5' : undefined}
+                      fill={post.is_liked ? '#CD79D5' : 'none'}
+                    />
+                    <span>{post.like_count || 0} 個讚</span>
                   </button>
-                )}
-              </div>
-
-              <div className="post-content">
-                <Link
-                  to={`/diaries/${post.diary_id}`}
-                  style={{ textDecoration: 'none', color: 'inherit' }}
-                >
-                  <h3 className="post-title">{post.title || '(未命名)'}</h3>
-                </Link>
-
-                {/* 標籤 */}
-                {post.tags && post.tags.length > 0 && (
-                  <div style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: '6px',
-                    marginBottom: '12px'
-                  }}>
-                    {post.tags.filter(t => t.tag_type === 'emotion').slice(0, 2).map((t, i) => (
-                      <span
-                        key={i}
-                        style={{
-                          padding: '3px 10px',
-                          background: 'var(--emotion-pink)',
-                          borderRadius: '12px',
-                          fontSize: '0.75rem',
-                          fontWeight: 500,
-                          color: 'var(--dark-purple)'
-                        }}
-                      >
-                        {t.tag_value}
-                      </span>
-                    ))}
-                    {post.tags.find(t => t.tag_type === 'weather') && (
-                      <span
-                        style={{
-                          padding: '3px 10px',
-                          background: '#B2EBF2',
-                          borderRadius: '12px',
-                          fontSize: '0.75rem',
-                          fontWeight: 500,
-                          color: '#006064'
-                        }}
-                      >
-                        {post.tags.find(t => t.tag_type === 'weather').tag_value}
-                      </span>
-                    )}
-                    {post.tags.filter(t => t.tag_type === 'keyword').slice(0, 3).map((t, i) => (
-                      <span
-                        key={i}
-                        style={{
-                          padding: '3px 10px',
-                          background: 'var(--gray-200)',
-                          borderRadius: '12px',
-                          fontSize: '0.75rem',
-                          color: 'var(--gray-700)'
-                        }}
-                      >
-                        #{t.tag_value}
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                <p>{post.content}</p>
-              </div>
-
-              <div className="post-footer">
-                <button
-                  className={`post-action ${post.is_liked ? 'liked' : ''}`}
-                  onClick={() => handleLike(post.diary_id)}
-                >
-                  <Heart size={20} fill={post.is_liked ? '#CD79D5' : 'none'} />
-                  <span>{post.like_count || 0}</span>
-                </button>
-                <Link to={`/diaries/${post.diary_id}`} className="post-action">
-                  <MessageCircle size={20} />
-                  <span>{post.comment_count || 0}</span>
-                </Link>
-                <button className="post-action share-btn" onClick={() => handleShare(post.diary_id)}>
-                  <Share2 size={20} />
-                  分享
-                </button>
-              </div>
-            </article>
-          ))
+                  <Link to={`/diaries/${post.diary_id}`} className="post-action">
+                    <MessageCircle size={20} />
+                    <span>{post.comment_count || 0} 則留言</span>
+                  </Link>
+                  <button
+                    type="button"
+                    className="post-action"
+                    onClick={() => handleShare(post.diary_id)}
+                  >
+                    <Share2 size={20} />
+                    <span>日記分享</span>
+                  </button>
+                </div>
+              </article>
+            )
+          })
         )}
 
         {/* 訪客限制提示 */}
@@ -614,6 +924,77 @@ function HomePage() {
           </div>
         )}
       </div>
+
+      {unfollowConfirm.open && (
+        <div className="user-profile-confirm-backdrop" role="presentation">
+          <div
+            className="user-profile-confirm"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="home-unfollow-confirm-title"
+          >
+            <h3 id="home-unfollow-confirm-title">取消追蹤</h3>
+            <p>確定要取消追蹤 {unfollowConfirm.targetName || '該用戶'} 嗎？</p>
+            <div className="user-profile-confirm-actions">
+              <button
+                type="button"
+                className="confirm-cancel"
+                onClick={handleCancelUnfollow}
+                disabled={unfollowConfirm.targetId ? isFollowLoading(unfollowConfirm.targetId) : false}
+              >
+                返回
+              </button>
+              <button
+                type="button"
+                className="confirm-submit"
+                onClick={handleConfirmUnfollow}
+                disabled={unfollowConfirm.targetId ? isFollowLoading(unfollowConfirm.targetId) : false}
+              >
+                確定
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {deleteConfirm.open && (
+        <div
+          className="home-delete-confirm-backdrop"
+          role="presentation"
+          onClick={handleCancelDeleteDiary}
+        >
+          <div
+            className="home-delete-confirm-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="home-delete-confirm-title"
+            aria-describedby="home-delete-confirm-description"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 id="home-delete-confirm-title">刪除日記</h3>
+            <p id="home-delete-confirm-description" className="home-delete-confirm-text">
+              確定要刪除「{deleteConfirm.diaryTitle || '這篇日記'}」嗎？此動作無法復原。
+            </p>
+            <div className="home-delete-confirm-actions">
+              <button
+                type="button"
+                className="home-delete-confirm-btn secondary"
+                onClick={handleCancelDeleteDiary}
+                disabled={deletePending}
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                className="home-delete-confirm-btn danger"
+                onClick={handleConfirmDeleteDiary}
+                disabled={deletePending}
+              >
+                {deletePending ? '刪除中...' : '確認刪除'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
