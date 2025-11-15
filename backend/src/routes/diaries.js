@@ -5,7 +5,7 @@ const { authMiddleware, optionalAuth } = require('../middleware/auth');
 const { validateDiary } = require('../middleware/validation');
 
 // GET /api/v1/diaries/explore - 探索公開日記（不需認證）
-router.get('/explore', diaryController.exploreDiaries);
+router.get('/explore', optionalAuth, diaryController.exploreDiaries);
 
 // GET /api/v1/diaries/search - 搜尋日記（不需認證，但可選認證以顯示按讚狀態）
 router.get('/search', optionalAuth, diaryController.searchDiaries);
