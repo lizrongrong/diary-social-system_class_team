@@ -1,16 +1,23 @@
-﻿import { useEffect, useState } from 'react'
+﻿import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { diaryAPI } from '../../services/api'
 import axios from 'axios'
 import Input from '../../components/ui/Input'
-import Select from '../../components/ui/Select'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
 import { useToast } from '../../components/ui/Toast'
-import { X, Upload, Image as ImageIcon } from 'lucide-react'
+import { X, Upload, Image as ImageIcon, Eye, EyeOff } from 'lucide-react'
+import {
+  EMOTION_COLORS,
+  EMOTION_FALLBACK,
+  WEATHER_COLORS,
+  WEATHER_FALLBACK,
+  lightenHexColor
+} from '../../utils/tagPalettes'
 
 // 預設的情緒與天氣選項
 const EMOTIONS = ['開心', '難過', '生氣', '焦慮', '平靜', '興奮', '疲累', '感動']
+
 const WEATHERS = ['晴天', '多雲', '陰天', '雨天', '雪天', '起霧']
 
 function DiaryEditor() {
@@ -32,6 +39,8 @@ function DiaryEditor() {
   const [loading, setLoading] = useState(isEdit)
   const [saving, setSaving] = useState(false)
   const [errors, setErrors] = useState({})
+  const [isDragActive, setIsDragActive] = useState(false)
+  const fileInputRef = useRef(null)
 
   useEffect(() => {
     if (!isEdit) return
@@ -45,7 +54,7 @@ function DiaryEditor() {
           visibility: d.visibility || 'private',
           status: d.status || 'published'
         })
-        
+
         if (d.tags) {
           const emotions = d.tags.filter(t => t.tag_type === 'emotion').map(t => t.tag_value)
           const weather = d.tags.find(t => t.tag_type === 'weather')?.tag_value || ''
@@ -86,6 +95,14 @@ function DiaryEditor() {
     setTags(prev => ({ ...prev, weather: prev.weather === weather ? '' : weather }))
   }
 
+  const toggleVisibility = () => {
+    setForm(prev => ({
+      ...prev,
+      visibility: prev.visibility === 'public' ? 'private' : 'public'
+    }))
+  }
+
+
   const addKeyword = () => {
     if (keywordInput.trim() && tags.keywords.length < 10 && keywordInput.length <= 20) {
       setTags(prev => ({ ...prev, keywords: [...prev.keywords, keywordInput.trim()] }))
@@ -97,30 +114,82 @@ function DiaryEditor() {
     setTags(prev => ({ ...prev, keywords: prev.keywords.filter((_, i) => i !== idx) }))
   }
 
-  const handleFileSelect = async (e) => {
-    const files = Array.from(e.target.files)
-    if (files.length + media.length > 9) {
-      addToast('最多只能上傳 9 張圖片', 'warning')
+  const handleFilesUpload = async (fileList) => {
+    if (!Array.isArray(fileList) || fileList.length === 0) return
+
+    const remainingSlots = Math.max(0, 9 - media.length)
+    if (remainingSlots === 0) {
+      addToast('圖片已達上限 9 張', 'warning')
+      return
+    }
+
+    const validImages = fileList
+      .filter((file) => file.type.startsWith('image/'))
+      .filter((file) => {
+        if (file.size <= 5 * 1024 * 1024) return true
+        addToast(`${file.name} 超過 5MB，已略過`, 'warning')
+        return false
+      })
+      .slice(0, remainingSlots)
+
+    if (validImages.length === 0) {
+      addToast('沒有可上傳的圖片', 'warning')
       return
     }
 
     setUploading(true)
     const formData = new FormData()
-    files.forEach(f => formData.append('files', f))
+    validImages.forEach((file) => formData.append('files', file))
 
     try {
-  const token = sessionStorage.getItem('token')
+      const token = sessionStorage.getItem('token')
       const res = await axios.post('http://localhost:3000/api/v1/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${token}` }
       })
       const uploaded = res.data.files.map(f => ({ url: f.url, type: 'image', size: f.size }))
       setMedia(prev => [...prev, ...uploaded])
-      addToast(`成功上傳 ${files.length} 張圖片`, 'success')
+      addToast(`成功上傳 ${validImages.length} 張圖片`, 'success')
     } catch (err) {
       addToast(err.response?.data?.error || '上傳失敗', 'error')
     } finally {
       setUploading(false)
     }
+  }
+
+  const handleFileSelect = async (e) => {
+    const files = Array.from(e.target.files || [])
+    e.target.value = ''
+    if (!files.length) return
+    await handleFilesUpload(files)
+  }
+
+  const handleDrop = async (event) => {
+    event.preventDefault()
+    event.stopPropagation()
+    setIsDragActive(false)
+    if (uploading || saving) return
+
+    const dropped = Array.from(event.dataTransfer?.files || [])
+    await handleFilesUpload(dropped)
+  }
+
+  const handleDragOver = (event) => {
+    event.preventDefault()
+    event.stopPropagation()
+    if (uploading || saving) return
+    if (!isDragActive) setIsDragActive(true)
+  }
+
+  const handleDragLeave = (event) => {
+    event.preventDefault()
+    event.stopPropagation()
+    if (event.currentTarget.contains(event.relatedTarget)) return
+    setIsDragActive(false)
+  }
+
+  const openFileDialog = () => {
+    if (uploading || saving || media.length >= 9) return
+    fileInputRef.current?.click()
   }
 
   const removeMedia = (idx) => {
@@ -130,7 +199,7 @@ function DiaryEditor() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setSaving(true)
-    
+
     const allTags = [
       ...tags.emotions.map(e => ({ tag_type: 'emotion', tag_value: e })),
       ...(tags.weather ? [{ tag_type: 'weather', tag_value: tags.weather }] : []),
@@ -166,7 +235,7 @@ function DiaryEditor() {
       <h2 className="text-h2" style={{ marginBottom: 'var(--spacing-lg)' }}>
         {isEdit ? '編輯日記' : ' 寫新日記'}
       </h2>
-      
+
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-lg)' }}>
         {/* 標題 */}
         <Input
@@ -193,8 +262,8 @@ function DiaryEditor() {
             disabled={saving}
             placeholder="記錄你的想法與感受..."
             className="input-field"
-            style={{ 
-              fontFamily: 'inherit', 
+            style={{
+              fontFamily: 'inherit',
               resize: 'vertical',
               minHeight: 200
             }}
@@ -208,27 +277,34 @@ function DiaryEditor() {
         <Card>
           <h4 className="text-h4" style={{ marginBottom: 'var(--spacing-sm)' }}>情緒標籤（最多 3 個）</h4>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--spacing-sm)' }}>
-            {EMOTIONS.map(emotion => (
-              <button
-                key={emotion}
-                type="button"
-                onClick={() => toggleEmotion(emotion)}
-                disabled={saving}
-                style={{
-                  padding: 'var(--spacing-xs) var(--spacing-md)',
-                  border: tags.emotions.includes(emotion) ? '2px solid var(--primary-purple)' : '1.5px solid var(--gray-300)',
-                  borderRadius: 'var(--radius-full)',
-                  background: tags.emotions.includes(emotion) ? 'var(--emotion-pink)' : '#FFFFFF',
-                  color: tags.emotions.includes(emotion) ? 'var(--dark-purple)' : 'var(--gray-700)',
-                  cursor: 'pointer',
-                  fontWeight: tags.emotions.includes(emotion) ? 600 : 400,
-                  fontSize: '0.875rem',
-                  transition: 'all var(--transition-base)'
-                }}
-              >
-                {emotion}
-              </button>
-            ))}
+            {EMOTIONS.map(emotion => {
+              const isActive = tags.emotions.includes(emotion)
+              const palette = EMOTION_COLORS[emotion] || EMOTION_FALLBACK
+              const borderColor = palette.border || palette.bg || '#CD79D5'
+              const activeBackground = lightenHexColor(borderColor, 0.35)
+              return (
+                <button
+                  key={emotion}
+                  type="button"
+                  onClick={() => toggleEmotion(emotion)}
+                  disabled={saving}
+                  style={{
+                    padding: 'var(--spacing-xs) var(--spacing-md)',
+                    border: isActive ? `2px solid ${borderColor}` : `1.5px solid ${borderColor}`,
+                    borderRadius: 'var(--radius-full)',
+                    background: isActive ? palette.border : '#FFFFFF',
+                    color: isActive ? '#FFFFFF' : borderColor,
+                    cursor: 'pointer',
+                    fontWeight: isActive ? 600 : 500,
+                    fontSize: '0.875rem',
+                    transition: 'all var(--transition-base)',
+                    boxShadow: isActive ? `0 0 0 4px ${borderColor}22` : 'none'
+                  }}
+                >
+                  {emotion}
+                </button>
+              )
+            })}
           </div>
         </Card>
 
@@ -236,27 +312,32 @@ function DiaryEditor() {
         <Card>
           <h4 className="text-h4" style={{ marginBottom: 'var(--spacing-sm)' }}>天氣</h4>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--spacing-sm)' }}>
-            {WEATHERS.map(weather => (
-              <button
-                key={weather}
-                type="button"
-                onClick={() => selectWeather(weather)}
-                disabled={saving}
-                style={{
-                  padding: 'var(--spacing-xs) var(--spacing-md)',
-                  border: tags.weather === weather ? '2px solid var(--primary-purple)' : '1.5px solid var(--gray-300)',
-                  borderRadius: 'var(--radius-full)',
-                  background: tags.weather === weather ? 'var(--weather-cyan)' : '#FFFFFF',
-                  color: tags.weather === weather ? 'var(--dark-purple)' : 'var(--gray-700)',
-                  cursor: 'pointer',
-                  fontWeight: tags.weather === weather ? 600 : 400,
-                  fontSize: '0.875rem',
-                  transition: 'all var(--transition-base)'
-                }}
-              >
-                {weather}
-              </button>
-            ))}
+            {WEATHERS.map(weather => {
+              const isActive = tags.weather === weather
+              const palette = WEATHER_COLORS[weather] || WEATHER_FALLBACK
+              return (
+                <button
+                  key={weather}
+                  type="button"
+                  onClick={() => selectWeather(weather)}
+                  disabled={saving}
+                  style={{
+                    padding: 'var(--spacing-xs) var(--spacing-md)',
+                    border: isActive ? `2px solid ${palette.border}` : `1.5px solid ${palette.border}`,
+                    borderRadius: 'var(--radius-full)',
+                    background: isActive ? palette.bg : '#FFFFFF',
+                    color: isActive ? '#FFFFFF' : palette.border,
+                    cursor: 'pointer',
+                    fontWeight: isActive ? 600 : 500,
+                    fontSize: '0.875rem',
+                    transition: 'all var(--transition-base)',
+                    boxShadow: isActive ? `0 0 0 4px ${palette.border}22` : 'none'
+                  }}
+                >
+                  {weather}
+                </button>
+              )
+            })}
           </div>
         </Card>
 
@@ -279,24 +360,24 @@ function DiaryEditor() {
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--spacing-xs)' }}>
             {tags.keywords.map((kw, idx) => (
-              <span key={idx} style={{ 
-                padding: 'var(--spacing-xs) var(--spacing-sm)', 
-                background: 'var(--gray-100)', 
-                borderRadius: 'var(--radius-md)', 
+              <span key={idx} style={{
+                padding: 'var(--spacing-xs) var(--spacing-sm)',
+                background: 'var(--gray-100)',
+                borderRadius: 'var(--radius-md)',
                 fontSize: '0.875rem',
                 display: 'flex',
                 alignItems: 'center',
                 gap: 'var(--spacing-xs)'
               }}>
                 #{kw}
-                <button 
-                  type="button" 
-                  onClick={() => removeKeyword(idx)} 
+                <button
+                  type="button"
+                  onClick={() => removeKeyword(idx)}
                   disabled={saving}
-                  style={{ 
-                    background: 'none', 
-                    border: 'none', 
-                    cursor: 'pointer', 
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
                     color: 'var(--gray-600)',
                     padding: 0,
                     lineHeight: 1
@@ -315,27 +396,43 @@ function DiaryEditor() {
             圖片附件（最多 9 張，單檔 5MB）
           </h4>
           <div style={{ marginBottom: 'var(--spacing-md)' }}>
-            <label htmlFor="diary-file-upload" style={{ cursor: media.length >= 9 || uploading ? 'not-allowed' : 'pointer' }}>
-              <div style={{
+            <div
+              role="button"
+              tabIndex={uploading || saving || media.length >= 9 ? -1 : 0}
+              onClick={openFileDialog}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  openFileDialog()
+                }
+              }}
+              onDragEnter={handleDragOver}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              style={{
                 padding: 'var(--spacing-lg)',
-                border: '2px dashed var(--gray-300)',
+                border: `2px dashed ${isDragActive ? 'var(--primary-purple)' : 'var(--gray-300)'}`,
                 borderRadius: 'var(--radius-lg)',
                 textAlign: 'center',
-                background: uploading ? 'var(--gray-50)' : 'transparent',
-                transition: 'all var(--transition-base)'
-              }}>
-                <Upload size={32} style={{ color: 'var(--gray-400)', margin: '0 auto var(--spacing-sm)' }} />
-                <p className="text-small" style={{ color: 'var(--gray-600)' }}>
-                  {uploading ? '上傳中...' : '點擊選擇圖片或拖曳到此處'}
-                </p>
-              </div>
-            </label>
-            <input 
+                background: uploading ? 'var(--gray-50)' : isDragActive ? 'rgba(205, 121, 213, 0.08)' : 'transparent',
+                transition: 'all var(--transition-base)',
+                cursor: uploading || saving || media.length >= 9 ? 'not-allowed' : 'pointer',
+                outline: 'none'
+              }}
+            >
+              <Upload size={32} style={{ color: isDragActive ? 'var(--primary-purple)' : 'var(--gray-400)', margin: '0 auto var(--spacing-sm)' }} />
+              <p className="text-small" style={{ color: 'var(--gray-600)' }}>
+                {uploading ? '上傳中...' : media.length >= 9 ? '已達 9 張上限' : '點擊或拖曳圖片到此處上傳'}
+              </p>
+            </div>
+            <input
+              ref={fileInputRef}
               id="diary-file-upload"
-              type="file" 
-              multiple 
-              accept="image/*" 
-              onChange={handleFileSelect} 
+              type="file"
+              multiple
+              accept="image/*"
+              onChange={handleFileSelect}
               disabled={uploading || media.length >= 9 || saving}
               style={{ display: 'none' }}
             />
@@ -344,32 +441,33 @@ function DiaryEditor() {
           {media.length > 0 && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 'var(--spacing-sm)' }}>
               {media.map((m, idx) => (
-                <div key={idx} style={{ 
-                  position: 'relative', 
-                  borderRadius: 'var(--radius-md)', 
+                <div key={idx} style={{
+                  position: 'relative',
+                  borderRadius: 'var(--radius-md)',
                   overflow: 'hidden',
                   aspectRatio: '1',
                   border: '1px solid var(--gray-200)'
                 }}>
-                  <img 
-                    src={`http://localhost:3000${m.url}`} 
+                  <img
+                    src={`http://localhost:3000${m.url}`}
                     alt={`上傳圖片 ${idx + 1}`}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
                   <button
                     type="button"
                     onClick={() => removeMedia(idx)}
                     disabled={saving}
-                    style={{ 
-                      position: 'absolute', 
-                      top: 'var(--spacing-xs)', 
-                      right: 'var(--spacing-xs)', 
-                      background: 'rgba(0,0,0,0.6)', 
-                      color: '#fff', 
-                      border: 'none', 
-                      borderRadius: '50%', 
-                      width: 28, 
-                      height: 28, 
+                    style={{
+                      position: 'absolute',
+                      top: 'var(--spacing-xs)',
+                      right: 'var(--spacing-xs)',
+                      background: 'rgba(0,0,0,0.6)',
+                      padding: 0,
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '50%',
+                      width: 28,
+                      height: 28,
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
@@ -385,51 +483,46 @@ function DiaryEditor() {
         </Card>
 
         {/* 可見性與狀態 */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--spacing-md)' }}>
-          <Select
-            label="可見性"
-            name="visibility"
-            value={form.visibility}
-            onChange={handleChange}
+        <div style={{ display: 'flex', gap: 'var(--spacing-md)', flexWrap: 'wrap' }}>
+          <Button
+            type="button"
+            variant={form.visibility === 'public' ? 'primary' : 'outline'}
+            onClick={toggleVisibility}
             disabled={saving}
-            options={[
-              { value: 'private', label: ' 私人' },
-              { value: 'public', label: ' 公開' }
-            ]}
-          />
-          <Select
-            label="狀態"
-            name="status"
-            value={form.status}
-            onChange={handleChange}
-            disabled={saving}
-            options={[
-              { value: 'draft', label: ' 草稿' },
-              { value: 'published', label: ' 發布' }
-            ]}
-          />
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}
+          >
+            {form.visibility === 'public' ? (
+              <>
+                <Eye size={18} /> 公開
+              </>
+            ) : (
+              <>
+                <EyeOff size={18} /> 私人
+              </>
+            )}
+          </Button>
         </div>
 
         {/* 按鈕區 */}
         <div style={{ display: 'flex', gap: 'var(--spacing-md)', justifyContent: 'flex-end', paddingTop: 'var(--spacing-md)', borderTop: '1px solid var(--gray-200)' }}>
-          <Button 
-            type="button" 
-            variant="ghost" 
+          <Button
+            type="button"
+            variant="ghost"
             onClick={() => navigate('/diaries')}
             disabled={saving}
           >
             取消
           </Button>
-          <Button 
-            type="button" 
-            variant="outline" 
+          {/* <Button
+            type="button"
+            variant="outline"
             onClick={saveDraft}
             disabled={saving}
           >
             儲存草稿
-          </Button>
-          <Button 
-            type="submit" 
+          </Button> */}
+          <Button
+            type="submit"
             variant="primary"
             disabled={saving}
           >
@@ -437,7 +530,7 @@ function DiaryEditor() {
           </Button>
         </div>
       </form>
-    </div>
+    </div >
   )
 }
 

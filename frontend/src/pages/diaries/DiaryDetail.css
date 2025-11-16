@@ -187,16 +187,7 @@
     border-radius: 16px;
     font-size: 0.875rem;
     font-weight: 500;
-}
-
-.diary-detail-tag--emotion {
-    background: #e1b1e8;
-    color: var(--dark-purple, #4a0f4f);
-}
-
-.diary-detail-tag--weather {
-    background: #b2ebf2;
-    color: #006064;
+    border: 1.5px solid transparent;
 }
 
 .diary-detail-tag--keyword {
