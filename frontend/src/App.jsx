@@ -20,7 +20,6 @@ import MessagesPage from './pages/messages/MessagesPage'
 import LuckyCardPage from './pages/lucky/LuckyCardPage'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import Announcements from './pages/admin/Announcements'
-import AnnouncementForm from './pages/admin/AnnouncementForm'
 import UserManagement from './pages/admin/UserManagement'
 import FeedbackManagement from './pages/admin/FeedbackManagement'
 import FaqPage from './pages/FaqPage'
@@ -67,8 +66,6 @@ function App() {
               <Route path="/feedback" element={<FeedbackPage />} />
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/admin/announcements" element={<Announcements />} />
-              <Route path="/admin/announcements/new" element={<AnnouncementForm />} />
-              <Route path="/admin/announcements/:id/edit" element={<AnnouncementForm />} />
               <Route path="/admin/users" element={<UserManagement />} />
               <Route path="/admin/feedback" element={<FeedbackManagement />} />
             </Route>

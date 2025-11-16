@@ -7,6 +7,7 @@ import commentAPI from '../../services/commentAPI'
 import useAuthStore from '../../store/authStore'
 import GuestModal from '../../components/ui/GuestModal'
 import { useToast } from '../../components/ui/Toast'
+import { buildTagStyle, getEmotionPalette, getWeatherPalette } from '../../utils/tagPalettes'
 import './DiaryDetail.css'
 
 function DiaryDetail() {
@@ -435,13 +436,30 @@ function DiaryDetail() {
 
           {diary.tags && diary.tags.length > 0 && (
             <div className="diary-detail-tags">
-              {emotionTags.map((tag, index) => (
-                <span key={`emotion-${index}`} className="diary-detail-tag diary-detail-tag--emotion">
-                  {tag.tag_value}
-                </span>
-              ))}
+              {emotionTags.map((tag, index) => {
+                const palette = getEmotionPalette(tag.tag_value)
+                const tagStyle = {
+                  ...buildTagStyle(palette),
+                  color: '#FFFFFF'
+                }
+                return (
+                  <span
+                    key={`emotion-${index}`}
+                    className="diary-detail-tag diary-detail-tag--emotion"
+                    style={tagStyle}
+                  >
+                    {tag.tag_value}
+                  </span>
+                )
+              })}
               {weatherTag && (
-                <span className="diary-detail-tag diary-detail-tag--weather">
+                <span
+                  className="diary-detail-tag diary-detail-tag--weather"
+                  style={{
+                    ...buildTagStyle(getWeatherPalette(weatherTag.tag_value)),
+                    color: '#FFFFFF'
+                  }}
+                >
                   {weatherTag.tag_value}
                 </span>
               )}

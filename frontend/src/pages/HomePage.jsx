@@ -9,6 +9,7 @@ import Input from '../components/ui/Input'
 import Select from '../components/ui/Select'
 import Button from '../components/ui/Button'
 import { EMOTIONS, WEATHERS, SORT_OPTIONS } from '../constants/searchFilters'
+import { buildTagStyle, getEmotionPalette, getWeatherPalette } from '../utils/tagPalettes'
 import './HomePage.css'
 
 function HomePage() {
@@ -808,39 +809,41 @@ function HomePage() {
                         <span
                           key={i}
                           style={{
-                            padding: '3px 10px',
-                            background: 'var(--emotion-pink)',
-                            borderRadius: '12px',
-                            fontSize: '0.75rem',
-                            fontWeight: 500,
-                            color: 'var(--dark-purple)'
+                            ...buildTagStyle(getEmotionPalette(t.tag_value)),
+                            padding: '2px 8px',
+                            color: '#FFFFFF',
+                            borderRadius: '999px',
+                            fontSize: '0.8125rem'
                           }}
                         >
                           {t.tag_value}
                         </span>
                       ))}
-                      {post.tags.find(t => t.tag_type === 'weather') && (
-                        <span
-                          style={{
-                            padding: '3px 10px',
-                            background: '#B2EBF2',
-                            borderRadius: '12px',
-                            fontSize: '0.75rem',
-                            fontWeight: 500,
-                            color: '#006064'
-                          }}
-                        >
-                          {post.tags.find(t => t.tag_type === 'weather').tag_value}
-                        </span>
-                      )}
+                      {(() => {
+                        const weatherTag = post.tags.find(t => t.tag_type === 'weather')
+                        if (!weatherTag) return null
+                        return (
+                          <span
+                            style={{
+                              ...buildTagStyle(getWeatherPalette(weatherTag.tag_value)),
+                              padding: '2px 8px',
+                              color: '#FFFFFF',
+                              borderRadius: '999px',
+                              fontSize: '0.8125rem'
+                            }}
+                          >
+                            {weatherTag.tag_value}
+                          </span>
+                        )
+                      })()}
                       {post.tags.filter(t => t.tag_type === 'keyword').slice(0, 3).map((t, i) => (
                         <span
                           key={i}
                           style={{
-                            padding: '3px 10px',
+                            padding: '2px 8px',
                             background: 'var(--gray-200)',
-                            borderRadius: '12px',
-                            fontSize: '0.75rem',
+                            borderRadius: '999px',
+                            fontSize: '0.8125rem',
                             color: 'var(--gray-700)'
                           }}
                         >
