@@ -308,8 +308,8 @@ function NotificationBell({ iconColor = '#FFFFFF' }) {
             justifyContent: 'space-between',
             alignItems: 'center'
           }}>
-            <strong style={{ fontSize: 16 }}>系統通知</strong>
-            <span style={{ fontSize: 12, color: '#999' }}>{unreadCount} 則未讀</span>
+            <strong style={{ fontSize: 18 }}>系統通知</strong>
+            <span style={{ fontSize: 13, color: '#999' }}>{unreadCount} 則未讀</span>
           </div>
           <div style={{ maxHeight: 540, overflowY: 'auto' }}>
             {notifications.length === 0 ? (
@@ -347,10 +347,10 @@ function NotificationBell({ iconColor = '#FFFFFF' }) {
                           <div style={{ flex: 1 }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                               <div>
-                                <div style={{ fontSize: 15, fontWeight: 600, color: '#333' }}>
+                                <div style={{ fontSize: 17, fontWeight: 600, color: '#333' }}>
                                   {n.username || '未知用戶'}
                                 </div>
-                                <div style={{ fontSize: 12, color: '#999' }}>
+                                <div style={{ fontSize: 13, color: '#999' }}>
                                   @{n.username}
                                 </div>
                               </div>
@@ -364,12 +364,12 @@ function NotificationBell({ iconColor = '#FFFFFF' }) {
                                 }} />
                               )}
                             </div>
-                            <div style={{ fontSize: 13, color: '#666', marginTop: 6 }}>
+                            <div style={{ fontSize: 15, color: '#666', marginTop: 6 }}>
                               {renderMaybeFixed(n.notification_id, n.content, tryFixEncoding(n.content))}
                             </div>
                           </div>
                         </div>
-                        <div style={{ fontSize: 11, color: '#999', marginLeft: 52 }}>
+                        <div style={{ fontSize: 13, color: '#999', marginLeft: 52 }}>
                           {new Date(n.created_at).toLocaleString()}
                         </div>
                       </div>
@@ -387,7 +387,7 @@ function NotificationBell({ iconColor = '#FFFFFF' }) {
                             color: '#fff',
                             border: 'none',
                             borderRadius: 20,
-                            fontSize: 13,
+                            fontSize: 15,
                             cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
@@ -421,7 +421,7 @@ function NotificationBell({ iconColor = '#FFFFFF' }) {
                         style={{ cursor: n.is_read ? 'default' : 'pointer' }}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                          <strong style={{ fontSize: 14, color: n.is_read ? '#666' : '#333' }}>
+                          <strong style={{ fontSize: 16, color: n.is_read ? '#666' : '#333' }}>
                             {tryFixEncoding(n.title)}
                           </strong>
                           {!n.is_read && (
@@ -435,10 +435,10 @@ function NotificationBell({ iconColor = '#FFFFFF' }) {
                             }} />
                           )}
                         </div>
-                        <div style={{ fontSize: 13, color: '#666', marginBottom: 6 }}>
+                        <div style={{ fontSize: 15, color: '#666', marginBottom: 6 }}>
                           {renderMaybeFixed(n.notification_id, n.content, tryFixEncoding(n.content))}
                         </div>
-                        <div style={{ fontSize: 11, color: '#999' }}>
+                        <div style={{ fontSize: 13, color: '#999' }}>
                           {new Date(n.created_at).toLocaleString()}
                         </div>
                       </div>
@@ -446,7 +446,7 @@ function NotificationBell({ iconColor = '#FFFFFF' }) {
                         <Link
                           to={`/diaries/${n.related_diary_id}`}
                           onClick={() => setShowNotif(false)}
-                          style={{ fontSize: 12, color: '#CD79D5', marginTop: 6, display: 'inline-block' }}
+                          style={{ fontSize: 13, color: '#CD79D5', marginTop: 6, display: 'inline-block' }}
                         >
                           查看日記 →
                         </Link>

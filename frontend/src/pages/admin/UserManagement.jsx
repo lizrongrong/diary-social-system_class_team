@@ -35,12 +35,13 @@ function UserManagement() {
     }
   }
 
-  // NOTE: do not auto-load users on mount. Show the "請輸入以查詢用戶" prompt when
-  // the search input is empty. We will reload from server after updates/deletes so
-  // the page reflects persisted changes.
+  // load users when component mounts so empty search shows all users
+  useEffect(() => {
+    loadUsers()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-  const isUuid = (s) => /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(s)
-  const isUsername = (s) => /^[a-zA-Z0-9_.-]{3,64}$/.test(s)
+  // allow any non-empty keyword (we'll do SQL LIKE %keyword% server-side)
 
   const normalizeStatus = (raw) => {
     if (raw === null || typeof raw === 'undefined') return 'active'
@@ -56,17 +57,9 @@ function UserManagement() {
     searchIdRef.current += 1
     const requestId = searchIdRef.current
 
-    // if empty keyword -> do not search, instruct user to input
+    // if empty keyword -> do not search; caller will load all users
     if (!keyword) {
       setSearching(false)
-      setUsers([])
-      return
-    }
-
-    // only allow search when keyword looks like user_id (uuid) or username
-    if (!(isUuid(keyword) || isUsername(keyword))) {
-      setSearching(false)
-      setUsers([])
       return
     }
 
@@ -91,8 +84,8 @@ function UserManagement() {
     const t = setTimeout(() => {
       if (searchTerm.trim()) handleSearch(searchTerm)
       else {
-        // do not auto-load users; show prompt
-        setUsers([])
+        // when search box is empty, show all users
+        loadUsers()
       }
     }, 300)
     return () => clearTimeout(t)
@@ -120,7 +113,7 @@ function UserManagement() {
         {loading ? (
           <Card>載入中...</Card>
         ) : users.length === 0 ? (
-          <Card>{searchTerm.trim() ? '沒有找到用戶。' : '請輸入以查詢用戶'}</Card>
+          <Card>沒有找到用戶。</Card>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
             {users.map((u) => (
@@ -160,20 +153,11 @@ function UserManagement() {
                       if (!window.confirm('確定要修改此用戶狀態嗎？')) return
                       try {
                         await adminAPI.updateUserStatus(u.user_id, newStatus)
-                        // If the admin is currently searching, refresh the search
-                        // results (which include `status`) so the displayed item
-                        // remains on the search page but shows the persisted value.
-                        if (searchTerm.trim()) {
-                          const resp = await adminAPI.getUsers(searchTerm)
-                          const serverUsers = (resp.users || []).map(uu => {
-                            const statusNorm = normalizeStatus(uu.status)
-                            return { ...uu, statusNormalized: statusNorm, _selectedStatus: statusNorm }
-                          })
-                          setUsers(serverUsers)
-                        } else {
-                          // not searching: reload full list
-                          await loadUsers()
-                        }
+                        // Update the specific user in-place so the list order doesn't change
+                        setUsers(prev => prev.map(x => x.user_id === u.user_id
+                          ? { ...x, status: newStatus, statusNormalized: normalizeStatus(newStatus), _selectedStatus: newStatus }
+                          : x
+                        ))
                         addToast('用戶狀態已更新', 'success')
                       } catch (err) {
                         console.error('Update user status failed', err)
@@ -184,18 +168,8 @@ function UserManagement() {
                       if (!window.confirm('確定要刪除此帳號？此操作會將帳號標記為已刪除，使用者將無法登入。')) return
                       try {
                         await adminAPI.deleteUser(u.user_id)
-                        // If user performed a search, refresh the search results so
-                        // the UI stays on the search page and shows the persisted state.
-                        if (searchTerm.trim()) {
-                          const resp = await adminAPI.getUsers(searchTerm)
-                          const serverUsers = (resp.users || []).map(uu => {
-                            const statusNorm = normalizeStatus(uu.status)
-                            return { ...uu, statusNormalized: statusNorm, _selectedStatus: statusNorm }
-                          })
-                          setUsers(serverUsers)
-                        } else {
-                          await loadUsers()
-                        }
+                        // Remove the deleted user from the local list to keep current ordering
+                        setUsers(prev => prev.filter(x => x.user_id !== u.user_id))
                         addToast('帳號已刪除', 'success')
                       } catch (err) {
                         console.error('Delete user failed', err)
