@@ -73,11 +73,25 @@ class Feedback {
       FROM feedbacks
       WHERE user_id = ?
       ORDER BY created_at DESC
-      LIMIT ? OFFSET ?
     `;
 
-    const [rows] = await db.execute(query, [userId, limit, offset]);
+    // Some MySQL / driver combinations don't accept LIMIT/OFFSET as prepared-statement
+    // parameters; interpolate the numeric values directly after validation.
+    const finalQuery = query + ` LIMIT ${Number(limit)} OFFSET ${Number(offset)}`;
+
+    const [rows] = await db.execute(finalQuery, [userId]);
     return rows;
+  }
+
+  static async findById(feedbackId) {
+    const query = `
+      SELECT feedback_id, user_id, category, subject, description, status, admin_reply, created_at, updated_at, resolved_at
+      FROM feedbacks
+      WHERE feedback_id = ?
+      LIMIT 1
+    `;
+    const [rows] = await db.execute(query, [feedbackId]);
+    return (rows && rows[0]) ? rows[0] : null;
   }
 
   // 管理員：列出所有回饋
@@ -89,10 +103,11 @@ class Feedback {
       SELECT feedback_id, user_id, category, subject, description, status, admin_reply, created_at, updated_at, resolved_at
       FROM feedbacks
       ORDER BY created_at DESC
-      LIMIT ? OFFSET ?
     `;
 
-    const [rows] = await db.execute(query, [limit, offset]);
+    // Interpolate numeric LIMIT/OFFSET to avoid prepared-statement parameter issues
+    const finalQuery = query + ` LIMIT ${Number(limit)} OFFSET ${Number(offset)}`;
+    const [rows] = await db.query(finalQuery);
     return rows;
   }
 
