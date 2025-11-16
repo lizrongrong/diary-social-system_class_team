@@ -28,6 +28,9 @@ router.delete('/diaries/:diaryId', adminController.deleteDiary);
 router.get('/announcements', announcementController.listAll);
 router.post('/announcements', announcementController.create);
 router.delete('/announcements/:id', announcementController.delete);
+// 取得單一公告、更新公告 (編輯)
+router.get('/announcements/:id', announcementController.getById);
+router.put('/announcements/:id', announcementController.update);
 
 // Feedback 管理
 router.get('/feedbacks', feedbackController.adminList);
