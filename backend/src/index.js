@@ -318,6 +318,30 @@ if ((process.env.NODE_ENV || 'development') !== 'production') {
       return res.status(500).json({ ok: false, error: err.message });
     }
   });
+  // Development-only: list feedbacks without auth (helpful for local UI debugging)
+  app.get('/api/v1/dev/feedbacks', async (req, res) => {
+    try {
+      const Feedback = require('./models/Feedback');
+      const feedbacks = await Feedback.findAll({ limit: 200, offset: 0 });
+      return res.json({ ok: true, count: feedbacks.length, feedbacks });
+    } catch (err) {
+      console.error('Dev feedbacks error:', err && err.stack ? err.stack : err);
+      return res.status(500).json({ ok: false, error: err && err.message ? String(err.message) : String(err) });
+    }
+  });
+  // Development-only: fetch notifications for a user (no auth) to help debugging
+  app.get('/api/v1/dev/notifications/:userId', async (req, res) => {
+    try {
+      const Notification = require('./models/Notification');
+      const { userId } = req.params;
+      const { limit, offset } = req.query || {};
+      const rows = await Notification.findByUser(userId, limit || 50, offset || 0);
+      return res.json({ ok: true, count: rows.length, notifications: rows });
+    } catch (err) {
+      console.error('Dev notifications error:', err && err.stack ? err.stack : err);
+      return res.status(500).json({ ok: false, error: err && err.message ? String(err.message) : String(err) });
+    }
+  });
 }
 
 // Error handling

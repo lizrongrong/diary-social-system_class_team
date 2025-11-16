@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import useAuthStore from '../../store/authStore'
 import axios from 'axios'
+import api from '../../services/api'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 
@@ -11,26 +12,49 @@ function FeedbackManagement() {
   const { user } = useAuthStore()
   const [feedbacks, setFeedbacks] = useState([])
   const [loading, setLoading] = useState(true)
+  const [errorMsg, setErrorMsg] = useState(null)
+  const [openReplyFor, setOpenReplyFor] = useState(null)
+  const [replyText, setReplyText] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     loadFeedbacks()
   }, [])
 
   const loadFeedbacks = async () => {
-    try {
-      setLoading(true)
-      const token = sessionStorage.getItem('token')
-      const config = { headers: { Authorization: `Bearer ${token}` } }
-      // 先嘗試 admin route，若沒有再退回公共 route
-      try {
-        const resp = await axios.get(`${API_URL}/admin/feedbacks`, config)
-        setFeedbacks(resp.data.feedbacks || resp.data || [])
-      } catch (err) {
-        const resp2 = await axios.get(`${API_URL}/feedbacks`, config)
-        setFeedbacks(resp2.data.feedbacks || resp2.data || [])
+    setErrorMsg(null)
+        try {
+          setLoading(true)
+          // Use centralized api client which automatically injects token
+          try {
+            const resp = await api.get('/admin/feedbacks')
+            setFeedbacks(resp.data.feedbacks || resp.data || [])
+            return
+          } catch (adminErr) {
+            // If admin route fails due to permission, try fetching current user's feedbacks
+            console.warn('Admin route failed, trying user feedbacks:', adminErr?.response?.status, adminErr?.response?.data)
+            if (adminErr?.response) {
+              setErrorMsg(`Admin API returned ${adminErr.response.status}: ${adminErr.response.data?.message || adminErr.response.data?.error || JSON.stringify(adminErr.response.data)}`)
+            }
+        try {
+          const resp2 = await api.get('/feedbacks')
+          setFeedbacks(resp2.data.feedbacks || resp2.data || [])
+        } catch (userErr) {
+          console.error('Failed to fetch feedbacks (user route):', userErr)
+              // try dev fallback route
+              try {
+                const devResp = await api.get('/dev/feedbacks')
+                setFeedbacks(devResp.data.feedbacks || devResp.data || [])
+                setErrorMsg(`Admin/user API failed, using dev fallback (dev/feedbacks). Original error: ${userErr.message}`)
+              } catch (devErr) {
+                console.error('Dev fallback failed:', devErr)
+                setErrorMsg(`Failed to fetch feedbacks: ${userErr.response?.status || ''} ${userErr.response?.data?.message || userErr.message}`)
+              }
+        }
       }
     } catch (err) {
       console.error('Load feedbacks failed', err)
+      setErrorMsg(err.message || 'Unknown error')
     } finally {
       setLoading(false)
     }
@@ -50,25 +74,70 @@ function FeedbackManagement() {
 
         {loading ? (
           <Card>載入中...</Card>
+        ) : errorMsg ? (
+          <Card>載入失敗：{errorMsg}</Card>
         ) : feedbacks.length === 0 ? (
           <Card>目前沒有回饋。</Card>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
             {feedbacks.map((f) => (
               <Card key={f.id || f.feedback_id}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600 }}>{f.subject || f.title || '使用者回饋'}</div>
-                    <div className="text-tiny" style={{ color: 'var(--gray-500)' }}>{f.message || f.body}</div>
+                    <div style={{ fontWeight: 600, whiteSpace: 'pre-wrap' }}>{f.subject || f.title || '使用者回饋'}</div>
+                    <div className="text-tiny" style={{ color: 'var(--gray-500)', marginTop: 6, whiteSpace: 'pre-wrap' }}>{f.message || f.body || f.description}</div>
                     {f.admin_reply && (
-                      <div style={{ marginTop: 8, color: 'var(--gray-600)' }}>
+                      <div style={{ marginTop: 8, color: 'var(--gray-600)', whiteSpace: 'pre-wrap' }}>
                         管理者回覆：{f.admin_reply}
+                      </div>
+                    )}
+                    {/* reply panel */}
+                    {openReplyFor === (f.id || f.feedback_id) && !f.admin_reply && (
+                      <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600 }}>回覆問題</div>
+                        <div style={{ whiteSpace: 'pre-wrap', color: 'var(--gray-700)' }}>
+                          <div><strong>標題：</strong>{f.subject || f.title}</div>
+                          <div style={{ marginTop: 6 }}><strong>內容：</strong>{f.message || f.body || f.description}</div>
+                        </div>
+                        <textarea
+                          value={replyText}
+                          onChange={(e) => setReplyText(e.target.value)}
+                          placeholder="請輸入回覆內容，將發送到使用者的系統通知"
+                          style={{ minHeight: 100, padding: 10, fontSize: 14, borderRadius: 6, border: '1px solid var(--gray-200)' }}
+                        />
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <Button variant="primary" disabled={submitting || !replyText.trim()} onClick={async () => {
+                            try {
+                              setSubmitting(true)
+                              const token = sessionStorage.getItem('token')
+                              const config = { headers: { Authorization: `Bearer ${token}` } }
+                              const id = f.id || f.feedback_id
+                                await api.put(`/admin/feedbacks/${id}/reply`, { admin_reply: replyText.trim(), status: 'resolved' })
+                              // update local state
+                              setFeedbacks(prev => prev.map(item => ( (item.id || item.feedback_id) === id ? { ...item, admin_reply: replyText.trim(), status: 'resolved' } : item )))
+                              setOpenReplyFor(null)
+                              setReplyText('')
+                            } catch (err) {
+                              console.error('Reply failed', err)
+                              alert(err.response?.data?.message || '回覆失敗')
+                                alert(err.response?.data?.message || err.response?.data?.error || '回覆失敗')
+                            } finally {
+                              setSubmitting(false)
+                            }
+                          }}>送出回覆</Button>
+                          <Button variant="outline" onClick={() => { setOpenReplyFor(null); setReplyText('') }}>取消</Button>
+                        </div>
                       </div>
                     )}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    <Button variant="outline">查看</Button>
-                    <Button variant="primary">回覆（需 API）</Button>
+                    {f.admin_reply ? (
+                      <Button variant="secondary" disabled>已回覆</Button>
+                    ) : (
+                      <Button variant="primary" onClick={() => { const fid = f.id || f.feedback_id; if (openReplyFor === fid) { setOpenReplyFor(null); setReplyText('') } else { setOpenReplyFor(fid); setReplyText('') } }}>
+                        回覆
+                      </Button>
+                    )}
                   </div>
                 </div>
               </Card>

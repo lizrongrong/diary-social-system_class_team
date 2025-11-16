@@ -92,11 +92,9 @@ exports.getMyFeedbacks = async (req, res) => {
     const feedbacks = await Feedback.findByUser(req.user.user_id, { limit, offset });
     res.json({ feedbacks });
   } catch (error) {
-    console.error('Get feedbacks error:', error);
-    res.status(500).json({
-      error: 'Server error',
-      code: 'SERVER_ERROR'
-    });
+    console.error('Get feedbacks error:', error && error.stack ? error.stack : error);
+    const body = { error: 'Server error', code: 'SERVER_ERROR', detail: error && error.message ? String(error.message) : String(error) };
+    res.status(500).json(body);
   }
 };
 
@@ -107,12 +105,15 @@ exports.adminList = async (req, res) => {
     const feedbacks = await Feedback.findAll({ limit, offset });
     res.json({ feedbacks });
   } catch (error) {
-    console.error('Admin get feedbacks error:', error);
-    res.status(500).json({ error: 'Server error', code: 'SERVER_ERROR' });
+    console.error('Admin get feedbacks error:', error && error.stack ? error.stack : error);
+    const body = { error: 'Server error', code: 'SERVER_ERROR', detail: error && error.message ? String(error.message) : String(error) };
+    res.status(500).json(body);
   }
 };
 
 // 管理員：回覆回饋
+const Notification = require('../models/Notification');
+
 exports.adminReply = async (req, res) => {
   try {
     const { id } = req.params;
@@ -120,9 +121,37 @@ exports.adminReply = async (req, res) => {
     if (!admin_reply || typeof admin_reply !== 'string' || admin_reply.trim().length < 1) {
       return res.status(400).json({ error: 'Invalid reply' });
     }
+
+    // Ensure feedback exists and fetch its owner
+    const feedback = await Feedback.findById(id);
+    if (!feedback) return res.status(404).json({ message: 'Feedback not found' });
+
     const ok = await Feedback.reply(id, admin_reply.trim(), status);
     if (!ok) return res.status(404).json({ message: 'Feedback not found' });
-    res.json({ message: 'Replied' });
+
+    // Create a system notification for the feedback owner
+    let createdNotificationId = null;
+    try {
+      const targetUserId = feedback.user_id;
+      const title = `管理者回覆：${feedback.subject || '使用者回饋'}`;
+      // Compose full content: original subject, original description, and admin reply separated by newlines
+      const contentParts = [];
+      if (feedback.subject) contentParts.push(`問題標題：${feedback.subject}`);
+      if (feedback.description) contentParts.push(`問題內容：${feedback.description}`);
+      contentParts.push(`回覆：${admin_reply.trim()}`);
+      const content = contentParts.join('\n\n');
+
+      // Use existing 'system' enum type for feedback replies to match DB schema
+      createdNotificationId = await Notification.create(targetUserId, 'system', title, content, req.user.user_id, null);
+      console.log('Notification created for feedback reply, id=', createdNotificationId);
+    } catch (notifyErr) {
+      console.error('Failed to create notification for feedback reply:', notifyErr && notifyErr.stack ? notifyErr.stack : notifyErr);
+      createdNotificationId = null;
+      // Non-fatal: continue
+    }
+
+    // Indicate whether notification was created (if any)
+    res.json({ message: 'Replied', notification_created: !!createdNotificationId, notification_id: createdNotificationId || null });
   } catch (error) {
     console.error('Admin reply error:', error);
     res.status(500).json({ error: 'Server error', code: 'SERVER_ERROR' });
