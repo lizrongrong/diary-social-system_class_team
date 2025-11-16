@@ -68,13 +68,14 @@ exports.getUsers = async (req, res) => {
     const offset = Number.isFinite(parsedOffset) && !isNaN(parsedOffset) ? Math.max(0, parsedOffset) : 0;
     const search = (req.query.search || '').toString().trim();
 
-    let query = `SELECT user_id, username, email, role, status, created_at FROM users`;
+    let query = `SELECT user_id, username, email, role, status, profile_image, created_at FROM users`;
     const params = [];
 
     if (search) {
-      query += ' WHERE username LIKE ? OR email LIKE ?';
+      // Allow searching by username, email or user_id to support admin searches
+      query += ' WHERE username LIKE ? OR email LIKE ? OR user_id LIKE ?';
       const searchPattern = `%${search}%`;
-      params.push(searchPattern, searchPattern);
+      params.push(searchPattern, searchPattern, searchPattern);
     }
 
     // Embed sanitized limit/offset directly to avoid driver issues with binding LIMIT/OFFSET
@@ -91,8 +92,8 @@ exports.getUsers = async (req, res) => {
       // 獲取總數
       let countQuery = 'SELECT COUNT(*) as count FROM users';
       if (search) {
-        countQuery += ' WHERE username LIKE ? OR email LIKE ?';
-        const [countResult] = await db.execute(countQuery, [`%${search}%`, `%${search}%`]);
+        countQuery += ' WHERE username LIKE ? OR email LIKE ? OR user_id LIKE ?';
+        const [countResult] = await db.execute(countQuery, [`%${search}%`, `%${search}%`, `%${search}%`]);
         total = (countResult && countResult[0] && countResult[0].count) || users.length;
       } else {
         const [countResult] = await db.execute(countQuery);
@@ -198,7 +199,7 @@ exports.updateUserStatus = async (req, res) => {
     const { userId } = req.params;
     const { status } = req.body;
 
-    if (!['active', 'suspended', 'banned'].includes(status)) {
+    if (!['active', 'suspended', 'banned', 'deleted'].includes(status)) {
       return res.status(400).json({ message: 'Invalid status' });
     }
 

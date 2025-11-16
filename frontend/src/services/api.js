@@ -223,6 +223,27 @@ export const userAPI = {
   }
 }
 
+// 管理員 API
+export const adminAPI = {
+  updateUserStatus: async (userId, status) => {
+    const res = await api.put(`/admin/users/${userId}/status`, { status })
+    return res.data
+  },
+  // Soft-delete user by setting status = 'deleted'
+  deleteUser: async (userId) => {
+    const res = await api.put(`/admin/users/${userId}/status`, { status: 'deleted' })
+    return res.data
+  }
+}
+
+// 管理員查詢介面
+adminAPI.getUsers = async (search = '', options = {}) => {
+  const params = { limit: options.limit || 50 }
+  if (search && String(search).trim()) params.search = String(search).trim()
+  const res = await api.get('/admin/users', { params })
+  return res.data
+}
+
 // 檔案上傳 API
 const uploadFiles = async (files, options = {}) => {
   const formData = new FormData()
