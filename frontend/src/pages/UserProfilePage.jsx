@@ -1,6 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { BookOpen, Heart, MessageCircle, Share2, UserMinus, UserPlus, Users } from 'lucide-react'
+import { BookOpen, Heart, HeartHandshake, MessageCircle, Share2, UserMinus, UserPlus, Users } from 'lucide-react'
 import { diaryAPI, ensureAbsoluteUrl, followAPI, likeAPI, userAPI } from '../services/api'
 import useAuthStore from '../store/authStore'
 import { useToast } from '../components/ui/Toast'
@@ -28,7 +28,12 @@ function UserProfilePage() {
   const [diaries, setDiaries] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [followState, setFollowState] = useState({ isFollowing: false, loading: false })
+  const [followState, setFollowState] = useState({
+    isFollowing: false,
+    isMutual: false,
+    followsYou: false,
+    loading: false
+  })
   const [showUnfollowConfirm, setShowUnfollowConfirm] = useState(false)
 
   const isOwnProfile = currentUser?.user_id === userId
@@ -65,12 +70,18 @@ function UserProfilePage() {
           try {
             const status = await followAPI.checkStatus(userId)
             if (!mounted) return
-            setFollowState((prev) => ({ ...prev, isFollowing: !!status.isFriend }))
+            setFollowState((prev) => ({
+              ...prev,
+              isFollowing: !!status.isFriend,
+              isMutual: !!status.isMutual,
+              followsYou: !!status.followsYou,
+              loading: false
+            }))
           } catch (statusError) {
             console.warn('Unable to fetch follow status:', statusError)
           }
         } else if (mounted) {
-          setFollowState({ isFollowing: false, loading: false })
+          setFollowState({ isFollowing: false, isMutual: false, followsYou: false, loading: false })
         }
       } catch (err) {
         if (!mounted) return
@@ -149,7 +160,12 @@ function UserProfilePage() {
     setFollowState((prev) => ({ ...prev, loading: true }))
     try {
       await followAPI.add(userId)
-      setFollowState({ isFollowing: true, loading: false })
+      setFollowState((prev) => ({
+        ...prev,
+        isFollowing: true,
+        isMutual: prev.followsYou || prev.isMutual,
+        loading: false
+      }))
       setStats((prev) => ({
         ...prev,
         followerCount: prev.followerCount + 1
@@ -165,7 +181,12 @@ function UserProfilePage() {
     setFollowState((prev) => ({ ...prev, loading: true }))
     try {
       await followAPI.remove(userId)
-      setFollowState({ isFollowing: false, loading: false })
+      setFollowState((prev) => ({
+        ...prev,
+        isFollowing: false,
+        isMutual: false,
+        loading: false
+      }))
       setStats((prev) => ({
         ...prev,
         followerCount: Math.max(0, prev.followerCount - 1)
@@ -257,10 +278,17 @@ function UserProfilePage() {
                 disabled={followState.loading}
               >
                 {followState.isFollowing ? (
-                  <>
-                    <UserMinus size={16} />
-                    已追蹤
-                  </>
+                  followState.isMutual ? (
+                    <>
+                      <HeartHandshake size={16} />
+                      互相追蹤
+                    </>
+                  ) : (
+                    <>
+                      <UserMinus size={16} />
+                      已追蹤
+                    </>
+                  )
                 ) : (
                   <>
                     <UserPlus size={16} />

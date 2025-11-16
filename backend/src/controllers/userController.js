@@ -102,6 +102,7 @@ exports.updateProfile = async (req, res) => {
         : generateAvatar(nextUsername || req.user.user_id);
     }
 
+    const DEFAULT_SIGNATURE = '這個人有點神秘還沒有個性簽名喔~';
     if (signature !== undefined) {
       const trimmedSignature = typeof signature === 'string' ? signature.trim() : '';
       if (trimmedSignature.length > 50) {
@@ -111,7 +112,7 @@ exports.updateProfile = async (req, res) => {
           message: '個性簽名長度不可超過 50 字'
         });
       }
-      updates.signature = trimmedSignature.length > 0 ? trimmedSignature : null;
+      updates.signature = trimmedSignature.length > 0 ? trimmedSignature : DEFAULT_SIGNATURE;
     }
 
     const success = await User.update(req.user.user_id, updates);
@@ -132,7 +133,9 @@ exports.updateProfile = async (req, res) => {
         user_id: updatedUser.user_id,
         email: updatedUser.email,
         username: updatedUser.username,
-        signature: updatedUser.signature ?? null,
+        signature: (updatedUser.signature && updatedUser.signature.trim().length > 0)
+          ? updatedUser.signature
+          : DEFAULT_SIGNATURE,
         gender: updatedUser.gender,
         birth_date: updatedUser.birth_date,
         role: updatedUser.role,
@@ -197,6 +200,47 @@ exports.changePassword = async (req, res) => {
     });
   } catch (error) {
     console.error('Change password error:', error);
+    res.status(500).json({
+      error: 'Server error',
+      code: 'SERVER_ERROR'
+    });
+  }
+};
+
+
+/**
+ * 刪除帳號
+ * @route DELETE /api/v1/users/account
+ * @access Private
+ */
+exports.deleteAccount = async (req, res) => {
+  try {
+    const userId = req.user.user_id;
+
+    const deleted = await User.deleteAccount(userId);
+
+    if (!deleted) {
+      return res.status(404).json({
+        error: 'User not found',
+        code: 'USER_NOT_FOUND'
+      });
+    }
+
+    res.json({
+      message: 'Account deleted successfully',
+      code: 'ACCOUNT_DELETED'
+    });
+  } catch (error) {
+    console.error('Delete account error:', error);
+
+    // 若遇到外鍵限制導致刪除失敗，回傳 409 讓前端顯示適當訊息
+    if (error.code === 'ER_ROW_IS_REFERENCED_2' || error.errno === 1451) {
+      return res.status(409).json({
+        error: 'Account deletion blocked by related data',
+        code: 'ACCOUNT_DELETION_BLOCKED'
+      });
+    }
+
     res.status(500).json({
       error: 'Server error',
       code: 'SERVER_ERROR'
