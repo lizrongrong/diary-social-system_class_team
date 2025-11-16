@@ -292,6 +292,32 @@ if ((process.env.NODE_ENV || 'development') !== 'production') {
       return res.status(500).json({ error: 'Server error', details: err.message });
     }
   });
+  // Development-only: inspect or create announcement_reads table and return its rows
+  app.get('/api/v1/dev/announcement-reads', async (req, res) => {
+    try {
+      const conn = await pool.getConnection();
+      try {
+        const createSql = `
+          CREATE TABLE IF NOT EXISTS announcement_reads (
+            user_id VARCHAR(64) NOT NULL,
+            announcement_id CHAR(36) NOT NULL,
+            read_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (user_id, announcement_id),
+            INDEX idx_user (user_id),
+            INDEX idx_announcement (announcement_id)
+          ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+        `;
+        await conn.execute(createSql);
+        const [rows] = await conn.query('SELECT user_id, announcement_id, read_at FROM announcement_reads ORDER BY read_at DESC LIMIT 1000');
+        return res.json({ ok: true, count: rows.length, rows });
+      } finally {
+        conn.release();
+      }
+    } catch (err) {
+      console.error('Dev announcement-reads error:', err);
+      return res.status(500).json({ ok: false, error: err.message });
+    }
+  });
 }
 
 // Error handling
