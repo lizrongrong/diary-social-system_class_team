@@ -413,7 +413,7 @@ class User {
     const searchTerm = `%${keyword}%`;
     const params = [searchTerm, searchTerm];
     let query = `
-      SELECT user_id, username
+      SELECT user_id, username, status, profile_image
       FROM users
       WHERE status != 'deleted'
         AND (username LIKE ? OR user_id LIKE ?)
