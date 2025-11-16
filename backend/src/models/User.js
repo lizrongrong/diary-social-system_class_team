@@ -2,6 +2,8 @@ const db = require('../config/db');
 const crypto = require('crypto');
 const { generateAvatar } = require('../services/avatarGenerator');
 
+const DEFAULT_SIGNATURE = '這個人有點神秘還沒有個性簽名喔~';
+
 /**
  * User 資料模型
  * 處理使用者相關的資料庫操作
@@ -49,11 +51,19 @@ class User {
       ? userData.profile_image.trim()
       : generateAvatar(userData.username || userId);
 
-    const query = `
-      INSERT INTO users (
-        user_id, email, password_hash, username, gender, birth_date, profile_image, role, status, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'member', 'active', NOW())
-    `;
+    await User.ensureSignatureColumnSupport();
+
+    const columns = [
+      'user_id',
+      'email',
+      'password_hash',
+      'username',
+      'gender',
+      'birth_date',
+      'profile_image'
+    ];
+
+    const placeholders = Array(columns.length).fill('?');
 
     const values = [
       userId,
@@ -62,8 +72,25 @@ class User {
       userData.username,
       userData.gender,
       userData.birth_date,
-      finalProfileImage,
+      finalProfileImage
     ];
+
+    if (User.signatureColumnSupported) {
+      columns.push('signature');
+      placeholders.push('?');
+      const rawSignature = typeof userData.signature === 'string' ? userData.signature.trim() : '';
+      values.push(rawSignature || DEFAULT_SIGNATURE);
+    }
+
+    columns.push('role', 'status', 'created_at');
+    placeholders.push('?', '?', 'NOW()');
+    values.push('member', 'active');
+
+    const query = `
+      INSERT INTO users (
+        ${columns.join(', ')}
+      ) VALUES (${placeholders.join(', ')})
+    `;
 
     // 先檢查 email/username/user_id 是否已存在以提供即時錯誤
     if (await User.emailExists(userData.email)) {
@@ -226,6 +253,7 @@ class User {
   static async update(userId, updates) {
     await User.ensureSignatureColumnSupport();
 
+    const DEFAULT_SIGNATURE = '這個人有點神秘還沒有個性簽名喔~';
     const allowedFields = ['username', 'gender', 'birth_date', 'profile_image'];
     if (User.signatureColumnSupported) {
       allowedFields.push('signature');
@@ -236,8 +264,15 @@ class User {
     // 只允許更新特定欄位
     for (const [key, value] of Object.entries(updates)) {
       if (allowedFields.includes(key) && value !== undefined) {
-        updateFields.push(`${key} = ?`);
-        values.push(value);
+        if (key === 'signature') {
+          const rawSignature = typeof value === 'string' ? value.trim() : '';
+          const storedSignature = rawSignature.length > 0 ? rawSignature : DEFAULT_SIGNATURE;
+          updateFields.push(`${key} = ?`);
+          values.push(storedSignature);
+        } else {
+          updateFields.push(`${key} = ?`);
+          values.push(value);
+        }
       }
     }
 
@@ -272,6 +307,47 @@ class User {
 
     const [result] = await db.execute(query, [passwordHash, userId]);
     return result.affectedRows > 0;
+  }
+
+  /**
+   * 刪除使用者帳號（含相關資料）
+   * @param {string} userId - 使用者 ID
+   * @returns {Promise<boolean>} 是否刪除成功
+   */
+  static async deleteAccount(userId) {
+    let connection;
+    try {
+      connection = await db.getConnection();
+      await connection.beginTransaction();
+
+      const [existing] = await connection.query(
+        `SELECT user_id FROM users WHERE user_id = ? AND status != 'deleted'`,
+        [userId]
+      );
+
+      if (existing.length === 0) {
+        await connection.rollback();
+        return false;
+      }
+
+      await connection.query(`DELETE FROM users WHERE user_id = ?`, [userId]);
+
+      await connection.commit();
+      return true;
+    } catch (error) {
+      if (connection) {
+        try {
+          await connection.rollback();
+        } catch (rollbackError) {
+          console.warn('Rollback failed after deleteAccount error:', rollbackError);
+        }
+      }
+      throw error;
+    } finally {
+      if (connection) {
+        connection.release();
+      }
+    }
   }
 
   /**
