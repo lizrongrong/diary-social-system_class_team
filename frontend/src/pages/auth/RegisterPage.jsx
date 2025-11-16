@@ -351,15 +351,15 @@ function RegisterPage() {
             {/* Short user_id (由使用者填寫，儲存在 users.user_id) */}
             <Input
               type="text"
-              label="使用者識別 ID（短 ID）"
+              label="使用者ID"
               name="user_id"
-              placeholder="請輸入短 ID (3-10 字，英數字與底線)"
+              placeholder="請輸入使用者ID"
               value={formData.user_id}
               onChange={handleChange}
               error={errors.user_id}
               required
               disabled={isLoading}
-              helperText="短 ID 將作為系統內的唯一識別，不可重複"
+              helperText="請輸入3-10個英文、數字與底線"
               autoComplete="username"
             />
             <div className="user-id-status">
@@ -371,15 +371,15 @@ function RegisterPage() {
 
             <Input
               type="text"
-              label="登入帳號 / 個人頁面名稱（可修改）"
+              label="用戶名稱"
               name="username"
-              placeholder="請輸入使用者 ID (3-50 字，英數字與底線)"
+              placeholder="請輸入用戶名稱"
               value={formData.username}
               onChange={handleChange}
               error={errors.username}
               required
               disabled={isLoading}
-              helperText="用於登入與個人頁面網址；可與使用者識別 ID 不同"
+              helperText="請輸入3-10個英文、數字與底線"
               autoComplete="nickname"
             />
 
