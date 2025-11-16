@@ -312,9 +312,9 @@ function AnnouncementBell({ iconColor = '#FFFFFF' }) {
       {open && (
         <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 8, width: 360, maxHeight: 420, background: '#fff', border: '1px solid #ddd', borderRadius: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 1000, overflowY: 'auto', overflowX: 'hidden' }}>
           <div style={{ padding: '12px 16px', borderBottom: '1px solid #eee', background: '#f9f9f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <strong style={{ fontSize: 16 }}>系統公告</strong>
+            <strong style={{ fontSize: 18 }}>系統公告</strong>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <span style={{ fontSize: 12, color: '#999' }}>{announcements.length} 則（未讀 {count} 則）</span>
+              <span style={{ fontSize: 13, color: '#999' }}>{announcements.length} 則（未讀 {count} 則）</span>
             </div>
           </div>
           {announcements.length === 0 ? (
@@ -331,11 +331,11 @@ function AnnouncementBell({ iconColor = '#FFFFFF' }) {
               {announcements.filter(a => !readIds.includes(a.announcement_id)).map(a => (
                 <div key={a.announcement_id} style={{ padding: '12px 16px', borderBottom: '1px solid #f5f5f5', cursor: 'pointer' }} onClick={() => handleMarkReadClick(a.announcement_id)}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <strong style={{ fontSize: 14 }}>{a.title}</strong>
-                    {a.priority === 'high' && <span style={{ fontSize: 11, color: '#fff', background: '#e74c3c', padding: '2px 6px', borderRadius: 10 }}>重要</span>}
+                    <strong style={{ fontSize: 16 }}>{a.title}</strong>
+                    {a.priority === 'high' && <span style={{ fontSize: 12, color: '#fff', background: '#e74c3c', padding: '2px 6px', borderRadius: 10 }}>重要</span>}
                   </div>
-                  <div style={{ fontSize: 13, color: '#666', marginTop: 6, whiteSpace: 'normal', overflowWrap: 'break-word', wordBreak: 'break-word' }}>{a.content}</div>
-                  <div style={{ fontSize: 11, color: '#999', marginTop: 8 }}>
+                  <div style={{ fontSize: 15, color: '#666', marginTop: 6, whiteSpace: 'normal', overflowWrap: 'break-word', wordBreak: 'break-word' }}>{a.content}</div>
+                  <div style={{ fontSize: 13, color: '#999', marginTop: 8 }}>
                     {a.published_at ? new Date(a.published_at).toLocaleString() : new Date(a.created_at).toLocaleString()}
                     {(a.published_at && a.created_at && (new Date(a.published_at).getTime() !== new Date(a.created_at).getTime())) ? ' (已編輯)' : ''}
                   </div>
@@ -351,11 +351,11 @@ function AnnouncementBell({ iconColor = '#FFFFFF' }) {
               {announcements.filter(a => readIds.includes(a.announcement_id)).map(a => (
                 <div key={a.announcement_id} style={{ padding: '12px 16px', borderBottom: '1px solid #f5f5f5', cursor: 'default', background: '#f7fff8' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <strong style={{ fontSize: 14, color: '#666' }}>{a.title}</strong>
-                    {a.priority === 'high' && <span style={{ fontSize: 11, color: '#fff', background: '#e74c3c', padding: '2px 6px', borderRadius: 10 }}>重要</span>}
+                    <strong style={{ fontSize: 16, color: '#666' }}>{a.title}</strong>
+                    {a.priority === 'high' && <span style={{ fontSize: 12, color: '#fff', background: '#e74c3c', padding: '2px 6px', borderRadius: 10 }}>重要</span>}
                   </div>
-                  <div style={{ fontSize: 13, color: '#666', marginTop: 6, whiteSpace: 'normal', overflowWrap: 'break-word', wordBreak: 'break-word' }}>{a.content}</div>
-                  <div style={{ fontSize: 11, color: '#999', marginTop: 8 }}>
+                  <div style={{ fontSize: 15, color: '#666', marginTop: 6, whiteSpace: 'normal', overflowWrap: 'break-word', wordBreak: 'break-word' }}>{a.content}</div>
+                  <div style={{ fontSize: 13, color: '#999', marginTop: 8 }}>
                     {a.published_at ? new Date(a.published_at).toLocaleString() : new Date(a.created_at).toLocaleString()}
                     {(a.published_at && a.created_at && (new Date(a.published_at).getTime() !== new Date(a.created_at).getTime())) ? ' (已編輯)' : ''}
                   </div>
