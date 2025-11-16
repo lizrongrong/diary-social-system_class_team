@@ -13,8 +13,27 @@ export const getActive = async (limit = 10, offset = 0) => {
 }
 
 export const markAsRead = async (announcementId) => {
-  const res = await api.put(`/announcements/${announcementId}/read`)
+  const token = sessionStorage.getItem('token')
+  const res = await api.put(`/announcements/${announcementId}/read`, null, { headers: { Authorization: `Bearer ${token}` } })
   return res.data
 }
 
-export default { getActive, markAsRead }
+export const getReadsForUser = async () => {
+  const token = sessionStorage.getItem('token')
+  const res = await api.get('/announcements/reads', { headers: { Authorization: `Bearer ${token}` } })
+  return res.data
+}
+
+export const updateAnnouncement = async (id, payload) => {
+  const token = sessionStorage.getItem('token')
+  const res = await api.put(`/admin/announcements/${id}`, payload, { headers: { Authorization: `Bearer ${token}` } })
+  return res.data
+}
+
+export const getById = async (id) => {
+  const token = sessionStorage.getItem('token')
+  const res = await api.get(`/admin/announcements/${id}`, { headers: { Authorization: `Bearer ${token}` } })
+  return res.data
+}
+
+export default { getActive, markAsRead, getReadsForUser, updateAnnouncement }
