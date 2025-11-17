@@ -102,10 +102,10 @@ function Layout({ children }) {
         <div className="header-actions">
           {user ? (
             <>
-              {/* 通知/公告：NotificationBell 保留訊息/通知，AnnouncementBell 顯示系統公告 */}
+              {/* 通知/公告：管理員仍要看到系統公告，但隱藏訊息/通知 */}
               <div className="header-icon-group">
                 <AnnouncementBell iconColor="#FFFFFF" />
-                <NotificationBell iconColor="#FFFFFF" />
+                {user.role !== 'admin' && <NotificationBell iconColor="#FFFFFF" />}
               </div>
 
               {/* 使用者選單 */}
