@@ -67,7 +67,7 @@ function Announcements() {
       {/* <p className="text-body" style={{ color: 'var(--gray-600)' }}>列表與發佈介面（管理員可建立/刪除公告）。</p> */}
 
       <div style={{ marginTop: 'var(--spacing-lg)' }}>
-        <div style={{ marginBottom: 'var(--spacing-md)', display: 'flex', gap: 'var(--spacing-md)' }}>
+        <div style={{ marginBottom: 'var(--spacing-md)', display: 'flex', gap: 'var(--spacing-md)', justifyContent: 'flex-end' }}>
           <Button variant="outline" onClick={loadAnnouncements}>重新整理</Button>
         </div>
 
