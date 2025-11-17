@@ -1,10 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { Users, FileText, MessageSquare, Heart, TrendingUp, AlertCircle, Shield, Activity } from 'lucide-react'
+import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, LineElement, PointElement } from 'chart.js'
+import { Pie, Bar, Line } from 'react-chartjs-2'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import useAuthStore from '../../store/authStore'
 import axios from 'axios'
+import html2canvas from 'html2canvas'
+import { jsPDF } from 'jspdf'
 
 const API_URL = 'http://localhost:3000/api/v1'
 
@@ -26,6 +30,17 @@ function AdminDashboard() {
   // 預設切到最近新增，讓管理員一進來就看到最新三筆資料
   const [activeTab, setActiveTab] = useState('recent') // 'stats' | 'recent' | 'analytics'
   const [errorMessage, setErrorMessage] = useState(null)
+  // analytics state
+  const [chartType, setChartType] = useState('members') // 'members' | 'diaries' | 'cards'
+  const [period, setPeriod] = useState('month')
+  const [analyticsLoading, setAnalyticsLoading] = useState(false)
+  const [analyticsData, setAnalyticsData] = useState(null)
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const chartRef = useRef(null)
+    const membersRef = useRef(null)
+    const diariesRef = useRef(null)
+    const cardsRef = useRef(null)
 
   // Load admin data only after we know the current user and they are admin
   useEffect(() => {
@@ -34,6 +49,8 @@ function AdminDashboard() {
       setErrorMessage(null)
       loadAdminData()
     }
+    // register charts once
+    ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, LineElement, PointElement)
   }, [user])
 
   const loadAdminData = async () => {
@@ -143,9 +160,9 @@ function AdminDashboard() {
             <Shield size={36} style={{ color: 'var(--primary-purple)' }} />
             後臺管理
           </h1>
-          <p className="text-body" style={{ color: 'var(--gray-600)' }}>
+          {/* <p className="text-body" style={{ color: 'var(--gray-600)' }}>
             系統總覽與內容管理
-          </p>
+          </p> */}
         </div>
       </div>
 
@@ -303,25 +320,269 @@ function AdminDashboard() {
         )}
 
         {activeTab === 'analytics' && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-xl)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 'var(--spacing-xl)' }}>
             <Card>
-              <h3 className="text-h3" style={{ marginBottom: 'var(--spacing-lg)' }}>會員數分析 (目前資料來源：系統統計)</h3>
-              <div className="text-small" style={{ color: 'var(--gray-600)', marginBottom: 'var(--spacing-md)' }}>四個族群：原有男會員 / 原有女會員 / 新增男會員 / 新增女會員</div>
-              <div style={{ color: 'var(--gray-500)' }}>
-                後端尚未提供性別/新增分群的即時計數。如需真實圖表，請提供包含 gender 與 created_at 的聚合 API（例如 /admin/stats/members?group=gender,period=month）。目前只展示總覽數字。
-              </div>
-              <div style={{ marginTop: 'var(--spacing-md)', display: 'flex', gap: 'var(--spacing-md)', alignItems: 'center' }}>
-                <div style={{ width: 160, height: 160, borderRadius: 9999, background: 'conic-gradient(#667EEA 0% 40%, #F093FB 40% 60%, #4FACFE 60% 80%, #F5576C 80% 100%)' }} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-md)' }}>
                 <div>
-                  <div className="text-body">示意：原有男 40% / 原有女 20% / 新增男 20% / 新增女 20%</div>
+                  <h3 className="text-h3" style={{ marginBottom: '6px' }}>分析圖表</h3>
+                </div>
+                <div style={{ display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center' }}>
+                  <select value={chartType} onChange={(e) => { setChartType(e.target.value); setAnalyticsData(null); }} style={{ padding: '6px 10px', borderRadius: 6 }}>
+                    <option value="members">新增會員數分析</option>
+                    <option value="diaries">日記新增分析</option>
+                    <option value="cards">抽卡比例分析</option>
+                  </select>
+                  
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                    <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={{ padding: '6px', borderRadius: 6 }} />
+                    <span className="text-small" style={{ color: 'var(--gray-500)' }}>~</span>
+                    <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} style={{ padding: '6px', borderRadius: 6 }} />
+                  </div>
+                  <Button onClick={async () => {
+                    setAnalyticsLoading(true);
+                    try {
+                      const token = sessionStorage.getItem('token');
+                      const cfg = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+                      let resp = null;
+                      const qs = new URLSearchParams({ period });
+                      if (startDate) qs.append('start', startDate);
+                      if (endDate) qs.append('end', endDate);
+                      if (chartType === 'members') resp = await axios.get(`${API_URL}/admin/analytics/members?${qs.toString()}`, cfg);
+                      else if (chartType === 'diaries') resp = await axios.get(`${API_URL}/admin/analytics/diaries?${qs.toString()}`, cfg);
+                      else resp = await axios.get(`${API_URL}/admin/analytics/cards?${qs.toString()}`, cfg);
+                      // Normalize response data to ensure charts receive numbers and matching lengths
+                      const raw = resp.data || {};
+                      const normalized = { ...raw };
+                      // diaries: ensure labels and data are arrays of same length, numbers
+                      if (Array.isArray(raw.labels) && Array.isArray(raw.data)) {
+                        normalized.labels = raw.labels.map(String);
+                        normalized.data = raw.data.map((v) => Number(v) || 0);
+                        // if labels longer than data, pad data with zeros
+                        if (normalized.labels.length > normalized.data.length) {
+                          const diff = normalized.labels.length - normalized.data.length;
+                          normalized.data = normalized.data.concat(Array(diff).fill(0));
+                        }
+                      }
+                      // cards: coerce drawnData / notDrawnData to numeric arrays and align with labels
+                      const getArray = (obj, keys) => {
+                        for (const k of keys) {
+                          if (Array.isArray(obj[k])) return obj[k];
+                        }
+                        return null;
+                      };
+                      const drawnArr = getArray(raw, ['drawnData', 'drawn', 'drawn_values', 'drawn_data']);
+                      const notDrawnArr = getArray(raw, ['notDrawnData', 'not_drawn', 'notDrawn', 'not_drawn_data']);
+                      if (Array.isArray(raw.labels)) {
+                        normalized.labels = raw.labels.map(String);
+                        if (drawnArr) {
+                          normalized.drawnData = normalized.labels.map((_, i) => Number(drawnArr[i]) || 0);
+                        }
+                        if (notDrawnArr) {
+                          normalized.notDrawnData = normalized.labels.map((_, i) => Number(notDrawnArr[i]) || 0);
+                        }
+                        // if drawnData missing but server returned rows-like object, try to build from rows
+                        if (!normalized.drawnData && Array.isArray(raw.rows) && raw.rows.length) {
+                          const map = new Map();
+                          raw.rows.forEach(r => {
+                            // try to extract a YYYY-MM-DD key from multiple possible fields
+                            const candidate = r.draw_date || r.label || r.date || r.d || r[Object.keys(r)[0]];
+                            const str = String(candidate || '');
+                            const m = str.match(/\d{4}-\d{2}-\d{2}/);
+                            const key = m ? m[0] : str.slice(0,10);
+                            const val = Number(r.drawn || r.count || r.c || r.value || r.v || 0) || 0;
+                            map.set(key, val);
+                          });
+                          normalized.drawnData = normalized.labels.map(l => {
+                            // try exact match first, then date-substring tolerant match
+                            if (map.has(l)) return map.get(l) || 0;
+                            const short = (String(l).match(/\d{4}-\d{2}-\d{2}/) || [String(l).slice(0,10)])[0];
+                            return map.get(short) || 0;
+                          });
+                        }
+                        // ensure arrays exist
+                        normalized.drawnData = Array.isArray(normalized.drawnData) ? normalized.drawnData : normalized.labels.map(() => 0);
+                        normalized.notDrawnData = Array.isArray(normalized.notDrawnData) ? normalized.notDrawnData : normalized.drawnData.map(v => Math.max(0, (raw.totalUsers || 0) - v));
+                      }
+                      // debug output for developer troubleshooting
+                      try {
+                        console.debug('admin analytics raw response:', raw);
+                        console.debug('admin analytics normalized data:', normalized);
+                      } catch (e) {}
+                      setAnalyticsData(normalized);
+                    } catch (err) {
+                      console.error('Fetch analytics error:', err);
+                      setErrorMessage('取得分析資料失敗，請檢查後端 API 或權限');
+                    } finally {
+                      setAnalyticsLoading(false);
+                    }
+                  }}>載入資料</Button>
+                  {/* Download PDF button will appear when cards analytics loaded */}
                 </div>
               </div>
-            </Card>
 
-            <Card>
-              <h3 className="text-h3" style={{ marginBottom: 'var(--spacing-lg)' }}>日記 & 卡牌統計</h3>
-              <div className="text-small" style={{ color: 'var(--gray-600)', marginBottom: 'var(--spacing-md)' }}>日記總數 (長條圖示意)、卡牌總數 (有抽/沒抽 圓餅示意)。</div>
-              <div style={{ height: 140, background: 'linear-gradient(90deg, rgba(102,126,234,0.12) 0%, rgba(240,147,251,0.08) 100%)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>示意長條圖/圓餅圖</div>
+              <div style={{ marginTop: 'var(--spacing-md)' }}>
+                {analyticsLoading && <div className="text-body" style={{ color: 'var(--gray-600)' }}>載入中...</div>}
+                {!analyticsLoading && analyticsData && chartType === 'members' && (() => {
+                  const male = Number(analyticsData.new_male || 0);
+                  const female = Number(analyticsData.new_female || 0);
+                  const total = male + female;
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+                      <div style={{ display: 'flex', gap: 'var(--spacing-md)', alignItems: 'center' }}>
+                        <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <div ref={membersRef} style={{ padding: 12, background: '#fff', borderRadius: 8, width: '100%' }}>
+                            <div style={{ marginBottom: 8 }}>
+                              <div className="text-h4">新增會員數分析</div>
+                              {(analyticsData.start || analyticsData.end) && (
+                                <div className="text-body" style={{ color: 'var(--gray-600)' }}>{analyticsData.start || startDate || 'auto'} ~ {analyticsData.end || endDate || 'auto'}</div>
+                              )}
+                            </div>
+                            <div style={{ display: 'flex', gap: 'var(--spacing-md)', alignItems: 'center' }}>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ maxWidth: '100%' }}>
+                                  <Pie data={{
+                                    labels: ['新增男會員','新增女會員'],
+                                    datasets: [{ data: [male, female], backgroundColor: ['#4FACFE', '#FF4D4F'] }]
+                                  }} />
+                                </div>
+                              </div>
+                              <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <div style={{ padding: 12, background: '#fff', borderRadius: 8, width: '80%', margin: '0 auto', textAlign: 'left' }}>
+                                  <div className="text-body" style={{ marginBottom: '8px' }}>總新增會員：{total}</div>
+                                  <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                                    <li>新增男會員：{male} ({total ? Math.round((male/total)*100) : 0}%)</li>
+                                    <li>新增女會員：{female} ({total ? Math.round((female/total)*100) : 0}%)</li>
+                                  </ul>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                        <Button onClick={async () => {
+                          if (!membersRef.current) return;
+                          try {
+                            const canvas = await html2canvas(membersRef.current, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
+                            const imgData = canvas.toDataURL('image/png');
+                            const pdf = new jsPDF({ orientation: 'landscape' });
+                            const imgProps = pdf.getImageProperties(imgData);
+                            const pdfWidth = pdf.internal.pageSize.getWidth();
+                            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                            pdf.addImage(imgData, 'PNG', 0, 10, pdfWidth, pdfHeight);
+                            pdf.save(`members-analytics-${startDate || 'auto'}-${endDate || 'auto'}.pdf`);
+                          } catch (e) {
+                            console.error('Failed to generate PDF:', e);
+                            setErrorMessage('產生 PDF 失敗');
+                          }
+                        }}>下載 PDF</Button>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {!analyticsLoading && analyticsData && chartType === 'diaries' && (
+                  <div>
+                    <div style={{ position: 'relative', padding: 12, background: '#fff', borderRadius: 8 }}>
+                      <div ref={diariesRef}>
+                        <div style={{ marginBottom: 8 }}>
+                          <div className="text-h4">日記新增分析</div>
+                          {(analyticsData.start || analyticsData.end) && (
+                            <div className="text-body" style={{ color: 'var(--gray-600)' }}>{analyticsData.start || startDate || 'auto'} ~ {analyticsData.end || endDate || 'auto'}</div>
+                          )}
+                        </div>
+                        <Line
+                          data={{ labels: analyticsData.labels || [], datasets: [{ label: '日記數', data: analyticsData.data || [], borderColor: '#667EEA', backgroundColor: '#667EEA', fill: false, tension: 0.2, pointRadius: 3 }] }}
+                          options={{
+                            responsive: true,
+                            plugins: { legend: { display: false } },
+                            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 }, precision: 0, suggestedMax: (function(){ try { const arr = (analyticsData && analyticsData.data) ? analyticsData.data.map(v => Number(v) || 0) : []; const max = arr.length ? Math.max(...arr) : 0; return max + 5; } catch(e){ return undefined; } })() } }
+                          }}
+                        />
+                      </div>
+                      <div style={{ marginTop: 12, color: 'var(--gray-600)' }}>
+                        {/* any additional summary can stay here if needed */}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+                      <Button onClick={async () => {
+                        if (!diariesRef.current) return;
+                        try {
+                          const canvas = await html2canvas(diariesRef.current, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
+                          const imgData = canvas.toDataURL('image/png');
+                          const pdf = new jsPDF({ orientation: 'landscape' });
+                          const imgProps = pdf.getImageProperties(imgData);
+                          const pdfWidth = pdf.internal.pageSize.getWidth();
+                          const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                          pdf.addImage(imgData, 'PNG', 0, 10, pdfWidth, pdfHeight);
+                          pdf.save(`diaries-analytics-${startDate || 'auto'}-${endDate || 'auto'}.pdf`);
+                        } catch (e) {
+                          console.error('Failed to generate PDF:', e);
+                          setErrorMessage('產生 PDF 失敗');
+                        }
+                      }}>下載 PDF</Button>
+                    </div>
+                  </div>
+                )}
+
+                {!analyticsLoading && analyticsData && chartType === 'cards' && (
+                  <div>
+                    {/* chart and summary - keep the ref only on the area to capture */}
+                    <div style={{ position: 'relative', padding: 12, background: '#fff', borderRadius: 8 }}>
+                      <div ref={cardsRef}>
+                        <div style={{ marginBottom: 8 }}>
+                          <div className="text-h4">抽卡比例分析</div>
+                          {(analyticsData.start || analyticsData.end) && (
+                            <div className="text-body" style={{ color: 'var(--gray-600)' }}>{analyticsData.start || startDate || 'auto'} ~ {analyticsData.end || endDate || 'auto'}</div>
+                          )}
+                        </div>
+                        <Bar
+                          data={{
+                            labels: analyticsData.labels || [],
+                            datasets: [
+                              { label: '有抽', data: analyticsData.drawnData || analyticsData.drawn || analyticsData.drawn_values || [], backgroundColor: '#4FACFE' },
+                              { label: '沒抽', data: analyticsData.notDrawnData || analyticsData.not_drawn || analyticsData.notDrawn || [], backgroundColor: '#F093FB' }
+                            ]
+                          }}
+                          options={{
+                            responsive: true,
+                            plugins: { legend: { position: 'top' } },
+                            scales: {
+                              x: { stacked: false },
+                              y: { beginAtZero: true, ticks: { stepSize: 1 } }
+                            }
+                          }}
+                        />
+                        <div style={{ marginTop: 8, color: 'var(--gray-600)' }}>
+                          <div>總使用者：{analyticsData.totalUsers}</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+                      <Button onClick={async () => {
+                        if (!cardsRef.current) return;
+                        try {
+                          const canvas = await html2canvas(cardsRef.current, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
+                          const imgData = canvas.toDataURL('image/png');
+                          const pdf = new jsPDF({ orientation: 'landscape' });
+                          const imgProps = pdf.getImageProperties(imgData);
+                          const pdfWidth = pdf.internal.pageSize.getWidth();
+                          const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                          pdf.addImage(imgData, 'PNG', 0, 10, pdfWidth, pdfHeight);
+                          pdf.save(`cards-analytics-${startDate || 'auto'}-${endDate || 'auto'}.pdf`);
+                        } catch (e) {
+                          console.error('Failed to generate PDF:', e);
+                          setErrorMessage('產生 PDF 失敗');
+                        }
+                      }}>下載 PDF</Button>
+                    </div>
+                  </div>
+                )}
+
+                {!analyticsLoading && !analyticsData && (
+                  <div style={{ color: 'var(--gray-500)' }}>尚未載入資料，請選擇區間後點選「載入資料」。</div>
+                )}
+              </div>
             </Card>
           </div>
         )}

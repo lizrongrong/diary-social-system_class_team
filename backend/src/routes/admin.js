@@ -15,6 +15,11 @@ router.get('/stats', adminController.getStats);
 // GET /api/v1/admin/users - 獲取用戶列表
 router.get('/users', adminController.getUsers);
 
+// Analytics endpoints
+router.get('/analytics/members', adminController.getMemberAnalytics);
+router.get('/analytics/diaries', adminController.getDiaryAnalytics);
+router.get('/analytics/cards', adminController.getCardAnalytics);
+
 // GET /api/v1/admin/diaries - 獲取日記列表
 router.get('/diaries', adminController.getDiaries);
 

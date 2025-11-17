@@ -65,10 +65,10 @@ function FeedbackManagement() {
   return (
     <div style={{ padding: 'var(--spacing-xl)', paddingTop: 80, maxWidth: 1100, margin: '0 auto' }}>
       <h1 className="text-h1">意見回饋管理</h1>
-      <p className="text-body" style={{ color: 'var(--gray-600)' }}>處理使用者回饋、回覆並標記為已處理（需後端支援管理員回覆 API）。</p>
+      {/* <p className="text-body" style={{ color: 'var(--gray-600)' }}>處理使用者回饋、回覆並標記為已處理（需後端支援管理員回覆 API）。</p> */}
 
       <div style={{ marginTop: 'var(--spacing-lg)' }}>
-        <div style={{ marginBottom: 'var(--spacing-md)' }}>
+        <div style={{ marginBottom: 'var(--spacing-md)', display: 'flex', justifyContent: 'flex-end' }}>
           <Button variant="outline" onClick={loadFeedbacks}>重新整理</Button>
         </div>
 

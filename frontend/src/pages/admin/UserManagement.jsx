@@ -96,7 +96,7 @@ function UserManagement() {
   return (
     <div style={{ padding: 'var(--spacing-xl)', paddingTop: 80, maxWidth: 1100, margin: '0 auto' }}>
       <h1 className="text-h1">用戶管理</h1>
-      <p className="text-body" style={{ color: 'var(--gray-600)' }}>搜尋、查看與變更用戶狀態。</p>
+      {/* <p className="text-body" style={{ color: 'var(--gray-600)' }}>搜尋、查看與變更用戶狀態。</p> */}
 
       <div style={{ marginTop: 'var(--spacing-lg)' }}>
         <div style={{ marginBottom: 'var(--spacing-md)', display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-md)', alignItems: 'center' }}>

@@ -240,32 +240,7 @@ CREATE TABLE IF NOT EXISTS `ai_analysis` (
 
 
 -- ---------------------------------------------------------
--- 13. 月度回顧報告表
--- ---------------------------------------------------------
-DROP TABLE IF EXISTS `monthly_reviews`;
-CREATE TABLE `monthly_reviews` (
-  `review_id` CHAR(36) NOT NULL COMMENT '每筆月度回顧ID',
-  `user_id` VARCHAR(10) NOT NULL COMMENT '使用者 ID，對應 users 表',
-  `year_month` VARCHAR(7) NOT NULL COMMENT '統計年月 (YYYY-MM)',
-  `total_diaries` INT NOT NULL DEFAULT 0 COMMENT '當月日記總數',
-  `emotion_distribution` JSON NOT NULL COMMENT '情緒分佈統計，例如各情緒比例',
-  `weather_distribution` JSON NULL COMMENT '天氣分佈統計，例如晴天/雨天比例',
-  `most_active_day` DATE NULL COMMENT '當月最活躍日期',
-  `dominant_emotion` VARCHAR(50) NULL COMMENT '當月主要情緒',
-  `most_common_weather` VARCHAR(20) NULL COMMENT '當月最常出現的天氣',
-  `mood_trend` JSON NULL COMMENT '每日情緒走勢，用於折線圖',
-  `diary_ids` JSON NULL COMMENT '當月所有日記的 ID 列表',
-  `chart_data` JSON NULL COMMENT '前端圖表資料，直接渲染用',
-  `generated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '報告生成時間',
-  PRIMARY KEY (`review_id`),
-  UNIQUE KEY `uk_user_year_month` (`user_id`, `year_month`),
-  KEY `idx_year_month` (`year_month`),
-  CONSTRAINT `fk_monthly_reviews_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='每月回顧報告表';
-
-
--- ---------------------------------------------------------
--- 14.15. 系統通知與公告
+-- 13.14. 系統通知與公告
 -- ---------------------------------------------------------
 
 -- 系統通知表
@@ -308,7 +283,7 @@ CREATE TABLE `announcements` (
 
 
 -- ---------------------------------------------------------
--- 16. 問題回饋表
+-- 15. 問題回饋表
 -- ---------------------------------------------------------
 DROP TABLE IF EXISTS `feedbacks`;
 
@@ -328,56 +303,6 @@ CREATE TABLE `feedbacks` (
   KEY `idx_created_at` (`created_at` DESC),
   CONSTRAINT `fk_feedbacks_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='問題回饋表';
-
-
--- ============================================
--- 17. 系統統計 (含活躍用戶與圖表數據)
--- ============================================
-
-DROP TABLE IF EXISTS `system_stats`;
-CREATE TABLE `system_stats` (
-  `stat_id` CHAR(36) NOT NULL COMMENT '系統統計ID',
-  `date` DATE NOT NULL COMMENT '統計日期',
-
-  -- 使用者統計
-  `total_users` INT NOT NULL DEFAULT 0 COMMENT '總使用者數',
-  `active_users` INT NOT NULL DEFAULT 0 COMMENT '活躍使用者',
-  `new_users_male` INT NOT NULL DEFAULT 0 COMMENT '新增男性會員',
-  `new_users_female` INT NOT NULL DEFAULT 0 COMMENT '新增女性會員',
-  `new_users_other` INT NOT NULL DEFAULT 0 COMMENT '新增其他性別會員',
-  `existing_users_male` INT NOT NULL DEFAULT 0 COMMENT '原有男性會員',
-  `existing_users_female` INT NOT NULL DEFAULT 0 COMMENT '原有女性會員',
-
-  -- 日記統計
-  `total_diaries` INT NOT NULL DEFAULT 0 COMMENT '日記總數',
-  `new_diaries_today` INT NOT NULL DEFAULT 0 COMMENT '當日新增日記',
-
-  -- 情緒統計
-  `emotion_happy` INT NOT NULL DEFAULT 0 COMMENT '快樂日記數',
-  `emotion_sad` INT NOT NULL DEFAULT 0 COMMENT '悲傷日記數',
-  `emotion_angry` INT NOT NULL DEFAULT 0 COMMENT '生氣日記數',
-  `emotion_neutral` INT NOT NULL DEFAULT 0 COMMENT '中性日記數',
-
-  -- 抽卡統計
-  `total_card_draws` INT NOT NULL DEFAULT 0 COMMENT '抽卡總數',
-  `card_draws_today` INT NOT NULL DEFAULT 0 COMMENT '當日抽卡數',
-  `card_draws_none` INT NOT NULL DEFAULT 0 COMMENT '未抽卡用戶數',
-
-  -- 活躍用戶
-  `most_active_user_id` CHAR(36) NULL COMMENT '當日最活躍用戶 ID',
-  `most_active_user_diary_count` INT NOT NULL DEFAULT 0 COMMENT '當日最活躍用戶日記數',
-
-  -- 圖表資料 (JSON)
-  `chart_user_distribution` JSON NULL COMMENT '會員數圓餅圖資料 (四個族群: 原男/原女/新男/新女)',
-  `chart_diary_count` JSON NULL COMMENT '日記總數長條圖資料 (年/月/週)',
-  `chart_card_distribution` JSON NULL COMMENT '卡牌抽卡比例圓餅圖資料 (已抽/未抽)',
-
-  `snapshot_time` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '快照時間',
-
-  PRIMARY KEY (`stat_id`),
-  UNIQUE KEY `uk_date` (`date`),
-  KEY `idx_date` (`date` DESC)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='系統統計快照';
 
 
 -- ============================================
