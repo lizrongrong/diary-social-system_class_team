@@ -74,6 +74,8 @@ function DiariesList() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [filter, setFilter] = useState('all') // all, public, private, draft
+  const [loadingAnalyses, setLoadingAnalyses] = useState(() => ({}))
+  const [aiResults, setAiResults] = useState(() => ({}))
   const navigate = useNavigate()
   const { addToast } = useToast()
   const [likePendingIds, setLikePendingIds] = useState(() => new Set())
@@ -284,6 +286,36 @@ function DiariesList() {
         .catch(() => fallbackCopy())
     } else {
       fallbackCopy()
+    }
+  }
+
+  const handleGenerateAnalysis = async (event, diaryId) => {
+    if (event) {
+      event.preventDefault()
+      event.stopPropagation()
+    }
+
+    if (!diaryId) return
+    if (loadingAnalyses[diaryId]) return
+
+    setLoadingAnalyses(prev => ({ ...prev, [diaryId]: true }))
+    try {
+      const res = await diaryAPI.generateAnalysis(diaryId)
+      if (res && res.analysis) {
+        setAiResults(prev => ({ ...prev, [diaryId]: res.analysis }))
+        addToast('AI 分析已完成', 'success')
+      } else {
+        addToast('AI 分析完成，但未回傳內容', 'warning')
+      }
+    } catch (err) {
+      if (err?.response?.status === 504) {
+        addToast('生成逾時，請稍後再試一次。', 'warning')
+      } else {
+        const msg = err?.response?.data?.message || err?.message || '生成失敗'
+        addToast(msg, 'error')
+      }
+    } finally {
+      setLoadingAnalyses(prev => ({ ...prev, [diaryId]: false }))
     }
   }
 
@@ -587,6 +619,27 @@ function DiariesList() {
                     <Share2 size={20} />
                     <span>日記分享</span>
                   </button>
+                  {diary.visibility === 'public' && diary.status !== 'draft' && (
+                    <Button
+                      variant="primary"
+                      size="small"
+                      className="post-action post-action-ai"
+                      style={{ marginLeft: 'auto' }}
+                      onClick={(event) => {
+                        // 如果已有結果，前往查看；否則觸發生成
+                        if (aiResults[diaryId]) {
+                          event.preventDefault()
+                          event.stopPropagation()
+                          navigate(`/diaries/${diaryId}`)
+                        } else {
+                          handleGenerateAnalysis(event, diaryId)
+                        }
+                      }}
+                      disabled={!!loadingAnalyses[diaryId]}
+                    >
+                      {loadingAnalyses[diaryId] ? '生成中...' : (aiResults[diaryId] ? '查看 AI 分析' : '生成 AI 分析')}
+                    </Button>
+                  )}
                 </div>
               </article>
             )
