@@ -318,6 +318,51 @@ if ((process.env.NODE_ENV || 'development') !== 'production') {
       return res.status(500).json({ ok: false, error: err.message });
     }
   });
+  // Development-only: list feedbacks without auth (helpful for local UI debugging)
+  app.get('/api/v1/dev/feedbacks', async (req, res) => {
+    try {
+      const Feedback = require('./models/Feedback');
+      const feedbacks = await Feedback.findAll({ limit: 200, offset: 0 });
+      return res.json({ ok: true, count: feedbacks.length, feedbacks });
+    } catch (err) {
+      console.error('Dev feedbacks error:', err && err.stack ? err.stack : err);
+      return res.status(500).json({ ok: false, error: err && err.message ? String(err.message) : String(err) });
+    }
+  });
+  // Development-only: fetch notifications for a user (no auth) to help debugging
+  app.get('/api/v1/dev/notifications/:userId', async (req, res) => {
+    try {
+      const Notification = require('./models/Notification');
+      const { userId } = req.params;
+      const { limit, offset } = req.query || {};
+      const rows = await Notification.findByUser(userId, limit || 50, offset || 0);
+      return res.json({ ok: true, count: rows.length, notifications: rows });
+    } catch (err) {
+      console.error('Dev notifications error:', err && err.stack ? err.stack : err);
+      return res.status(500).json({ ok: false, error: err && err.message ? String(err.message) : String(err) });
+    }
+  });
+  // Development-only: dump raw user_card_draws rows for a date range (no auth)
+  app.get('/api/v1/dev/card-rows', async (req, res) => {
+    try {
+      const { start, end, limit } = req.query || {};
+      let sql;
+      let params = [];
+      if (start && end) {
+        sql = `SELECT * FROM user_card_draws WHERE DATE(draw_date) >= ? AND DATE(draw_date) <= ? ORDER BY draw_date ASC LIMIT ?`;
+        params = [start, end, Number(limit) || 1000];
+      } else {
+        sql = `SELECT * FROM user_card_draws ORDER BY draw_date DESC LIMIT ?`;
+        params = [Number(limit) || 100];
+      }
+      console.log('Dev card-rows executing SQL:', sql, 'params:', params);
+      const [rows] = await pool.query(sql, params);
+      return res.json({ ok: true, count: Array.isArray(rows) ? rows.length : 0, rows });
+    } catch (err) {
+      console.error('Dev card-rows error:', err && err.stack ? err.stack : err);
+      return res.status(500).json({ ok: false, error: err && err.message ? String(err.message) : String(err) });
+    }
+  });
 }
 
 // Error handling
