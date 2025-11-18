@@ -261,3 +261,246 @@
 
 .recent-diaries { margin-top: 24px }
 .section-header { margin-bottom: 8px }
+
+/* Footer / action buttons (match HomePage) */
+.dashboard-content .user-profile-diary-card .post-footer {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md, 16px);
+  padding-top: var(--spacing-md, 16px);
+  border-top: 1px solid #F0F0F0;
+  margin-top: 12px;
+}
+
+.dashboard-content .user-profile-diary-card .post-action {
+  background: transparent;
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs, 8px);
+  cursor: pointer;
+  font-family: "Inter", sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  color: #666666;
+  padding: var(--spacing-xs, 6px) var(--spacing-sm, 8px);
+  border-radius: var(--radius-md, 8px);
+  transition: all var(--transition-base, 0.18s);
+}
+
+.dashboard-content .user-profile-diary-card .post-action:hover {
+  background: #F5F5F5;
+  color: var(--primary-purple);
+}
+
+.dashboard-content .user-profile-diary-card .post-action svg { flex-shrink: 0 }
+.dashboard-content .user-profile-diary-card .post-action span { min-width: 20px }
+
+/* Ensure share button looks like other actions (no special bordered style) */
+.dashboard-content .user-profile-diary-card .post-action.share-btn,
+.dashboard-content .user-profile-diary-card button.post-action.share-btn {
+  background: transparent !important;
+  border: none !important;
+  color: inherit !important;
+  padding: var(--spacing-xs, 6px) var(--spacing-sm, 8px) !important;
+  margin-left: 0 !important;
+}
+
+.dashboard-content .user-profile-diary-card .post-action.liked {
+  color: var(--primary-purple);
+}
+
+.dashboard-content .user-profile-diary-card .post-action.liked:hover { color: var(--dark-purple); }
+
+
+/* Sync diary card header / author / title spacing with HomePage */
+.dashboard-content .user-profile-diary-card .diary-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-lg, 24px);
+  padding-bottom: var(--spacing-md, 16px);
+  border-bottom: 1px solid #F0F0F0;
+}
+
+.dashboard-content .user-profile-diary-card .diary-author {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md, 16px);
+}
+
+.dashboard-content .user-profile-diary-card .author-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dashboard-content .user-profile-diary-card .diary-author-name,
+.dashboard-content .user-profile-diary-card .author-name {
+  font-family: "Inter", sans-serif;
+  font-weight: 600;
+  font-size: 18px;
+  color: #1F1F1F;
+  margin: 0;
+}
+
+.dashboard-content .user-profile-diary-card .diary-post-date,
+.dashboard-content .user-profile-diary-card .post-date {
+  font-family: "Inter", sans-serif;
+  font-weight: 400;
+  font-size: 14px;
+  color: #999999;
+  margin: 0;
+}
+
+.dashboard-content .user-profile-diary-card .diary-card-title {
+  margin: 0 0 var(--spacing-md, 16px) 0;
+  line-height: 1.4;
+}
+
+/* Keep owner actions on the right without pushing author content */
+.dashboard-content .user-profile-diary-card .post-owner-actions {
+  margin-left: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm, 8px);
+  flex-shrink: 0;
+}
+
+/* Also apply the same rules to post-card elements (HomePage class names) used in Dashboard */
+.dashboard-content .post-card .post-footer,
+.dashboard-content .user-profile-diary-card .post-footer {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md, 16px);
+  padding-top: var(--spacing-md, 16px);
+  border-top: 1px solid #F0F0F0;
+  margin-top: 12px;
+}
+
+.dashboard-content .post-card .post-action,
+.dashboard-content .user-profile-diary-card .post-action {
+  background: transparent;
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs, 8px);
+  cursor: pointer;
+  font-family: "Inter", sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  color: #666666;
+  padding: var(--spacing-xs, 6px) var(--spacing-sm, 8px);
+  border-radius: var(--radius-md, 8px);
+  transition: all var(--transition-base, 0.18s);
+}
+
+.dashboard-content .post-card .post-action:hover,
+.dashboard-content .user-profile-diary-card .post-action:hover {
+  background: #F5F5F5;
+  color: var(--primary-purple);
+}
+
+.dashboard-content .post-card .post-action svg,
+.dashboard-content .user-profile-diary-card .post-action svg { flex-shrink: 0 }
+.dashboard-content .post-card .post-action span,
+.dashboard-content .user-profile-diary-card .post-action span { min-width: 20px }
+
+.dashboard-content .post-card .post-action.share-btn,
+.dashboard-content .user-profile-diary-card .post-action.share-btn,
+.dashboard-content .post-card button.post-action.share-btn,
+.dashboard-content .user-profile-diary-card button.post-action.share-btn {
+  background: transparent !important;
+  border: none !important;
+  color: inherit !important;
+  padding: var(--spacing-xs, 6px) var(--spacing-sm, 8px) !important;
+  margin-left: 0 !important;
+}
+
+.dashboard-content .post-card .post-action.liked,
+.dashboard-content .user-profile-diary-card .post-action.liked {
+  color: var(--primary-purple);
+}
+
+.dashboard-content .post-card .post-action.liked:hover,
+.dashboard-content .user-profile-diary-card .post-action.liked:hover { color: var(--dark-purple); }
+
+.dashboard-content .post-card .post-header,
+.dashboard-content .user-profile-diary-card .diary-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-lg, 24px);
+  padding-bottom: var(--spacing-md, 16px);
+  border-bottom: 1px solid #F0F0F0;
+}
+
+.dashboard-content .post-card .author-info,
+.dashboard-content .user-profile-diary-card .diary-author {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md, 16px);
+}
+
+.dashboard-content .post-card .author-details,
+.dashboard-content .user-profile-diary-card .author-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px; /* keep very small vertical gap to match HomePage */
+  line-height: 1;
+}
+
+.dashboard-content .post-card .author-name,
+.dashboard-content .user-profile-diary-card .diary-author-name {
+  font-family: "Inter", sans-serif;
+  font-weight: 600;
+  font-size: 18px;
+  color: #1F1F1F;
+  margin: 0;
+}
+
+.dashboard-content .post-card .post-date,
+.dashboard-content .user-profile-diary-card .diary-post-date {
+  font-family: "Inter", sans-serif;
+  font-weight: 400;
+  font-size: 14px;
+  color: #999999;
+  margin: 0;
+}
+
+.dashboard-content .post-card .post-title,
+.dashboard-content .user-profile-diary-card .diary-card-title {
+  margin: 0 0 var(--spacing-md, 16px) 0;
+  line-height: 1.4;
+}
+
+.dashboard-content .post-card .post-owner-actions,
+.dashboard-content .user-profile-diary-card .post-owner-actions {
+  margin-left: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm, 8px);
+  flex-shrink: 0;
+}
+
+/* Avatar styling to match HomePage */
+.dashboard-content .user-profile-diary-card .author-avatar,
+.dashboard-content .post-card .author-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 2px solid var(--primary-purple);
+  background-size: cover;
+  background-position: center;
+  background-color: var(--gray-200);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* small screen adjustments (same as HomePage) */
+@media (max-width: 768px) {
+  .dashboard-content .user-profile-diary-card .author-avatar { width: 40px; height: 40px; }
+  .dashboard-content .user-profile-diary-card .author-name { font-size: 16px; }
+  .dashboard-content .user-profile-diary-card .post-date { font-size: 12px; }
+  .dashboard-content .user-profile-diary-card { padding: var(--spacing-lg, 24px); }
+}
