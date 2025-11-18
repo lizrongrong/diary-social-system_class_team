@@ -843,7 +843,7 @@ function HomePage() {
                       gap: '6px',
                       marginBottom: '12px'
                     }}>
-                      {post.tags.filter(t => t.tag_type === 'emotion').slice(0, 2).map((t, i) => (
+                      {post.tags.filter(t => t.tag_type === 'emotion').slice(0, 3).map((t, i) => (
                         <span
                           key={i}
                           style={{

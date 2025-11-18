@@ -1,6 +1,7 @@
 ﻿import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { diaryAPI } from '../services/api'
+import { buildTagStyle, getEmotionPalette, getWeatherPalette } from '../utils/tagPalettes'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import { Heart, MessageCircle, Share2, User } from 'lucide-react'
@@ -171,12 +172,12 @@ function ExplorePage() {
                       <span 
                         key={i} 
                         style={{ 
+                          ...buildTagStyle(getEmotionPalette(t.tag_value)),
                           padding: '4px 12px', 
-                          background: 'var(--emotion-pink)', 
                           borderRadius: 'var(--radius-full)',
                           fontSize: '0.875rem',
                           fontWeight: 500,
-                          color: 'var(--dark-purple)'
+                          color: '#FFFFFF'
                         }}
                       >
                         {t.tag_value}
@@ -185,12 +186,12 @@ function ExplorePage() {
                     {diary.tags.find(t => t.tag_type === 'weather') && (
                       <span 
                         style={{ 
+                          ...buildTagStyle(getWeatherPalette(diary.tags.find(t => t.tag_type === 'weather').tag_value)),
                           padding: '4px 12px', 
-                          background: '#B2EBF2', 
                           borderRadius: 'var(--radius-full)',
                           fontSize: '0.875rem',
                           fontWeight: 500,
-                          color: '#006064'
+                          color: '#FFFFFF'
                         }}
                       >
                         {diary.tags.find(t => t.tag_type === 'weather').tag_value}
