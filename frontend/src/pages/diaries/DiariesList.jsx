@@ -207,8 +207,8 @@ function DiariesList() {
         setDiaries(prev => {
           if (!Array.isArray(prev) || prev.length === 0) return prev
           return prev.map(entry => {
-            const entryId = entry.diary_id || entry.id
-            if (entryId !== diaryId) return entry
+            const entryId = entry.diary_id || entry.id || entry.diaryId
+            if (String(entryId) !== String(diaryId)) return entry
             return { ...entry, comment_count: Number(count ?? entry.comment_count ?? 0), comments: Number(count ?? entry.comments ?? 0) }
           })
         })
@@ -414,6 +414,10 @@ function DiariesList() {
             const weatherTag = tags.find(t => t.tag_type === 'weather')
             const keywordTags = tags.filter(t => t.tag_type === 'keyword').slice(0, 3)
 
+            const likeCount = Number(diary.like_count ?? diary.likes ?? diary.likeCount ?? 0) || 0
+            const commentCount = Number(diary.comment_count ?? diary.comments ?? diary.commentCount ?? 0) || 0
+            const isLiked = Boolean(diary.is_liked ?? diary.liked ?? false)
+
             return (
               <article
                 key={diaryId}
@@ -554,18 +558,18 @@ function DiariesList() {
                 >
                   <button
                     type="button"
-                    className={`post-action ${diary.is_liked ? 'liked' : ''}`}
+                    className={`post-action ${isLiked ? 'liked' : ''}`}
                     onClick={(event) => handleToggleLike(event, diaryId)}
                     disabled={isLikePending(diaryId)}
-                    aria-pressed={Boolean(diary.is_liked)}
+                    aria-pressed={isLiked}
                     aria-busy={isLikePending(diaryId)}
                   >
                     <Heart
                       size={20}
-                      color={diary.is_liked ? '#CD79D5' : undefined}
-                      fill={diary.is_liked ? '#CD79D5' : 'none'}
+                      color={isLiked ? '#CD79D5' : undefined}
+                      fill={isLiked ? '#CD79D5' : 'none'}
                     />
-                    <span>{diary.like_count || 0} 個讚</span>
+                    <span>{likeCount} 個讚</span>
                   </button>
                   <Link
                     to={`/diaries/${diaryId}`}
@@ -573,7 +577,7 @@ function DiariesList() {
                     onClick={(event) => event.stopPropagation()}
                   >
                     <MessageCircle size={20} />
-                    <span>{diary.comment_count || 0} 則留言</span>
+                    <span>{commentCount} 則留言</span>
                   </Link>
                   <button
                     type="button"
@@ -581,7 +585,7 @@ function DiariesList() {
                     onClick={(event) => handleShare(event, diaryId)}
                   >
                     <Share2 size={20} />
-                    <span>複製連結</span>
+                    <span>日記分享</span>
                   </button>
                 </div>
               </article>
