@@ -11,15 +11,45 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
+const sanitizeForFilename = (value = '') => {
+  return value
+    .toString()
+    .trim()
+    .replace(/[^0-9a-zA-Z_-]/g, '')
+    .slice(0, 80);
+};
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
-    const userId = req.user?.user_id || 'anon';
-    const ext = path.extname(file.originalname);
-    const randomId = uuidv4().split('-')[0];
-    cb(null, `${userId}_${Date.now()}_${randomId}${ext}`);
+    const ext = path.extname(file.originalname) || '.png';
+    const requestedNameRaw = req.body?.fileName;
+    let baseName = '';
+
+    if (requestedNameRaw) {
+      const withoutExt = requestedNameRaw.toString().replace(/\.[^/.]+$/, '');
+      const safeRequested = sanitizeForFilename(withoutExt);
+      if (safeRequested) {
+        baseName = safeRequested;
+      }
+    }
+
+    if (!baseName) {
+      const originalBase = sanitizeForFilename(path.basename(file.originalname, ext));
+      if (originalBase) {
+        baseName = originalBase;
+      }
+    }
+
+    if (!baseName) {
+      const userId = sanitizeForFilename(req.user?.user_id || 'anon');
+      const randomId = uuidv4().split('-')[0];
+      baseName = `${userId}_${Date.now()}_${randomId}`;
+    }
+
+    cb(null, `${baseName}${ext}`);
   }
 });
 

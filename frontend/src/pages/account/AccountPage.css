@@ -225,6 +225,40 @@
     outline: none;
 }
 
+.account-edit-row.account-edit-row--textarea {
+    align-items: flex-start;
+}
+
+.account-edit-row.account-edit-row--textarea label {
+    margin-top: 4px;
+}
+
+.account-edit-row.account-edit-row--textarea .account-edit-row-input {
+    align-items: stretch;
+}
+
+.account-edit-row-input textarea {
+    flex: 1;
+    border: none;
+    font-size: 16px;
+    font-weight: 500;
+    color: #373443;
+    border: 1px solid gray;
+    background: transparent;
+    outline: none;
+    resize: vertical;
+    min-height: 72px;
+    max-height: 160px;
+}
+
+.account-edit-row-input textarea::placeholder {
+    color: #b5abc5;
+}
+
+.account-edit-row-input textarea:disabled {
+    cursor: not-allowed;
+}
+
 .account-edit-row-input input::placeholder {
     color: #b5abc5;
 }
@@ -424,7 +458,8 @@
 .account-delete-button {
     margin-left: auto;
     background: none;
-    border: none;
+    border: 1px solid red;
+    background-color: #FFF;
     padding: 8px 18px;
     color: #e53935;
     font-weight: 600;
@@ -434,7 +469,84 @@
 }
 
 .account-delete-button:hover {
-    color: #b71c1c;
+    background-color: red;
+    color: #fff;
+}
+
+.account-delete-confirm-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1200;
+    padding: 24px;
+}
+
+.account-delete-confirm-dialog {
+    width: min(360px, 100%);
+    background: #ffffff;
+    border-radius: 20px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.22);
+    padding: 28px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.account-delete-confirm-dialog h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #3d2132;
+}
+
+.account-delete-confirm-text {
+    margin: 0;
+    font-size: 0.98rem;
+    color: #6d4a62;
+    line-height: 1.6;
+}
+
+.account-delete-confirm-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.account-delete-confirm-btn {
+    flex: 1;
+    border: none;
+    border-radius: 999px;
+    padding: 12px 0;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.account-delete-confirm-btn.secondary {
+    background: #f2ecf7;
+    color: #6f5b8f;
+}
+
+.account-delete-confirm-btn.danger {
+    background: linear-gradient(135deg, #f07a8c, #e0485a);
+    color: #ffffff;
+}
+
+.account-delete-confirm-btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.account-delete-confirm-btn:not(:disabled):hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 26px rgba(0, 0, 0, 0.18);
 }
 
 .account-loading,
@@ -504,6 +616,7 @@
 }
 
 .account-field-hint {
+    text-align: right;
     color: #8d88a6;
     font-size: 13px;
 }

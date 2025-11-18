@@ -191,6 +191,13 @@
   box-shadow: 0 5px 12px rgba(239, 216, 134, 0.25);
 }
 
+.card-share-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+  transform: none;
+  box-shadow: 0 5px 12px rgba(239, 216, 134, 0.2);
+}
+
 .card-status {
   margin-top: 30px;
   text-align: center;
@@ -201,6 +208,12 @@
   color: #6c5ce7;
   font-size: 1rem;
   font-weight: 500;
+}
+
+.status-info a {
+  color: #2d3436;
+  text-decoration: underline;
+  word-break: break-all;
 }
 
 .status-error {

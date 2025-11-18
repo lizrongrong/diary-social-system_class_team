@@ -7,6 +7,8 @@ import { useToast } from '../../components/ui/Toast'
 import './AccountPage.css'
 
 const USERNAME_RULE = /^[a-zA-Z0-9_]{3,10}$/
+const SIGNATURE_LIMIT = 50
+const DEFAULT_SIGNATURE = '這個人有點神秘還沒有個性簽名喔~'
 
 function EditProfilePage() {
     const navigate = useNavigate()
@@ -15,7 +17,7 @@ function EditProfilePage() {
     const fileInputRef = useRef(null)
 
     const [initialProfile, setInitialProfile] = useState(null)
-    const [form, setForm] = useState({ username: '', profile_image: '' })
+    const [form, setForm] = useState({ username: '', signature: '', profile_image: '' })
     const [avatarPreview, setAvatarPreview] = useState('')
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
@@ -34,9 +36,12 @@ function EditProfilePage() {
                     return
                 }
 
-                setInitialProfile(user)
+                const normalizedSignature = typeof user.signature === 'string' ? user.signature.trim() : ''
+
+                setInitialProfile({ ...user, signature: normalizedSignature })
                 setForm({
                     username: user.username || '',
+                    signature: normalizedSignature || DEFAULT_SIGNATURE,
                     profile_image: user.profile_image || ''
                 })
                 setAvatarPreview(ensureAbsoluteUrl(user.profile_image || ''))
@@ -56,6 +61,8 @@ function EditProfilePage() {
         return source.charAt(0).toUpperCase()
     }, [authUser?.email, authUser?.username, form.username])
 
+    const signatureLength = useMemo(() => form.signature.trim().length, [form.signature])
+
     const handleUsernameChange = (event) => {
         const value = event.target.value
         setForm((prev) => ({ ...prev, username: value }))
@@ -67,6 +74,14 @@ function EditProfilePage() {
     const handleClearUsername = () => {
         setForm((prev) => ({ ...prev, username: '' }))
         setErrors((prev) => ({ ...prev, username: '' }))
+    }
+
+    const handleSignatureChange = (event) => {
+        const value = event.target.value
+        setForm((prev) => ({ ...prev, signature: value }))
+        if (errors.signature) {
+            setErrors((prev) => ({ ...prev, signature: '' }))
+        }
     }
 
     const handleAvatarClick = () => {
@@ -124,20 +139,26 @@ function EditProfilePage() {
 
     const validate = () => {
         const nextErrors = {}
-        const trimmed = form.username.trim()
+        const trimmedUsername = form.username.trim()
+        const signatureValue = typeof form.signature === 'string' ? form.signature : ''
+        const trimmedSignature = signatureValue.trim()
 
-        if (!trimmed) {
-            nextErrors.username = '請輸入使用者名稱'
-        } else if (!USERNAME_RULE.test(trimmed)) {
-            nextErrors.username = '使用者名稱需為 3-10 字元，僅限英文、數字與底線'
+        if (!trimmedUsername) {
+            nextErrors.username = '請輸入用戶名稱'
+        } else if (!USERNAME_RULE.test(trimmedUsername)) {
+            nextErrors.username = '用戶名稱需為 3-10 字元，僅限英文、數字與底線'
         }
 
-        return { nextErrors, trimmed }
+        if (trimmedSignature.length > SIGNATURE_LIMIT) {
+            nextErrors.signature = `個性簽名長度需在 ${SIGNATURE_LIMIT} 字以內`
+        }
+
+        return { nextErrors, trimmedUsername, trimmedSignature }
     }
 
     const handleSubmit = async (event) => {
         event.preventDefault()
-        const { nextErrors, trimmed } = validate()
+        const { nextErrors, trimmedUsername, trimmedSignature } = validate()
 
         if (Object.keys(nextErrors).length > 0) {
             setErrors(nextErrors)
@@ -147,13 +168,21 @@ function EditProfilePage() {
         const payload = {}
         const baseline = initialProfile || {}
 
-        if (trimmed !== (baseline.username || '').trim()) {
-            payload.username = trimmed
+        if (trimmedUsername !== (baseline.username || '').trim()) {
+            payload.username = trimmedUsername
         }
 
         const baselineAvatar = baseline.profile_image || ''
         if (form.profile_image !== baselineAvatar) {
             payload.profile_image = form.profile_image || ''
+        }
+
+        const baselineSignatureRaw = typeof baseline.signature === 'string' ? baseline.signature.trim() : ''
+        const normalizedBaselineSignature = baselineSignatureRaw || DEFAULT_SIGNATURE
+        const normalizedSignature = trimmedSignature || DEFAULT_SIGNATURE
+
+        if (normalizedSignature !== normalizedBaselineSignature) {
+            payload.signature = normalizedSignature
         }
 
         if (Object.keys(payload).length === 0) {
@@ -176,7 +205,11 @@ function EditProfilePage() {
             if (details?.username) {
                 setErrors((prev) => ({ ...prev, username: details.username }))
             } else if (error.response?.data?.code === 'USERNAME_EXISTS') {
-                setErrors((prev) => ({ ...prev, username: error.response.data.message || '使用者名稱已被使用' }))
+                setErrors((prev) => ({ ...prev, username: error.response.data.message || '用戶名稱已被使用' }))
+            }
+
+            if (details?.signature) {
+                setErrors((prev) => ({ ...prev, signature: details.signature }))
             }
 
             const message = error.response?.data?.message || '更新失敗，請稍後再試'
@@ -240,7 +273,7 @@ function EditProfilePage() {
 
                 <form className="account-edit-form" onSubmit={handleSubmit}>
                     <div className={`account-edit-row${errors.username ? ' has-error' : ''}`}>
-                        <label htmlFor="username">使用者名稱</label>
+                        <label htmlFor="username">用戶名稱</label>
                         <div className="account-edit-row-input">
                             <input
                                 id="username"
@@ -249,7 +282,7 @@ function EditProfilePage() {
                                 style={{ fontSize: '20px' }}
                                 value={form.username}
                                 onChange={handleUsernameChange}
-                                placeholder="請輸入使用者名稱"
+                                placeholder="請輸入用戶名稱"
                                 maxLength={10}
                                 disabled={saving}
                                 autoComplete="username"
@@ -268,6 +301,36 @@ function EditProfilePage() {
                         </div>
                     </div>
                     {errors.username && <span className="account-field-error">{errors.username}</span>}
+
+                    <div className={`account-edit-row account-edit-row--textarea${errors.signature ? ' has-error' : ''}`}>
+                        <label htmlFor="signature">個性簽名</label>
+                        <div style={{ width: '100%', textAlign: 'right' }}>
+                            <div className="account-edit-row-input">
+                                <textarea
+                                    id="signature"
+                                    name="signature"
+                                    value={form.signature}
+                                    onChange={handleSignatureChange}
+                                    placeholder="分享心情或是你的狀態吧~"
+                                    maxLength={SIGNATURE_LIMIT}
+                                    disabled={saving}
+                                    rows={3}
+                                />
+
+                            </div>
+                            {errors.signature
+                                ? <span className="account-field-error">{errors.signature}</span>
+                                : (
+                                    <span className="account-field-hint">
+                                        （{signatureLength}/{SIGNATURE_LIMIT}）
+                                    </span>
+                                )}
+                        </div>
+
+
+                    </div>
+
+
 
                     <div className="account-edit-actions">
                         <button

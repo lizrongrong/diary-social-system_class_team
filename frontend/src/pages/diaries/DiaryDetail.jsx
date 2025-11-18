@@ -7,6 +7,7 @@ import commentAPI from '../../services/commentAPI'
 import useAuthStore from '../../store/authStore'
 import GuestModal from '../../components/ui/GuestModal'
 import { useToast } from '../../components/ui/Toast'
+import { buildTagStyle, getEmotionPalette, getWeatherPalette } from '../../utils/tagPalettes'
 import './DiaryDetail.css'
 
 function DiaryDetail() {
@@ -188,7 +189,19 @@ function DiaryDetail() {
     setSubmitting(true)
     try {
       const newComment = await commentAPI.createComment(id, content, null)
-      setComments(prev => [...prev, { ...newComment, replies: [] }])
+      setComments(prev => {
+        const next = [...prev, { ...newComment, replies: [] }]
+        try {
+          const newTotal = next.reduce((total, comment) => {
+            const replyCount = Array.isArray(comment.replies) ? comment.replies.length : 0
+            return total + 1 + replyCount
+          }, 0)
+          window.dispatchEvent(new CustomEvent('diaryCommentUpdated', { detail: { diaryId: id, count: newTotal } }))
+        } catch (e) {
+          console.debug('Failed to dispatch diaryCommentUpdated after create comment', e)
+        }
+        return next
+      })
       setCommentInput('')
       setCommentError('')
     } catch (e) {
@@ -247,11 +260,23 @@ function DiaryDetail() {
         parent_username: replyTo.username
       }
 
-      setComments(prev => prev.map(comment =>
-        comment.comment_id === replyTo.comment_id
-          ? { ...comment, replies: [...(comment.replies || []), formattedReply] }
-          : comment
-      ))
+      setComments(prev => {
+        const next = prev.map(comment =>
+          comment.comment_id === replyTo.comment_id
+            ? { ...comment, replies: [...(comment.replies || []), formattedReply] }
+            : comment
+        )
+        try {
+          const newTotal = next.reduce((total, comment) => {
+            const replyCount = Array.isArray(comment.replies) ? comment.replies.length : 0
+            return total + 1 + replyCount
+          }, 0)
+          window.dispatchEvent(new CustomEvent('diaryCommentUpdated', { detail: { diaryId: id, count: newTotal } }))
+        } catch (e) {
+          console.debug('Failed to dispatch diaryCommentUpdated after create reply', e)
+        }
+        return next
+      })
 
       setExpandedReplies(prev => ({
         ...prev,
@@ -260,6 +285,12 @@ function DiaryDetail() {
 
       setReplyDraft('')
       setReplyTo(null)
+      try {
+        const newTotal = totalCommentCount + 1
+        window.dispatchEvent(new CustomEvent('diaryCommentUpdated', { detail: { diaryId: id, count: newTotal } }))
+      } catch (e) {
+        console.debug('Failed to dispatch diaryCommentUpdated after create reply', e)
+      }
     } catch (e) {
       alert('回覆失敗：' + (e.response?.data?.message || e.message))
     } finally {
@@ -291,18 +322,37 @@ function DiaryDetail() {
       })
 
       if (parentId) {
-        setComments(prev => prev.map(comment =>
-          comment.comment_id === parentId
-            ? {
-              ...comment,
-              replies: Array.isArray(comment.replies)
-                ? comment.replies.filter(reply => reply.comment_id !== commentId)
-                : []
-            }
-            : comment
-        ))
+        setComments(prev => {
+          const next = prev.map(comment =>
+            comment.comment_id === parentId
+              ? { ...comment, replies: Array.isArray(comment.replies) ? comment.replies.filter(reply => reply.comment_id !== commentId) : [] }
+              : comment
+          )
+          try {
+            const newTotal = next.reduce((total, comment) => {
+              const replyCount = Array.isArray(comment.replies) ? comment.replies.length : 0
+              return total + 1 + replyCount
+            }, 0)
+            window.dispatchEvent(new CustomEvent('diaryCommentUpdated', { detail: { diaryId: id, count: newTotal } }))
+          } catch (e) {
+            console.debug('Failed to dispatch diaryCommentUpdated after delete reply', e)
+          }
+          return next
+        })
       } else {
-        setComments(prev => prev.filter(comment => comment.comment_id !== commentId))
+        setComments(prev => {
+          const next = prev.filter(comment => comment.comment_id !== commentId)
+          try {
+            const newTotal = next.reduce((total, comment) => {
+              const replyCount = Array.isArray(comment.replies) ? comment.replies.length : 0
+              return total + 1 + replyCount
+            }, 0)
+            window.dispatchEvent(new CustomEvent('diaryCommentUpdated', { detail: { diaryId: id, count: newTotal } }))
+          } catch (e) {
+            console.debug('Failed to dispatch diaryCommentUpdated after delete comment', e)
+          }
+          return next
+        })
       }
     } catch (e) {
       alert('刪除失敗：' + (e.response?.data?.message || e.message))
@@ -435,13 +485,30 @@ function DiaryDetail() {
 
           {diary.tags && diary.tags.length > 0 && (
             <div className="diary-detail-tags">
-              {emotionTags.map((tag, index) => (
-                <span key={`emotion-${index}`} className="diary-detail-tag diary-detail-tag--emotion">
-                  {tag.tag_value}
-                </span>
-              ))}
+              {emotionTags.map((tag, index) => {
+                const palette = getEmotionPalette(tag.tag_value)
+                const tagStyle = {
+                  ...buildTagStyle(palette),
+                  color: '#FFFFFF'
+                }
+                return (
+                  <span
+                    key={`emotion-${index}`}
+                    className="diary-detail-tag diary-detail-tag--emotion"
+                    style={tagStyle}
+                  >
+                    {tag.tag_value}
+                  </span>
+                )
+              })}
               {weatherTag && (
-                <span className="diary-detail-tag diary-detail-tag--weather">
+                <span
+                  className="diary-detail-tag diary-detail-tag--weather"
+                  style={{
+                    ...buildTagStyle(getWeatherPalette(weatherTag.tag_value)),
+                    color: '#FFFFFF'
+                  }}
+                >
                   {weatherTag.tag_value}
                 </span>
               )}

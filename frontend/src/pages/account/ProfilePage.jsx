@@ -37,9 +37,11 @@ const formatDate = (value) => {
 
 function ProfilePage() {
     const { addToast } = useToast()
-    const { user: authUser } = useAuthStore()
+    const { user: authUser, clearAllData } = useAuthStore()
     const [profile, setProfile] = useState(null)
     const [loading, setLoading] = useState(true)
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+    const [deletePending, setDeletePending] = useState(false)
     const navigate = useNavigate()
 
     useEffect(() => {
@@ -76,6 +78,42 @@ function ProfilePage() {
     const birthDate = formatDate(profile?.birth_date)
     const genderLabel = genderMap[profile?.gender] || '未設定'
     const statusLabel = statusMap[profile?.status] || '未知'
+
+    const handleDeleteAccountRequest = () => {
+        setShowDeleteConfirm(true)
+    }
+
+    const handleCloseDeleteConfirm = () => {
+        if (deletePending) return
+        setShowDeleteConfirm(false)
+    }
+
+    const handleConfirmDeleteAccount = async () => {
+        if (deletePending) return
+
+        setDeletePending(true)
+        try {
+            await userAPI.deleteAccount()
+            addToast('帳號已刪除，期待下次再見', 'success')
+            setShowDeleteConfirm(false)
+            clearAllData()
+            navigate('/login', { replace: true })
+        } catch (error) {
+            console.error('Delete account action failed', error)
+            if (error.response?.status === 401 || error.response?.status === 403) {
+                clearAllData()
+                window.location.replace('/login')
+                return
+            }
+            if (error.response?.data?.code === 'ACCOUNT_DELETION_BLOCKED') {
+                addToast('系統因相關資料未清除，暫時無法刪除帳號，請聯絡客服', 'warning')
+            } else {
+                addToast('刪除帳號失敗，請稍後再試', 'error')
+            }
+        } finally {
+            setDeletePending(false)
+        }
+    }
 
     if (loading) {
         return (
@@ -162,13 +200,53 @@ function ProfilePage() {
                         <button
                             type="button"
                             className="account-delete-button"
-                            onClick={() => addToast('刪除帳號功能即將推出', 'warning')}
+                            onClick={handleDeleteAccountRequest}
                         >
                             刪除帳號
                         </button>
                     </div>
                 </div>
             </section>
+
+            {showDeleteConfirm && (
+                <div
+                    className="account-delete-confirm-backdrop"
+                    role="presentation"
+                    onClick={handleCloseDeleteConfirm}
+                >
+                    <div
+                        className="account-delete-confirm-dialog"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="account-delete-confirm-title"
+                        aria-describedby="account-delete-confirm-description"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <h3 id="account-delete-confirm-title">刪除帳號</h3>
+                        <p id="account-delete-confirm-description" className="account-delete-confirm-text">
+                            確定要刪除此帳號嗎？此動作無法復原，並且所有資料將永久刪除。
+                        </p>
+                        <div className="account-delete-confirm-actions">
+                            <button
+                                type="button"
+                                className="account-delete-confirm-btn secondary"
+                                onClick={handleCloseDeleteConfirm}
+                                disabled={deletePending}
+                            >
+                                取消
+                            </button>
+                            <button
+                                type="button"
+                                className="account-delete-confirm-btn danger"
+                                onClick={handleConfirmDeleteAccount}
+                                disabled={deletePending}
+                            >
+                                {deletePending ? '處理中...' : '確認刪除'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

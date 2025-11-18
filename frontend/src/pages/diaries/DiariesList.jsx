@@ -1,23 +1,85 @@
 ﻿import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { diaryAPI } from '../../services/api'
+import { diaryAPI, ensureAbsoluteUrl, likeAPI } from '../../services/api'
 import useAuthStore from '../../store/authStore'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
-import { Heart, MessageCircle, Edit3, Trash2, Eye, EyeOff, PenTool } from 'lucide-react'
+import { Heart, MessageCircle, Share2, PencilLine, Trash2, Eye, EyeOff, PenTool } from 'lucide-react'
+import { useToast } from '../../components/ui/Toast'
+import { buildTagStyle, getEmotionPalette, getWeatherPalette } from '../../utils/tagPalettes'
+import '../HomePage.css'
+import './DiariesList.css'
+
+const normalizeMediaArray = (media) => {
+  if (!media) return []
+  if (Array.isArray(media)) return media
+  if (typeof media === 'string') {
+    try {
+      const parsed = JSON.parse(media)
+      return Array.isArray(parsed) ? parsed : []
+    } catch (error) {
+      console.warn('無法解析日記附件資料:', error)
+      return []
+    }
+  }
+  return []
+}
+
+const collectDiaryMedia = (diary) => {
+  if (!diary || typeof diary !== 'object') return []
+  const candidateKeys = ['media', 'media_items', 'mediaItems', 'attachments', 'images', 'files']
+
+  return candidateKeys.reduce((accumulator, key) => {
+    if (Object.prototype.hasOwnProperty.call(diary, key)) {
+      const normalized = normalizeMediaArray(diary[key])
+      if (normalized.length) {
+        accumulator.push(...normalized)
+      }
+    }
+    return accumulator
+  }, [])
+}
+
+const getImageMediaForDiary = (diary) => {
+  const allMedia = collectDiaryMedia(diary)
+
+  const unique = []
+  const seen = new Set()
+
+  allMedia
+    .map((item) => (typeof item === 'string' ? { file_url: item } : item))
+    .filter((item) => {
+      const type = (item?.file_type || item?.type || '').toLowerCase()
+      if (type && type.startsWith('image')) return true
+      const url = item?.file_url || item?.url || ''
+      return /\.(png|jpe?g|gif|bmp|webp|svg)$/i.test(url)
+    })
+    .forEach((item, index) => {
+      const url = ensureAbsoluteUrl(item.file_url || item.url || '')
+      if (!url || seen.has(url)) return
+      seen.add(url)
+      unique.push({
+        key: item.media_id || item.id || `${url}-${index}`,
+        url,
+        alt: item.alt || item.description || ''
+      })
+    })
+
+  return unique
+}
 
 function DiariesList() {
   const { user } = useAuthStore()
   const [diaries, setDiaries] = useState([])
-  const [followDiaries, setFollowDiaries] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [filter, setFilter] = useState('all') // all, public, private, draft, friends
+  const [filter, setFilter] = useState('all') // all, public, private, draft
   const navigate = useNavigate()
+  const { addToast } = useToast()
+  const [likePendingIds, setLikePendingIds] = useState(() => new Set())
 
   useEffect(() => {
     loadDiaries()
-    loadFriendDiaries()
   }, [])
 
   const loadDiaries = async () => {
@@ -25,7 +87,15 @@ function DiariesList() {
     try {
       // 獲取所有日記（不限狀態）
       const data = await diaryAPI.getAll({ limit: 100 })
-      setDiaries(data?.items || data?.diaries || data || [])
+      const source = data?.items || data?.diaries || data || []
+      const normalized = (Array.isArray(source) ? source : []).map((item) => ({
+        ...item,
+        like_count: Number(item?.like_count) || 0,
+        comment_count: Number(item?.comment_count) || 0,
+        is_liked: Boolean(item?.is_liked)
+      }))
+      setDiaries(normalized)
+      setLikePendingIds(new Set())
     } catch (e) {
       setError(e.response?.data?.message || '無法取得日記列表')
     } finally {
@@ -33,43 +103,231 @@ function DiariesList() {
     }
   }
 
-  const loadFriendDiaries = async () => {
+  const isLikePending = (diaryId) => likePendingIds.has(diaryId)
+
+  const syncDiaryLikeState = (diaryId, liked, count) => {
+    setDiaries(prev => {
+      if (!Array.isArray(prev) || prev.length === 0) return prev
+      return prev.map((entry) => {
+        const entryId = entry.diary_id || entry.id || entry.diaryId || null
+        if (String(entryId) !== String(diaryId)) return entry
+        const baseCount = Number(entry.like_count) || 0
+        let nextCount = baseCount
+
+        if (typeof count === 'number' && Number.isFinite(count)) {
+          nextCount = Math.max(0, Math.round(count))
+        } else if (typeof liked === 'boolean') {
+          if (liked && !entry.is_liked) nextCount = baseCount + 1
+          if (!liked && entry.is_liked) nextCount = Math.max(0, baseCount - 1)
+        }
+
+        return {
+          ...entry,
+          is_liked: typeof liked === 'boolean' ? liked : entry.is_liked,
+          like_count: nextCount
+        }
+      })
+    })
+  }
+
+  const handleToggleLike = async (event, diaryId) => {
+    if (event) {
+      event.preventDefault()
+      event.stopPropagation()
+    }
+
+    if (!diaryId || isLikePending(diaryId)) return
+
+    if (!user) {
+      addToast('請先登入', 'warning')
+      return
+    }
+
+    const currentDiary = (Array.isArray(diaries) ? diaries : []).find(
+      (entry) => String(entry.diary_id || entry.id || entry.diaryId) === String(diaryId)
+    )
+
+    if (!currentDiary) {
+      console.warn('找不到指定日記，無法處理按讚：', diaryId)
+      return
+    }
+
+    const previousLiked = Boolean(currentDiary.is_liked)
+    const previousCount = Number(currentDiary.like_count) || 0
+
+    setLikePendingIds(prev => {
+      const next = new Set(prev)
+      next.add(diaryId)
+      return next
+    })
+
+    // Optimistic update for responsiveness
+    syncDiaryLikeState(diaryId, !previousLiked, NaN)
+
     try {
-      // 獲取好友的公開日記
-      const data = await diaryAPI.explore({ limit: 100 })
-      // 過濾掉自己的日記，只保留好友的
-      setFollowDiaries((data?.diaries || []).filter(d => d.user_id !== user?.user_id))
-    } catch (e) {
-      // 臨時容錯：若後端發生 500，避免在 console 印出大型 Axios 物件並維持 UI 空狀態
-      console.warn('無法取得好友日記:', e.message || e)
-      setFollowDiaries([])
+      const response = await likeAPI.toggle('diary', diaryId)
+      const serverLiked = Boolean(response?.liked)
+      const rawCount = Number(response?.count)
+      const serverCount = Number.isFinite(rawCount) ? rawCount : NaN
+      syncDiaryLikeState(diaryId, serverLiked, serverCount)
+      // Broadcast like update so other pages can sync
+      try {
+        window.dispatchEvent(new CustomEvent('diaryLikeUpdated', { detail: { diaryId, liked: serverLiked, count: serverCount } }))
+      } catch (e) {
+        console.debug('Failed to dispatch diaryLikeUpdated event', e)
+      }
+    } catch (err) {
+      const message = err?.response?.data?.message || err?.response?.data?.error || err?.message || '按讚失敗'
+      addToast(message, 'error')
+      syncDiaryLikeState(diaryId, previousLiked, previousCount)
+    } finally {
+      setLikePendingIds(prev => {
+        const next = new Set(prev)
+        next.delete(diaryId)
+        return next
+      })
     }
   }
 
-  const handleDelete = async (diaryId) => {
+  // Listen for global like updates from other pages
+  useEffect(() => {
+    const handler = (e) => {
+      try {
+        const { diaryId, liked, count } = e.detail || {}
+        if (diaryId) syncDiaryLikeState(diaryId, liked, count)
+      } catch (err) {
+        console.debug('DiariesList diaryLikeUpdated handler error', err)
+      }
+    }
+    window.addEventListener('diaryLikeUpdated', handler)
+    const commentHandler = (ev) => {
+      try {
+        const { diaryId, count } = ev.detail || {}
+        if (!diaryId) return
+        setDiaries(prev => {
+          if (!Array.isArray(prev) || prev.length === 0) return prev
+          return prev.map(entry => {
+            const entryId = entry.diary_id || entry.id || entry.diaryId
+            if (String(entryId) !== String(diaryId)) return entry
+            return { ...entry, comment_count: Number(count ?? entry.comment_count ?? 0), comments: Number(count ?? entry.comments ?? 0) }
+          })
+        })
+      } catch (err) {
+        console.debug('DiariesList diaryCommentUpdated handler error', err)
+      }
+    }
+    window.addEventListener('diaryCommentUpdated', commentHandler)
+    return () => {
+      window.removeEventListener('diaryLikeUpdated', handler)
+      window.removeEventListener('diaryCommentUpdated', commentHandler)
+    }
+  }, [diaries])
+
+  const handleDelete = async (event, diaryId) => {
+    if (event) {
+      event.preventDefault()
+      event.stopPropagation()
+    }
+
     if (!window.confirm('確定要刪除這篇日記嗎？')) return
-    
+
     try {
       await diaryAPI.delete(diaryId)
-      setDiaries(diaries.filter(d => (d.diary_id || d.id) !== diaryId))
+      setDiaries(prev => prev.filter(d => (d.diary_id || d.id) !== diaryId))
+      addToast('日記已刪除', 'success')
     } catch (e) {
-      alert('刪除失敗：' + (e.response?.data?.message || e.message))
+      const message = e.response?.data?.message || e.message || '刪除失敗'
+      addToast(message, 'error')
     }
   }
 
-  const filteredDiaries = filter === 'follows' 
-    ? followDiaries 
-    : diaries.filter(d => {
-        if (filter === 'all') return true
-        if (filter === 'public') return d.visibility === 'public'
-        if (filter === 'private') return d.visibility === 'private'
-        if (filter === 'draft') return d.status === 'draft'
-        return true
-      })
+  const handleEdit = (event, diaryId) => {
+    if (event) {
+      event.preventDefault()
+      event.stopPropagation()
+    }
+    navigate(`/diaries/${diaryId}/edit`)
+  }
+
+  const handleShare = (event, diaryId) => {
+    if (event) {
+      event.preventDefault()
+      event.stopPropagation()
+    }
+
+    const shareUrl = `${window.location.origin}/diaries/${diaryId}`
+
+    const fallbackCopy = () => {
+      try {
+        const textarea = document.createElement('textarea')
+        textarea.value = shareUrl
+        textarea.setAttribute('readonly', '')
+        textarea.style.position = 'absolute'
+        textarea.style.left = '-9999px'
+        document.body.appendChild(textarea)
+        textarea.select()
+        const successful = document.execCommand('copy')
+        document.body.removeChild(textarea)
+        if (successful) {
+          addToast('連結已複製', 'success')
+        } else {
+          addToast('複製連結失敗', 'error')
+        }
+      } catch (err) {
+        addToast('複製連結失敗', 'error')
+      }
+    }
+
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(shareUrl)
+        .then(() => addToast('連結已複製', 'success'))
+        .catch(() => fallbackCopy())
+    } else {
+      fallbackCopy()
+    }
+  }
+
+  const handleCardClick = (event, diaryId) => {
+    if (!diaryId) return
+    const interactive = event.target.closest('button, a, input, textarea, select, label')
+    if (interactive) return
+
+    const targetUrl = `/diaries/${diaryId}`
+    if (event.metaKey || event.ctrlKey) {
+      window.open(`${window.location.origin}${targetUrl}`, '_blank', 'noopener')
+      return
+    }
+
+    navigate(targetUrl)
+  }
+
+  const handleCardKeyDown = (event, diaryId) => {
+    if (!diaryId) return
+    const interactive = event.target.closest('button, a, input, textarea, select, label')
+    if (interactive) return
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      navigate(`/diaries/${diaryId}`)
+    }
+  }
+
+  const filteredDiaries = diaries.filter(d => {
+    if (filter === 'public') return d.visibility === 'public'
+    if (filter === 'private') return d.visibility === 'private'
+    if (filter === 'draft') return d.status === 'draft'
+    return true
+  })
+
+  const filterTabs = [
+    { key: 'all', label: '全部', count: diaries.length },
+    { key: 'public', label: '公開', count: diaries.filter(d => d.visibility === 'public').length },
+    { key: 'private', label: '私人', count: diaries.filter(d => d.visibility === 'private').length },
+    // { key: 'draft', label: '草稿', count: diaries.filter(d => d.status === 'draft').length }
+  ]
 
   if (loading) {
     return (
-      <div className="page diaries-list-page fade-in" style={{ padding: 'var(--spacing-xl)', maxWidth: 1200, margin: '0 auto' }}>
+      <div className="page diaries-list-page fade-in diaries-page">
         <div className="skeleton" style={{ width: '100%', height: 400, borderRadius: 'var(--radius-lg)' }}></div>
       </div>
     )
@@ -77,8 +335,8 @@ function DiariesList() {
 
   if (error) {
     return (
-      <div className="page diaries-list-page" style={{ padding: 'var(--spacing-xl)', maxWidth: 1200, margin: '0 auto' }}>
-        <Card>
+      <div className="page diaries-list-page fade-in diaries-page">
+        <Card className="diaries-empty-card">
           <div style={{ textAlign: 'center', padding: 'var(--spacing-xl)', color: 'var(--error-color)' }}>
             <p className="text-body">{error}</p>
             <Button variant="primary" onClick={loadDiaries} style={{ marginTop: 'var(--spacing-md)' }}>
@@ -91,316 +349,248 @@ function DiariesList() {
   }
 
   return (
-    <div className="page diaries-list-page fade-in" style={{ padding: 'var(--spacing-xl)', maxWidth: 1200, margin: '0 auto' }}>
-      {/* Header */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        marginBottom: 'var(--spacing-xl)',
-        flexWrap: 'wrap',
-        gap: 'var(--spacing-md)'
-      }}>
+    <div className="page diaries-list-page fade-in diaries-page">
+      <div className="diaries-header">
         <div>
-          <h2 className="text-h2" style={{ color: 'var(--primary-purple)' }}> 我的日記</h2>
-          <p className="text-body" style={{ color: 'var(--gray-600)', marginTop: 'var(--spacing-xs)' }}>
-            共 {diaries.length} 篇日記
-          </p>
+          <h2 className="text-h2 diaries-title">我的日記</h2>
+          <p className="text-body diaries-subtitle">共 {diaries.length} 篇日記</p>
         </div>
         <Link to="/diaries/new" style={{ textDecoration: 'none' }}>
-          <Button variant="primary" size="large">
+          <Button variant="primary" size="large" className="diaries-new-button">
             <PenTool size={18} style={{ marginRight: 'var(--spacing-xs)' }} />
             寫新日記
           </Button>
         </Link>
       </div>
 
-      {/* Filter Tabs */}
-      <div style={{ 
-        display: 'flex', 
-        gap: 'var(--spacing-sm)', 
-        marginBottom: 'var(--spacing-xl)',
-        flexWrap: 'wrap'
-      }}>
-        {[
-          { key: 'all', label: '全部', count: diaries.length },
-          { key: 'public', label: '公開', count: diaries.filter(d => d.visibility === 'public').length },
-          { key: 'private', label: '私人', count: diaries.filter(d => d.visibility === 'private').length },
-          { key: 'draft', label: '草稿', count: diaries.filter(d => d.status === 'draft').length },
-          { key: 'follows', label: '好友', count: followDiaries.length }
-        ].map(tab => (
+      <div className="diaries-tabs">
+        {filterTabs.map(tab => (
           <button
             key={tab.key}
+            type="button"
+            className={`diaries-tab ${filter === tab.key ? 'is-active' : ''}`}
             onClick={() => setFilter(tab.key)}
-            style={{
-              padding: 'var(--spacing-sm) var(--spacing-md)',
-              background: filter === tab.key ? 'var(--primary-purple)' : '#FFFFFF',
-              color: filter === tab.key ? '#FFFFFF' : 'var(--gray-700)',
-              border: `2px solid ${filter === tab.key ? 'var(--primary-purple)' : 'var(--gray-300)'}`,
-              borderRadius: 'var(--radius-full)',
-              cursor: 'pointer',
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              transition: 'all var(--transition-base)'
-            }}
-            onMouseEnter={(e) => {
-              if (filter !== tab.key) {
-                e.currentTarget.style.borderColor = 'var(--primary-purple)'
-                e.currentTarget.style.background = 'var(--gray-50)'
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (filter !== tab.key) {
-                e.currentTarget.style.borderColor = 'var(--gray-300)'
-                e.currentTarget.style.background = '#FFFFFF'
-              }
-            }}
           >
             {tab.label} ({tab.count})
           </button>
         ))}
       </div>
 
-      {/* Diaries List */}
       {filteredDiaries.length === 0 ? (
-        <Card>
-          <div style={{ textAlign: 'center', padding: 'var(--spacing-2xl)' }}>
-            <div style={{ fontSize: '4rem', marginBottom: 'var(--spacing-md)' }}>📝</div>
-            <h3 className="text-h3" style={{ marginBottom: 'var(--spacing-sm)' }}>
+        <Card className="diaries-empty-card">
+          <div className="diaries-empty-content">
+            <div className="diaries-empty-emoji" aria-hidden="true">📝</div>
+            <h3 className="diaries-empty-title">
               {filter === 'all' && '還沒有日記'}
-              {filter === 'public' && '沒有公開日記'}
-              {filter === 'private' && '沒有私人日記'}
-              {filter === 'draft' && '沒有草稿'}
-              {filter === 'follows' && '好友還沒有分享日記'}
+              {filter === 'public' && '還沒有公開日記'}
+              {filter === 'private' && '還沒有私人日記'}
+              {filter === 'draft' && '還沒有草稿日記'}
             </h3>
-            <p className="text-body" style={{ color: 'var(--gray-600)', marginBottom: 'var(--spacing-lg)' }}>
-              {filter === 'follows' ? '邀請好友開始寫日記吧！' : '開始記錄你的生活點滴吧！'}
-            </p>
-            {filter !== 'friends' && (
-              <Link to="/diaries/new" style={{ textDecoration: 'none' }}>
-                <Button variant="primary">寫第一篇日記</Button>
-              </Link>
-            )}
+            <p className="diaries-empty-subtitle">開始記錄你的生活點滴吧！</p>
+            <Link to="/diaries/new" style={{ textDecoration: 'none' }}>
+              <Button variant="primary">寫第一篇日記</Button>
+            </Link>
           </div>
         </Card>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-lg)' }}>
-          {filteredDiaries.map((diary, index) => (
-            <Card 
-              key={diary.diary_id || diary.id} 
-              hoverable
-              className="slide-up"
-              style={{ animationDelay: `${index * 0.05}s` }}
-            >
-              {/* Header with status badges */}
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between',
-                alignItems: 'flex-start',
-                marginBottom: 'var(--spacing-md)',
-                paddingBottom: 'var(--spacing-md)',
-                borderBottom: '1px solid var(--gray-200)'
-              }}>
-                <div style={{ flex: 1 }}>
-                  <Link 
-                    to={`/diaries/${diary.diary_id || diary.id}`}
-                    style={{ textDecoration: 'none', color: 'inherit' }}
-                  >
-                    <h3 className="text-h3" style={{ 
-                      color: 'var(--gray-900)',
-                      marginBottom: 'var(--spacing-xs)'
-                    }}>
-                      {diary.title || '(未命名)'}
-                    </h3>
-                  </Link>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', flexWrap: 'wrap' }}>
-                    <span className="text-small" style={{ color: 'var(--gray-600)' }}>
-                      {new Date(diary.created_at || diary.createdAt).toLocaleDateString('zh-TW', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                      })}
-                    </span>
-                    
-                    {/* Status badges */}
-                    {diary.status === 'draft' && (
-                      <span style={{
-                        padding: '2px 10px',
-                        background: '#FFE4B5',
-                        color: '#8B4513',
-                        borderRadius: 'var(--radius-sm)',
-                        fontSize: '0.75rem',
-                        fontWeight: 600
-                      }}>
-                        草稿
-                      </span>
-                    )}
-                    
-                    <span style={{
-                      padding: '2px 10px',
-                      background: diary.visibility === 'public' ? '#E0F7FA' : 'var(--gray-200)',
-                      color: diary.visibility === 'public' ? '#006064' : 'var(--gray-700)',
-                      borderRadius: 'var(--radius-sm)',
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px'
-                    }}>
-                      {diary.visibility === 'public' ? <Eye size={12} /> : <EyeOff size={12} />}
-                      {diary.visibility === 'public' ? '公開' : '私人'}
-                    </span>
-                  </div>
-                </div>
+        <div className="posts-container diaries-posts-container">
+          {filteredDiaries.map((diary) => {
+            const diaryId = diary.diary_id || diary.id
+            const mediaImages = getImageMediaForDiary(diary)
+            const createdAt = diary.created_at || diary.createdAt
+            const displayDate = createdAt
+              ? new Date(createdAt).toLocaleDateString('zh-TW', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              })
+              : ''
+            const authorName = diary.username || user?.username || '我'
+            const avatarUrl = diary.avatar_url || user?.profile_image
+            const authorInitial = authorName.charAt(0).toUpperCase()
+            const profileLink = user?.user_id ? `/users/${user.user_id}` : '#'
+            const tags = Array.isArray(diary.tags) ? diary.tags : []
+            const emotionTags = tags.filter(t => t.tag_type === 'emotion').slice(0, 3)
+            const weatherTag = tags.find(t => t.tag_type === 'weather')
+            const keywordTags = tags.filter(t => t.tag_type === 'keyword').slice(0, 3)
 
-                {/* Action buttons or Author info */}
-                {filter === 'follows' ? (
-                  // 顯示作者資訊
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
-                    <div style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: '50%',
-                      background: 'linear-gradient(135deg, var(--primary-purple), var(--primary-pink))',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#FFFFFF',
-                      fontSize: '1rem',
-                      fontWeight: 700
-                    }}>
-                      {(diary.username || 'U').charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <div className="text-small" style={{ fontWeight: 600, color: 'var(--gray-900)' }}>
-                        {diary.username || '匿名用戶'}
+            const likeCount = Number(diary.like_count ?? diary.likes ?? diary.likeCount ?? 0) || 0
+            const commentCount = Number(diary.comment_count ?? diary.comments ?? diary.commentCount ?? 0) || 0
+            const isLiked = Boolean(diary.is_liked ?? diary.liked ?? false)
+
+            return (
+              <article
+                key={diaryId}
+                className="post-card"
+                role="link"
+                tabIndex={0}
+                aria-label={`開啟 ${diary.title || '日記'} 詳細內容`}
+                onClick={(event) => handleCardClick(event, diaryId)}
+                onKeyDown={(event) => handleCardKeyDown(event, diaryId)}
+              >
+                <div className="post-header">
+                  <div className="author-info">
+                    <Link
+                      to={profileLink}
+                      className="author-avatar-link"
+                      style={{ textDecoration: 'none' }}
+                      onClick={(event) => {
+                        if (profileLink === '#') {
+                          event.preventDefault()
+                        }
+                        event.stopPropagation()
+                      }}
+                    >
+                      <div
+                        className="author-avatar"
+                        style={{
+                          backgroundImage: avatarUrl ? `url(${ensureAbsoluteUrl(avatarUrl)})` : 'none',
+                          backgroundColor: avatarUrl ? 'transparent' : 'var(--gray-200)',
+                          display: avatarUrl ? 'block' : 'flex',
+                          alignItems: avatarUrl ? undefined : 'center',
+                          justifyContent: avatarUrl ? undefined : 'center',
+                          color: avatarUrl ? 'transparent' : 'var(--primary-purple)',
+                          fontWeight: avatarUrl ? undefined : 700,
+                          fontSize: avatarUrl ? undefined : '1rem'
+                        }}
+                      >
+                        {!avatarUrl && authorInitial}
+                      </div>
+                    </Link>
+                    <div className="author-details">
+                      <h3 className="author-name">{authorName}</h3>
+                      <div className="diaries-meta">
+                        {displayDate && <span className="post-date">{displayDate}</span>}
+                        {diary.status === 'draft' && (
+                          <span className="diary-badge diary-badge--draft">草稿</span>
+                        )}
+                        <span className={`diary-badge ${diary.visibility === 'public' ? 'diary-badge--public' : 'diary-badge--private'}`}>
+                          {diary.visibility === 'public' ? <Eye size={14} /> : <EyeOff size={14} />}
+                          {diary.visibility === 'public' ? '公開' : '私人'}
+                        </span>
                       </div>
                     </div>
                   </div>
-                ) : (
-                  // 顯示編輯/刪除按鈕
-                  <div style={{ display: 'flex', gap: 'var(--spacing-xs)' }}>
-                    <Link to={`/diaries/${diary.diary_id || diary.id}/edit`} style={{ textDecoration: 'none' }}>
-                      <Button variant="ghost" size="small">
-                        <Edit3 size={16} />
-                      </Button>
-                    </Link>
-                    <Button 
-                      variant="ghost" 
-                      size="small"
-                      onClick={() => handleDelete(diary.diary_id || diary.id)}
-                      style={{ color: 'var(--error-color)' }}
+                  <div className="post-owner-actions">
+                    <button
+                      type="button"
+                      className="owner-action-btn"
+                      onClick={(event) => handleEdit(event, diaryId)}
+                      aria-label="編輯日記"
                     >
-                      <Trash2 size={16} />
-                    </Button>
+                      <PencilLine size={18} />
+                    </button>
+                    <button
+                      type="button"
+                      className="owner-action-btn owner-action-delete"
+                      onClick={(event) => handleDelete(event, diaryId)}
+                      aria-label="刪除日記"
+                    >
+                      <Trash2 size={18} />
+                    </button>
                   </div>
-                )}
-              </div>
+                </div>
 
-              {/* Tags */}
-              {diary.tags && diary.tags.length > 0 && (
-                <div style={{ 
-                  display: 'flex', 
-                  flexWrap: 'wrap', 
-                  gap: 'var(--spacing-xs)', 
-                  marginBottom: 'var(--spacing-md)' 
-                }}>
-                  {diary.tags.filter(t => t.tag_type === 'emotion').map((t, i) => (
-                    <span 
-                      key={i} 
-                      style={{ 
-                        padding: '4px 12px', 
-                        background: 'var(--emotion-pink)', 
-                        borderRadius: 'var(--radius-full)',
-                        fontSize: '0.875rem',
-                        fontWeight: 500,
-                        color: 'var(--dark-purple)'
-                      }}
-                    >
-                      {t.tag_value}
-                    </span>
-                  ))}
-                  {diary.tags.find(t => t.tag_type === 'weather') && (
-                    <span 
-                      style={{ 
-                        padding: '4px 12px', 
-                        background: '#B2EBF2', 
-                        borderRadius: 'var(--radius-full)',
-                        fontSize: '0.875rem',
-                        fontWeight: 500,
-                        color: '#006064'
-                      }}
-                    >
-                      {diary.tags.find(t => t.tag_type === 'weather').tag_value}
-                    </span>
+                <div className="post-content" role="presentation">
+                  <Link
+                    to={`/diaries/${diaryId}`}
+                    style={{ textDecoration: 'none', color: 'inherit' }}
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <h3 className="post-title">{diary.title || '(未命名)'}</h3>
+                  </Link>
+
+                  {tags.length > 0 && (
+                    <div className="diaries-tags">
+                      {emotionTags.map((t, i) => {
+                        const palette = getEmotionPalette(t.tag_value)
+                        const tagStyle = {
+                          ...buildTagStyle(palette),
+                          color: '#FFFFFF'
+                        }
+                        return (
+                          <span
+                            key={`emotion-${i}`}
+                            className="diaries-tag diaries-tag--emotion"
+                            style={tagStyle}
+                          >
+                            {t.tag_value}
+                          </span>
+                        )
+                      })}
+                      {weatherTag && (
+                        <span
+                          className="diaries-tag diaries-tag--weather"
+                          style={{
+                            ...buildTagStyle(getWeatherPalette(weatherTag.tag_value)),
+                            color: '#FFFFFF'
+                          }}
+                        >
+                          {weatherTag.tag_value}
+                        </span>
+                      )}
+                      {keywordTags.map((t, i) => (
+                        <span key={`keyword-${i}`} className="diaries-tag diaries-tag--keyword">#{t.tag_value}</span>
+                      ))}
+                    </div>
                   )}
-                  {diary.tags.filter(t => t.tag_type === 'keyword').slice(0, 3).map((t, i) => (
-                    <span 
-                      key={i} 
-                      style={{ 
-                        padding: '4px 12px', 
-                        background: 'var(--gray-200)', 
-                        borderRadius: 'var(--radius-full)',
-                        fontSize: '0.875rem',
-                        color: 'var(--gray-700)'
-                      }}
-                    >
-                      #{t.tag_value}
-                    </span>
-                  ))}
-                </div>
-              )}
 
-              {/* Content preview */}
-              <Link 
-                to={`/diaries/${diary.diary_id || diary.id}`}
-                style={{ textDecoration: 'none', color: 'inherit' }}
-              >
-                <p className="text-body" style={{ 
-                  color: 'var(--gray-700)',
-                  lineHeight: 1.6,
-                  marginBottom: 'var(--spacing-md)',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  display: '-webkit-box',
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: 'vertical'
-                }}>
-                  {diary.content}
-                </p>
-              </Link>
+                  {diary.content && <p>{diary.content}</p>}
 
-              {/* Footer stats */}
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 'var(--spacing-lg)',
-                paddingTop: 'var(--spacing-md)',
-                borderTop: '1px solid var(--gray-200)'
-              }}>
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 'var(--spacing-xs)',
-                  color: 'var(--gray-600)',
-                  fontSize: '0.875rem'
-                }}>
-                  <Heart size={16} />
-                  <span>{diary.like_count || 0} 個讚</span>
+                  {mediaImages.length > 0 && (
+                    <div className="post-media-grid">
+                      {mediaImages.map((image) => (
+                        <img
+                          key={image.key}
+                          src={image.url}
+                          alt={image.alt || `${authorName} 的日記圖片`}
+                          loading="lazy"
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 'var(--spacing-xs)',
-                  color: 'var(--gray-600)',
-                  fontSize: '0.875rem'
-                }}>
-                  <MessageCircle size={16} />
-                  <span>{diary.comment_count || 0} 則留言</span>
+
+                <div
+                  className="post-footer"
+                  role="presentation"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <button
+                    type="button"
+                    className={`post-action ${isLiked ? 'liked' : ''}`}
+                    onClick={(event) => handleToggleLike(event, diaryId)}
+                    disabled={isLikePending(diaryId)}
+                    aria-pressed={isLiked}
+                    aria-busy={isLikePending(diaryId)}
+                  >
+                    <Heart
+                      size={20}
+                      color={isLiked ? '#CD79D5' : undefined}
+                      fill={isLiked ? '#CD79D5' : 'none'}
+                    />
+                    <span>{likeCount} 個讚</span>
+                  </button>
+                  <Link
+                    to={`/diaries/${diaryId}`}
+                    className="post-action"
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <MessageCircle size={20} />
+                    <span>{commentCount} 則留言</span>
+                  </Link>
+                  <button
+                    type="button"
+                    className="post-action"
+                    onClick={(event) => handleShare(event, diaryId)}
+                  >
+                    <Share2 size={20} />
+                    <span>日記分享</span>
+                  </button>
                 </div>
-              </div>
-            </Card>
-          ))}
+              </article>
+            )
+          })}
         </div>
       )}
     </div>

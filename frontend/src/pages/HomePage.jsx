@@ -9,6 +9,7 @@ import Input from '../components/ui/Input'
 import Select from '../components/ui/Select'
 import Button from '../components/ui/Button'
 import { EMOTIONS, WEATHERS, SORT_OPTIONS } from '../constants/searchFilters'
+import { buildTagStyle, getEmotionPalette, getWeatherPalette } from '../utils/tagPalettes'
 import './HomePage.css'
 
 function HomePage() {
@@ -336,8 +337,8 @@ function HomePage() {
       return
     }
 
-    const currentPost = (Array.isArray(posts) ? posts : []).find(p => p.diary_id === diaryId) ||
-      (Array.isArray(filteredPosts) ? filteredPosts : []).find(p => p.diary_id === diaryId)
+    const currentPost = (Array.isArray(posts) ? posts : []).find(p => String(p.diary_id || p.id || p.diaryId) === String(diaryId)) ||
+      (Array.isArray(filteredPosts) ? filteredPosts : []).find(p => String(p.diary_id || p.id || p.diaryId) === String(diaryId))
 
     if (!currentPost) {
       console.warn('找不到指定日記，無法處理按讚：', diaryId)
@@ -363,6 +364,12 @@ function HomePage() {
       const serverCount = Number.isFinite(rawCount) ? rawCount : NaN
 
       syncLikeState(diaryId, serverLiked, serverCount)
+      // Broadcast like update so other pages can sync their state
+      try {
+        window.dispatchEvent(new CustomEvent('diaryLikeUpdated', { detail: { diaryId, liked: serverLiked, count: serverCount } }))
+      } catch (e) {
+        console.debug('Failed to dispatch diaryLikeUpdated event', e)
+      }
     } catch (err) {
       const serverMessage = err?.response?.data?.message || err?.response?.data?.error
       console.error('Error toggling like:', serverMessage || err)
@@ -378,6 +385,38 @@ function HomePage() {
       })
     }
   }
+
+  // Listen for global like updates from other pages
+  useEffect(() => {
+    const handler = (e) => {
+      try {
+        const { diaryId, liked, count } = e.detail || {}
+        if (diaryId) syncLikeState(diaryId, liked, count)
+      } catch (err) {
+        console.debug('diaryLikeUpdated handler error', err)
+      }
+    }
+    window.addEventListener('diaryLikeUpdated', handler)
+    const commentHandler = (ev) => {
+      try {
+        const { diaryId, count } = ev.detail || {}
+        if (!diaryId) return
+        setPosts(prev => {
+          if (!Array.isArray(prev) || prev.length === 0) return prev
+          const updated = prev.map(p => String(p.diary_id || p.id || p.diaryId) === String(diaryId) ? { ...p, comment_count: Number(count ?? p.comment_count ?? 0) } : p)
+          setFilteredPosts(applyFilters(updated))
+          return updated
+        })
+      } catch (err) {
+        console.debug('diaryCommentUpdated handler error', err)
+      }
+    }
+    window.addEventListener('diaryCommentUpdated', commentHandler)
+    return () => {
+      window.removeEventListener('diaryLikeUpdated', handler)
+      window.removeEventListener('diaryCommentUpdated', commentHandler)
+    }
+  }, [posts, filteredPosts])
 
   const performFollowMutation = async ({ targetUserId, alreadyFriend }) => {
     if (isFollowLoading(targetUserId)) {
@@ -804,43 +843,45 @@ function HomePage() {
                       gap: '6px',
                       marginBottom: '12px'
                     }}>
-                      {post.tags.filter(t => t.tag_type === 'emotion').slice(0, 2).map((t, i) => (
+                      {post.tags.filter(t => t.tag_type === 'emotion').slice(0, 3).map((t, i) => (
                         <span
                           key={i}
                           style={{
-                            padding: '3px 10px',
-                            background: 'var(--emotion-pink)',
-                            borderRadius: '12px',
-                            fontSize: '0.75rem',
-                            fontWeight: 500,
-                            color: 'var(--dark-purple)'
+                            ...buildTagStyle(getEmotionPalette(t.tag_value)),
+                            padding: '2px 8px',
+                            color: '#FFFFFF',
+                            borderRadius: '999px',
+                            fontSize: '0.8125rem'
                           }}
                         >
                           {t.tag_value}
                         </span>
                       ))}
-                      {post.tags.find(t => t.tag_type === 'weather') && (
-                        <span
-                          style={{
-                            padding: '3px 10px',
-                            background: '#B2EBF2',
-                            borderRadius: '12px',
-                            fontSize: '0.75rem',
-                            fontWeight: 500,
-                            color: '#006064'
-                          }}
-                        >
-                          {post.tags.find(t => t.tag_type === 'weather').tag_value}
-                        </span>
-                      )}
+                      {(() => {
+                        const weatherTag = post.tags.find(t => t.tag_type === 'weather')
+                        if (!weatherTag) return null
+                        return (
+                          <span
+                            style={{
+                              ...buildTagStyle(getWeatherPalette(weatherTag.tag_value)),
+                              padding: '2px 8px',
+                              color: '#FFFFFF',
+                              borderRadius: '999px',
+                              fontSize: '0.8125rem'
+                            }}
+                          >
+                            {weatherTag.tag_value}
+                          </span>
+                        )
+                      })()}
                       {post.tags.filter(t => t.tag_type === 'keyword').slice(0, 3).map((t, i) => (
                         <span
                           key={i}
                           style={{
-                            padding: '3px 10px',
+                            padding: '2px 8px',
                             background: 'var(--gray-200)',
-                            borderRadius: '12px',
-                            fontSize: '0.75rem',
+                            borderRadius: '999px',
+                            fontSize: '0.8125rem',
                             color: 'var(--gray-700)'
                           }}
                         >

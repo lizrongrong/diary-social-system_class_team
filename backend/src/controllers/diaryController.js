@@ -109,11 +109,15 @@ exports.getDiaries = async (req, res) => {
           const tags = await Diary.getTags(diary.diary_id);
           const likeCount = await Like.count('diary', diary.diary_id);
           const comments = await Comment.findByDiary(diary.diary_id);
+          const media = await Diary.getMedia(diary.diary_id);
+          const isLiked = await Like.isLiked('diary', diary.diary_id, req.user.user_id);
           return {
             ...diary,
             tags,
             like_count: likeCount,
-            comment_count: comments.length
+            comment_count: comments.length,
+            media,
+            is_liked: isLiked
           };
         } catch (innerErr) {
           console.error('Error enriching diary:', diary && diary.diary_id, innerErr && innerErr.stack ? innerErr.stack : innerErr);
@@ -122,7 +126,9 @@ exports.getDiaries = async (req, res) => {
             ...diary,
             tags: [],
             like_count: 0,
-            comment_count: 0
+            comment_count: 0,
+            media: [],
+            is_liked: false
           };
         }
       })

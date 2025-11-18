@@ -60,7 +60,6 @@ function FollowPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [pendingDelete, setPendingDelete] = useState(null)
   const [messageFriend, setMessageFriend] = useState(null)
-  const [shareFriend, setShareFriend] = useState(null)
   const [showGuide, setShowGuide] = useState(false)
   const searchRequestIdRef = useRef(0)
 
@@ -71,6 +70,53 @@ function FollowPage() {
     setOtherUsers([])
     setSearchingUsers(false)
   }, [follows])
+
+  const copyProfileLink = useCallback(
+    async (friendId, displayName, profilePath) => {
+      if (!friendId || !profilePath) {
+        addToast('無法取得好友資訊，請稍後再試', 'error')
+        return
+      }
+
+      const origin = window?.location?.origin || ''
+      const normalizedPath = profilePath.startsWith('/') ? profilePath : `/${profilePath}`
+      const shareUrl = origin ? `${origin}${normalizedPath}` : normalizedPath
+
+      const successMessage = `${displayName} 的主頁連結已複製`
+
+      try {
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(shareUrl)
+          addToast(successMessage, 'success')
+          return
+        }
+      } catch (clipboardError) {
+        console.warn('Clipboard write failed, falling back:', clipboardError)
+      }
+
+      try {
+        const textarea = document.createElement('textarea')
+        textarea.value = shareUrl
+        textarea.setAttribute('readonly', '')
+        textarea.style.position = 'absolute'
+        textarea.style.left = '-9999px'
+        document.body.appendChild(textarea)
+        textarea.select()
+        const copied = document.execCommand('copy')
+        document.body.removeChild(textarea)
+
+        if (copied) {
+          addToast(successMessage, 'success')
+        } else {
+          throw new Error('execCommand returned false')
+        }
+      } catch (fallbackError) {
+        console.error('Fallback copy failed:', fallbackError)
+        addToast('複製失敗，請手動複製網址', 'error')
+      }
+    },
+    [addToast]
+  )
 
   useEffect(() => {
     loadFollows()
@@ -313,8 +359,8 @@ function FollowPage() {
                         <button
                           type="button"
                           className="friend-icon-button"
-                          aria-label="分享好友"
-                          onClick={() => setShareFriend({ id: friendId, name: displayName })}
+                          aria-label="複製好友主頁連結"
+                          onClick={() => copyProfileLink(friendId, displayName, profileHref)}
                         >
                           <FaShareFromSquare size={26} />
                         </button>
@@ -453,8 +499,8 @@ function FollowPage() {
                   <button
                     type="button"
                     className="friend-icon-button"
-                    aria-label="分享好友"
-                    onClick={() => setShareFriend({ id: friendId, name: displayName })}
+                    aria-label="複製好友主頁連結"
+                    onClick={() => copyProfileLink(friendId, displayName, profileHref)}
                   >
                     <FaShareFromSquare size={26} />
                   </button>
@@ -485,14 +531,6 @@ function FollowPage() {
       />
 
       {/* 訊息彈窗已改為右下 ChatPopup，移除 InfoModal */}
-
-      <InfoModal
-        open={Boolean(shareFriend)}
-        title={shareFriend ? `分享 ${shareFriend.name} 的主頁` : ''}
-        description="分享功能即將上線，很快就能把好友介紹給大家。"
-        onClose={() => setShareFriend(null)}
-        actionLabel="了解"
-      />
 
       <InfoModal
         open={showGuide}
