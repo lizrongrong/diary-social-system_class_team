@@ -343,6 +343,15 @@
     gap: 8px;
 }
 
+/* Tag wrapping and long-word handling to avoid truncation */
+.diary-tag,
+.diaries-tag,
+.diary-card-tags span {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: normal;
+}
+
 .diary-tag {
     display: inline-flex;
     align-items: center;

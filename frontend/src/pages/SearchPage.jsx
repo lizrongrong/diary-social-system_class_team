@@ -230,7 +230,7 @@ function SearchPage() {
                     gap: 'var(--spacing-xs)',
                     marginBottom: 'var(--spacing-md)'
                   }}>
-                    {diary.tags.filter(t => t.tag_type === 'emotion').slice(0, 2).map((t, i) => (
+                    {diary.tags.filter(t => t.tag_type === 'emotion').slice(0, 3).map((t, i) => (
                       <span
                         key={i}
                         style={{

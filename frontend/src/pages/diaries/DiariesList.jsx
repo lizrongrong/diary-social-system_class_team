@@ -410,7 +410,7 @@ function DiariesList() {
             const authorInitial = authorName.charAt(0).toUpperCase()
             const profileLink = user?.user_id ? `/users/${user.user_id}` : '#'
             const tags = Array.isArray(diary.tags) ? diary.tags : []
-            const emotionTags = tags.filter(t => t.tag_type === 'emotion').slice(0, 2)
+            const emotionTags = tags.filter(t => t.tag_type === 'emotion').slice(0, 3)
             const weatherTag = tags.find(t => t.tag_type === 'weather')
             const keywordTags = tags.filter(t => t.tag_type === 'keyword').slice(0, 3)
 
