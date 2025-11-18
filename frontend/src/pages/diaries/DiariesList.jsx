@@ -109,8 +109,8 @@ function DiariesList() {
     setDiaries(prev => {
       if (!Array.isArray(prev) || prev.length === 0) return prev
       return prev.map((entry) => {
-        const entryId = entry.diary_id || entry.id
-        if (entryId !== diaryId) return entry
+        const entryId = entry.diary_id || entry.id || entry.diaryId || null
+        if (String(entryId) !== String(diaryId)) return entry
         const baseCount = Number(entry.like_count) || 0
         let nextCount = baseCount
 
@@ -144,7 +144,7 @@ function DiariesList() {
     }
 
     const currentDiary = (Array.isArray(diaries) ? diaries : []).find(
-      (entry) => (entry.diary_id || entry.id) === diaryId
+      (entry) => String(entry.diary_id || entry.id || entry.diaryId) === String(diaryId)
     )
 
     if (!currentDiary) {
@@ -170,6 +170,12 @@ function DiariesList() {
       const rawCount = Number(response?.count)
       const serverCount = Number.isFinite(rawCount) ? rawCount : NaN
       syncDiaryLikeState(diaryId, serverLiked, serverCount)
+      // Broadcast like update so other pages can sync
+      try {
+        window.dispatchEvent(new CustomEvent('diaryLikeUpdated', { detail: { diaryId, liked: serverLiked, count: serverCount } }))
+      } catch (e) {
+        console.debug('Failed to dispatch diaryLikeUpdated event', e)
+      }
     } catch (err) {
       const message = err?.response?.data?.message || err?.response?.data?.error || err?.message || '按讚失敗'
       addToast(message, 'error')
@@ -182,6 +188,40 @@ function DiariesList() {
       })
     }
   }
+
+  // Listen for global like updates from other pages
+  useEffect(() => {
+    const handler = (e) => {
+      try {
+        const { diaryId, liked, count } = e.detail || {}
+        if (diaryId) syncDiaryLikeState(diaryId, liked, count)
+      } catch (err) {
+        console.debug('DiariesList diaryLikeUpdated handler error', err)
+      }
+    }
+    window.addEventListener('diaryLikeUpdated', handler)
+    const commentHandler = (ev) => {
+      try {
+        const { diaryId, count } = ev.detail || {}
+        if (!diaryId) return
+        setDiaries(prev => {
+          if (!Array.isArray(prev) || prev.length === 0) return prev
+          return prev.map(entry => {
+            const entryId = entry.diary_id || entry.id
+            if (entryId !== diaryId) return entry
+            return { ...entry, comment_count: Number(count ?? entry.comment_count ?? 0), comments: Number(count ?? entry.comments ?? 0) }
+          })
+        })
+      } catch (err) {
+        console.debug('DiariesList diaryCommentUpdated handler error', err)
+      }
+    }
+    window.addEventListener('diaryCommentUpdated', commentHandler)
+    return () => {
+      window.removeEventListener('diaryLikeUpdated', handler)
+      window.removeEventListener('diaryCommentUpdated', commentHandler)
+    }
+  }, [diaries])
 
   const handleDelete = async (event, diaryId) => {
     if (event) {
