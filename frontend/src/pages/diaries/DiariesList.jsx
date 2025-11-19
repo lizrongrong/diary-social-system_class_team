@@ -9,6 +9,10 @@ import { useToast } from '../../components/ui/Toast'
 import { buildTagStyle, getEmotionPalette, getWeatherPalette } from '../../utils/tagPalettes'
 import '../HomePage.css'
 import './DiariesList.css'
+import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js'
+import { Pie } from 'react-chartjs-2'
+
+ChartJS.register(ArcElement, Tooltip, Legend)
 
 const normalizeMediaArray = (media) => {
   if (!media) return []
@@ -76,6 +80,7 @@ function DiariesList() {
   const [filter, setFilter] = useState('all') // all, public, private, draft
   const [loadingAnalyses, setLoadingAnalyses] = useState(() => ({}))
   const [aiResults, setAiResults] = useState(() => ({}))
+  const [aiExpanded, setAiExpanded] = useState(() => ({}))
   const navigate = useNavigate()
   const { addToast } = useToast()
   const [likePendingIds, setLikePendingIds] = useState(() => new Set())
@@ -298,24 +303,66 @@ function DiariesList() {
     if (!diaryId) return
     if (loadingAnalyses[diaryId]) return
 
+    // Expand UI immediately for preview
+    setAiExpanded(prev => ({ ...prev, [diaryId]: true }))
     setLoadingAnalyses(prev => ({ ...prev, [diaryId]: true }))
+
+    // Provide placeholder UI-only content immediately so user sees layout
+    setAiResults(prev => ({
+      ...prev,
+      [diaryId]: prev[diaryId] || {
+        summary: '（範例）AI 摘要將在此顯示。若已串接後端，完成後會自動替換。',
+        suggestion: '（範例）AI 建議或提醒：若感到不適，考慮與親友或專業人士討論。',
+        emotion_score: {
+          開心: 30,
+          難過: 10,
+          生氣: 5,
+          焦慮: 15,
+          平靜: 15,
+          興奮: 10,
+          疲累: 10,
+          感動: 5
+        }
+      }
+    }))
+
     try {
       const res = await diaryAPI.generateAnalysis(diaryId)
       if (res && res.analysis) {
         setAiResults(prev => ({ ...prev, [diaryId]: res.analysis }))
         addToast('AI 分析已完成', 'success')
-      } else {
-        addToast('AI 分析完成，但未回傳內容', 'warning')
       }
     } catch (err) {
+      // don't spam user when backend not available; show warning only for timeout
       if (err?.response?.status === 504) {
         addToast('生成逾時，請稍後再試一次。', 'warning')
-      } else {
-        const msg = err?.response?.data?.message || err?.message || '生成失敗'
-        addToast(msg, 'error')
       }
     } finally {
       setLoadingAnalyses(prev => ({ ...prev, [diaryId]: false }))
+    }
+  }
+
+  const toggleAiPanel = (diaryId) => {
+    setAiExpanded(prev => ({ ...prev, [diaryId]: !prev[diaryId] }))
+  }
+
+  const getEmotionChartData = (diaryId) => {
+    const labels = ['開心', '難過', '生氣', '焦慮', '平靜', '興奮', '疲累', '感動']
+    const defaultScores = [30, 10, 5, 15, 15, 10, 10, 5]
+    const scoresObj = aiResults[diaryId]?.emotion_score || {}
+    const data = labels.map((l, i) => {
+      const v = Number(scoresObj[l])
+      return Number.isFinite(v) ? v : defaultScores[i]
+    })
+    return {
+      labels,
+      datasets: [
+        {
+          data,
+          backgroundColor: ['#FFD166', '#6C6CFF', '#FF6B6B', '#F0A500', '#74C69D', '#8E63FF', '#A9A9A9', '#FF9CC3'],
+          hoverOffset: 6
+        }
+      ]
     }
   }
 
@@ -523,6 +570,8 @@ function DiariesList() {
                   </div>
                 </div>
 
+                {/* AI Analysis expanded panel is rendered after the post content (moved below) */}
+
                 <div className="post-content" role="presentation">
                   <Link
                     to={`/diaries/${diaryId}`}
@@ -583,6 +632,98 @@ function DiariesList() {
                   )}
                 </div>
 
+                {/* AI Analysis expanded panel (render below the post content) */}
+                {aiExpanded[diaryId] && (
+                  <div
+                    className="ai-analysis-panel"
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'row',
+                      gap: '24px',
+                      marginTop: '12px',
+                      padding: '12px',
+                      borderTop: '1px solid rgba(0,0,0,0.06)'
+                    }}
+                  >
+                    <div className="ai-left" style={{ flex: 1 }}>
+                      <h4 style={{ margin: '0 0 8px 0' }}>日記摘要</h4>
+                      <div style={{ marginBottom: '12px' }}>
+                        <textarea
+                          readOnly
+                          value={aiResults[diaryId]?.summary || ''}
+                          placeholder="AI 生成的日記摘要會顯示在此"
+                          style={{
+                            width: '100%',
+                            minHeight: 96,
+                            resize: 'vertical',
+                            padding: '10px',
+                            borderRadius: 8,
+                            border: '1px solid rgba(0,0,0,0.08)',
+                            background: '#fff',
+                            color: '#111'
+                          }}
+                        />
+                      </div>
+
+                      <h4 style={{ margin: '0 0 8px 0' }}>建議或提醒</h4>
+                      <div>
+                        <textarea
+                          readOnly
+                          value={aiResults[diaryId]?.suggestion || ''}
+                          placeholder="AI 針對此篇日記的建議或心理提醒會顯示在此"
+                          style={{
+                            width: '100%',
+                            minHeight: 96,
+                            resize: 'vertical',
+                            padding: '10px',
+                            borderRadius: 8,
+                            border: '1px solid rgba(0,0,0,0.08)',
+                            background: '#fff',
+                            color: '#111'
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="ai-right" style={{ flex: 1.6, display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                      <h4 style={{ marginTop: 0, alignSelf: 'flex-start' }}>日記情緒比例</h4>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, width: '100%' }}>
+                        {/* Larger centered pie */}
+                        <div style={{ width: 260, height: 260, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          {
+                            (() => {
+                              const chartData = getEmotionChartData(diaryId)
+                              return <Pie data={chartData} options={{ plugins: { legend: { display: false } }, maintainAspectRatio: false }} />
+                            })()
+                          }
+                        </div>
+
+                        {/* Emotion labels in two rows under the pie, 4 columns */}
+                        <div style={{ width: '100%', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px 12px', marginTop: 8 }}>
+                          {
+                            (() => {
+                              const chartData = getEmotionChartData(diaryId)
+                              const data = chartData.datasets[0].data
+                              const colors = chartData.datasets[0].backgroundColor
+                              const total = data.reduce((a, b) => a + b, 0) || 1
+                              return chartData.labels.map((label, idx) => {
+                                const value = Number(data[idx]) || 0
+                                const pct = Math.round((value / total) * 100)
+                                return (
+                                  <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <div style={{ width: 12, height: 12, borderRadius: 3, background: colors[idx] }} />
+                                    <div style={{ fontSize: 13 }}>{label} <span style={{ color: '#666', marginLeft: 6 }}>{pct}%</span></div>
+                                  </div>
+                                )
+                              })
+                            })()
+                          }
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div
                   className="post-footer"
                   role="presentation"
@@ -626,18 +767,20 @@ function DiariesList() {
                       className="post-action post-action-ai"
                       style={{ marginLeft: 'auto' }}
                       onClick={(event) => {
-                        // 如果已有結果，前往查看；否則觸發生成
-                        if (aiResults[diaryId]) {
-                          event.preventDefault()
-                          event.stopPropagation()
-                          navigate(`/diaries/${diaryId}`)
+                        event.preventDefault()
+                        event.stopPropagation()
+                        // 若已展開則收合，否則展開並觸發生成（若尚未有結果）
+                        if (aiExpanded[diaryId]) {
+                          toggleAiPanel(diaryId)
                         } else {
                           handleGenerateAnalysis(event, diaryId)
                         }
                       }}
                       disabled={!!loadingAnalyses[diaryId]}
                     >
-                      {loadingAnalyses[diaryId] ? '生成中...' : (aiResults[diaryId] ? '查看 AI 分析' : '生成 AI 分析')}
+                      {loadingAnalyses[diaryId]
+                        ? '生成中...'
+                        : (aiExpanded[diaryId] ? '收合 AI 分析' : '生成 AI 分析')}
                     </Button>
                   )}
                 </div>
