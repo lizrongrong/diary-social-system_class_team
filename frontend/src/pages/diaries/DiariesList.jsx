@@ -333,9 +333,16 @@ function DiariesList() {
         addToast('AI 分析已完成', 'success')
       }
     } catch (err) {
-      // don't spam user when backend not available; show warning only for timeout
-      if (err?.response?.status === 504) {
+      // If server returns 409 (already completed), use returned analysis and expand
+      if (err?.response?.status === 409 && err?.response?.data?.analysis) {
+        setAiResults(prev => ({ ...prev, [diaryId]: err.response.data.analysis }))
+        setAiExpanded(prev => ({ ...prev, [diaryId]: true }))
+        addToast('分析已存在，顯示現有結果', 'info')
+      } else if (err?.response?.status === 504) {
+        // don't spam user when backend not available; show warning only for timeout
         addToast('生成逾時，請稍後再試一次。', 'warning')
+      } else {
+        addToast(err?.response?.data?.error || '生成失敗，請稍後再試', 'error')
       }
     } finally {
       setLoadingAnalyses(prev => ({ ...prev, [diaryId]: false }))
@@ -349,7 +356,11 @@ function DiariesList() {
   const getEmotionChartData = (diaryId) => {
     const labels = ['開心', '難過', '生氣', '焦慮', '平靜', '興奮', '疲累', '感動']
     const defaultScores = [30, 10, 5, 15, 15, 10, 10, 5]
-    const scoresObj = aiResults[diaryId]?.emotion_score || {}
+    let scoresObj = aiResults[diaryId]?.emotion_score || {}
+    // if backend returned a JSON string, parse it
+    if (typeof scoresObj === 'string') {
+      try { scoresObj = JSON.parse(scoresObj) } catch (e) { scoresObj = {} }
+    }
     const data = labels.map((l, i) => {
       const v = Number(scoresObj[l])
       return Number.isFinite(v) ? v : defaultScores[i]
@@ -365,6 +376,8 @@ function DiariesList() {
       ]
     }
   }
+
+  // no emoji mapping needed — labels will show colored dots
 
   const handleCardClick = (event, diaryId) => {
     if (!diaryId) return
@@ -650,7 +663,7 @@ function DiariesList() {
                       <div style={{ marginBottom: '12px' }}>
                         <textarea
                           readOnly
-                          value={aiResults[diaryId]?.summary || ''}
+                          value={loadingAnalyses[diaryId] ? 'loading...' : (aiResults[diaryId]?.summary || '')}
                           placeholder="AI 生成的日記摘要會顯示在此"
                           style={{
                             width: '100%',
@@ -669,7 +682,7 @@ function DiariesList() {
                       <div>
                         <textarea
                           readOnly
-                          value={aiResults[diaryId]?.suggestion || ''}
+                          value={loadingAnalyses[diaryId] ? 'loading...' : (aiResults[diaryId]?.suggestion || '')}
                           placeholder="AI 針對此篇日記的建議或心理提醒會顯示在此"
                           style={{
                             width: '100%',
@@ -711,7 +724,7 @@ function DiariesList() {
                                 const pct = Math.round((value / total) * 100)
                                 return (
                                   <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                    <div style={{ width: 12, height: 12, borderRadius: 3, background: colors[idx] }} />
+                                    <div aria-hidden style={{ width: 14, height: 14, borderRadius: 7, background: colors[idx] }} />
                                     <div style={{ fontSize: 13 }}>{label} <span style={{ color: '#666', marginLeft: 6 }}>{pct}%</span></div>
                                   </div>
                                 )
@@ -769,8 +782,12 @@ function DiariesList() {
                       onClick={(event) => {
                         event.preventDefault()
                         event.stopPropagation()
-                        // 若已展開則收合，否則展開並觸發生成（若尚未有結果）
+                        // If analysis exists and is completed, just toggle view (no regeneration)
+                        const existing = aiResults[diaryId]
                         if (aiExpanded[diaryId]) {
+                          toggleAiPanel(diaryId)
+                        } else if (existing && existing.status === 'completed') {
+                          // just show existing analysis
                           toggleAiPanel(diaryId)
                         } else {
                           handleGenerateAnalysis(event, diaryId)
@@ -780,7 +797,12 @@ function DiariesList() {
                     >
                       {loadingAnalyses[diaryId]
                         ? '生成中...'
-                        : (aiExpanded[diaryId] ? '收合 AI 分析' : '生成 AI 分析')}
+                        : (() => {
+                          const existing = aiResults[diaryId]
+                          if (aiExpanded[diaryId]) return '收合 AI 分析'
+                          if (existing && existing.status === 'completed') return '查看 AI 分析'
+                          return '生成 AI 分析'
+                        })()}
                     </Button>
                   )}
                 </div>
