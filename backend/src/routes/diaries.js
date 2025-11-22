@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const diaryController = require('../controllers/diaryController');
+const aiAnalysisController = require('../controllers/aiAnalysisController')
 const { authMiddleware, optionalAuth } = require('../middleware/auth');
 const { validateDiary } = require('../middleware/validation');
 
@@ -21,6 +22,10 @@ router.post('/', validateDiary, diaryController.createDiary);
 
 // GET /api/v1/diaries/:id - 取得單篇日記
 router.get('/:id', diaryController.getDiaryById);
+
+// AI analysis endpoints
+router.get('/:id/analysis', aiAnalysisController.getAnalysis)
+router.post('/:id/analysis', aiAnalysisController.generateAnalysis)
 
 // PUT /api/v1/diaries/:id - 更新日記
 router.put('/:id', validateDiary, diaryController.updateDiary);
