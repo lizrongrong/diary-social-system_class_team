@@ -267,6 +267,18 @@
   word-wrap: break-word;
 }
 
+/* Tag wrapping and long-word handling to avoid truncation */
+.diaries-tag,
+.diary-tag,
+.diary-card-tags span,
+.diaries-tags span,
+.post-content span,
+.post-content .diary-tag {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+}
+
 /* 文章底部 - 互動按鈕 */
 .post-footer {
   display: flex;
