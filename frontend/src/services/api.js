@@ -184,6 +184,17 @@ export const diaryAPI = {
     return response.data
   },
 
+  // AI analysis endpoints
+  getAnalysis: async (id) => {
+    const response = await api.get(`/diaries/${id}/analysis`)
+    return response.data
+  },
+
+  generateAnalysis: async (id) => {
+    const response = await api.post(`/diaries/${id}/analysis`)
+    return response.data
+  },
+
   getUserPublicDiaries: async (userId, params) => {
     const response = await api.get(`/users/${userId}/diaries`, { params })
     return response.data
