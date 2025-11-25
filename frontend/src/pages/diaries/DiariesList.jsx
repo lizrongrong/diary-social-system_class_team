@@ -102,6 +102,11 @@ function DiariesList() {
         is_liked: Boolean(item?.is_liked)
       }))
       setDiaries(normalized)
+<<<<<<< HEAD
+=======
+      // 預先檢查哪些日記已有 AI 分析，這樣按鈕可以正確顯示「查看 AI 分析」
+      prefetchAnalyses(normalized)
+>>>>>>> 8fc1b785aca77c1de0ec41f598b2e454719247b0
       setLikePendingIds(new Set())
     } catch (e) {
       setError(e.response?.data?.message || '無法取得日記列表')
@@ -110,6 +115,38 @@ function DiariesList() {
     }
   }
 
+<<<<<<< HEAD
+=======
+  // 輕量的 prefetch：為前幾篇日記嘗試 GET /diaries/:id/analysis，若存在則填入 aiResults
+  // 目的：減少大量 GET /analysis 的 noise（404 是預期情況，因為大多數日記尚未分析）
+  const prefetchAnalyses = (diaryArray = [], limit = 8) => {
+    if (!Array.isArray(diaryArray) || diaryArray.length === 0) return
+    const slice = diaryArray.slice(0, limit)
+    const tasks = slice.map((d) => {
+      const id = d.diary_id || d.id
+      if (!id) return Promise.resolve(null)
+      return diaryAPI.getAnalysis(id)
+        .then((res) => {
+          const analysis = (res && res.analysis) ? res.analysis : res
+          if (analysis) {
+            setAiResults(prev => ({ ...prev, [id]: analysis }))
+          }
+          return null
+        })
+        .catch((err) => {
+          // 404 = not found（正常），只在其他狀態碼時記錄
+          if (err?.response && err.response.status && err.response.status !== 404) {
+            console.debug('prefetchAnalyses error for', id, err?.response?.status)
+          }
+          return null
+        })
+    })
+
+    // 以 Promise.allSettled 執行整批請求，避免未處理例外
+    Promise.allSettled(tasks).catch((e) => console.debug('prefetchAnalyses batch failed', e))
+  }
+
+>>>>>>> 8fc1b785aca77c1de0ec41f598b2e454719247b0
   const isLikePending = (diaryId) => likePendingIds.has(diaryId)
 
   const syncDiaryLikeState = (diaryId, liked, count) => {
