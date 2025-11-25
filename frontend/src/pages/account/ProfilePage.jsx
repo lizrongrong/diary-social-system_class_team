@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PenLine } from 'lucide-react'
-import { userAPI, ensureAbsoluteUrl } from '../../services/api'
+import { userAPI } from '../../services/api'
 import useAuthStore from '../../store/authStore'
 import { useToast } from '../../components/ui/Toast'
+import Avatar from '../../components/Avatar'
 import './AccountPage.css'
 
 const genderMap = {
@@ -37,7 +38,7 @@ const formatDate = (value) => {
 
 function ProfilePage() {
     const { addToast } = useToast()
-    const { user: authUser, clearAllData } = useAuthStore()
+    const { user: authUser, clearAllData, setUserData } = useAuthStore()
     const [profile, setProfile] = useState(null)
     const [loading, setLoading] = useState(true)
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -48,29 +49,34 @@ function ProfilePage() {
         const load = async () => {
             try {
                 const data = await userAPI.getProfile()
-                setProfile(data?.user || data || null)
+                const userData = data?.user || data || null
+                setProfile(userData)
+
+                if (userData) {
+                    setUserData((current) => ({
+                        ...current,
+                        ...userData
+                    }))
+                }
+
             } catch (error) {
                 console.error('Failed to load profile', error)
-                addToast('載入會員資料失敗，請稍後再試', 'error')
             } finally {
                 setLoading(false)
             }
         }
 
         load()
-    }, [addToast])
+    }, [addToast]) // 移除 authUser 依賴，避免無限迴圈
 
     const displayName = useMemo(() => {
         if (!profile) return authUser?.username || '會員'
         return profile.display_name || profile.username || authUser?.username || '會員'
     }, [authUser?.username, profile])
 
-    const avatarInitial = (profile?.username || authUser?.username || 'U').charAt(0).toUpperCase()
-    const profileImage = useMemo(() => {
-        const primary = ensureAbsoluteUrl(profile?.profile_image)
-        if (primary) return primary
-        return ensureAbsoluteUrl(authUser?.profile_image)
-    }, [authUser?.profile_image, profile?.profile_image])
+    const profileImage = profile?.profile_image || profile?.avatar_url || authUser?.profile_image || authUser?.avatar_url
+    const avatarSeed = profile?.username || profile?.email || authUser?.username || authUser?.email || 'User'
+
     const email = profile?.email || authUser?.email || '未提供'
     const username = profile?.username || authUser?.username || '未設定'
     const signatureRaw = profile?.signature ?? authUser?.signature
@@ -137,15 +143,16 @@ function ProfilePage() {
                 <h1 className="account-header-title">會員管理</h1>
             </header>
 
-            <section className="account-card account-profile-card">
+            <section className="account-card account-profile-card"
+                style={{ overflow: 'visible' }}>
                 <div className="account-profile-banner">
-                    <div className="account-avatar" role="img" aria-label="使用者頭像">
-                        {profileImage ? (
-                            <img src={profileImage} alt={`${displayName} 的頭像`} />
-                        ) : (
-                            avatarInitial
-                        )}
-                    </div>
+
+                    <Avatar
+                        src={profileImage}
+                        seed={avatarSeed}
+                        className="account-avatar"
+                        alt="使用者頭像"
+                    />
                     <div className="account-profile-name">{displayName}</div>
                     <button
                         type="button"

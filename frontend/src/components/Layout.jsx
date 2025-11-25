@@ -1,11 +1,12 @@
 ﻿import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import useAuthStore from '../store/authStore'
-import { notificationAPI, ensureAbsoluteUrl } from '../services/api'
+import { notificationAPI } from '../services/api'
 import { Home, Sparkles, BookOpen, TrendingUp, Users, RefreshCw, ChevronDown, User, LogOut, Menu, X, IdCard, KeyRound, HelpCircle, Shield, AlertCircle, MessageSquare } from 'lucide-react'
 import AnnouncementBell from './AnnouncementBell'
 import NotificationBell from './NotificationBell'
 import ChatPopup from './ChatPopup'
+import Avatar from './Avatar'
 import './Layout.css'
 
 function Layout({ children }) {
@@ -16,8 +17,8 @@ function Layout({ children }) {
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const avatarSrc = user?.profile_image || user?.avatar_url
-  const resolvedAvatar = avatarSrc ? ensureAbsoluteUrl(avatarSrc) : ''
+  const avatarSeed = user?.username || user?.email || user?.user_id || 'User'
+  const profileImage = user?.profile_image || user?.avatar_url
 
   // 獲取未讀通知數量
   useEffect(() => {
@@ -114,12 +115,11 @@ function Layout({ children }) {
                   className="user-menu-btn"
                   onClick={() => setShowUserMenu(!showUserMenu)}
                 >
-                  <div
+                  <Avatar
+                    src={profileImage}
+                    seed={avatarSeed}
                     className="user-avatar"
-                    style={resolvedAvatar ? { backgroundImage: `url(${resolvedAvatar})`, color: 'transparent' } : undefined}
-                  >
-                    {!resolvedAvatar && <User size={18} />}
-                  </div>
+                  />
                   <span className="user-name">{user.username}</span>
                   <ChevronDown size={16} className={showUserMenu ? 'rotate' : ''} />
                 </button>

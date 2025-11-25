@@ -87,7 +87,8 @@
     width: 100%;
     height: 100%;
     border-radius: 50%;
-    background: radial-gradient(circle at 30% 30%, #ffe3ec, #f2c0df);
+    background: #ffffff;
+    border: 5px solid #fdfdfd;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -95,7 +96,7 @@
     font-size: 58px;
     font-weight: 700;
     overflow: hidden;
-    box-shadow: 0 20px 36px rgba(194, 122, 200, 0.28);
+    box-shadow: 0 12px 28px rgba(184, 108, 168, 0.25);
 }
 
 .account-edit-avatar img {
@@ -328,6 +329,10 @@
     left: 50%;
     transform: translateX(-50%);
     z-index: 2;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    overflow: hidden;
 }
 
 .account-avatar img {

@@ -4,6 +4,7 @@ import { Loader2, PenLine, X } from 'lucide-react'
 import { userAPI, uploadAPI, ensureAbsoluteUrl } from '../../services/api'
 import useAuthStore from '../../store/authStore'
 import { useToast } from '../../components/ui/Toast'
+import Avatar from '../../components/Avatar'
 import './AccountPage.css'
 
 const USERNAME_RULE = /^[a-zA-Z0-9_]{3,10}$/
@@ -55,11 +56,6 @@ function EditProfilePage() {
 
         load()
     }, [addToast])
-
-    const avatarInitial = useMemo(() => {
-        const source = form.username || authUser?.username || authUser?.email || 'U'
-        return source.charAt(0).toUpperCase()
-    }, [authUser?.email, authUser?.username, form.username])
 
     const signatureLength = useMemo(() => form.signature.trim().length, [form.signature])
 
@@ -236,19 +232,18 @@ function EditProfilePage() {
             <section className="account-card account-edit-profile-card">
                 <div className="account-edit-avatar-section">
                     <div className="account-edit-avatar-wrapper">
-                        <div className="account-edit-avatar" role="img" aria-label="使用者頭像">
-                            {avatarPreview ? (
-                                <img src={avatarPreview} alt="目前頭像預覽" />
-                            ) : (
-                                <span>{avatarInitial}</span>
-                            )}
+                        <Avatar
+                            src={avatarPreview}
+                            seed={form.username || authUser?.username || 'User'}
+                            className="account-edit-avatar"
+                            alt="目前頭像預覽"
+                        />
 
-                            {uploading && (
-                                <div className="account-edit-avatar-overlay" aria-label="頭像上傳中">
-                                    <Loader2 size={24} className="account-spinner" />
-                                </div>
-                            )}
-                        </div>
+                        {uploading && (
+                            <div className="account-edit-avatar-overlay" aria-label="頭像上傳中" style={{ borderRadius: '50%' }}>
+                                <Loader2 size={24} className="account-spinner" />
+                            </div>
+                        )}
                         <button
                             type="button"
                             className="account-edit-avatar-button"
