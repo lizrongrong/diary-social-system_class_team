@@ -102,11 +102,8 @@ function DiariesList() {
         is_liked: Boolean(item?.is_liked)
       }))
       setDiaries(normalized)
-<<<<<<< HEAD
-=======
       // 預先檢查哪些日記已有 AI 分析，這樣按鈕可以正確顯示「查看 AI 分析」
       prefetchAnalyses(normalized)
->>>>>>> 8fc1b785aca77c1de0ec41f598b2e454719247b0
       setLikePendingIds(new Set())
     } catch (e) {
       setError(e.response?.data?.message || '無法取得日記列表')
@@ -115,8 +112,6 @@ function DiariesList() {
     }
   }
 
-<<<<<<< HEAD
-=======
   // 輕量的 prefetch：為前幾篇日記嘗試 GET /diaries/:id/analysis，若存在則填入 aiResults
   // 目的：減少大量 GET /analysis 的 noise（404 是預期情況，因為大多數日記尚未分析）
   const prefetchAnalyses = (diaryArray = [], limit = 8) => {
@@ -146,7 +141,6 @@ function DiariesList() {
     Promise.allSettled(tasks).catch((e) => console.debug('prefetchAnalyses batch failed', e))
   }
 
->>>>>>> 8fc1b785aca77c1de0ec41f598b2e454719247b0
   const isLikePending = (diaryId) => likePendingIds.has(diaryId)
 
   const syncDiaryLikeState = (diaryId, liked, count) => {
@@ -810,7 +804,7 @@ function DiariesList() {
                     <Share2 size={20} />
                     <span>日記分享</span>
                   </button>
-                  {diary.visibility === 'public' && diary.status !== 'draft' && (
+                  {(diary.status !== 'draft' && (diary.visibility === 'public' || diary.visibility === 'private')) && (
                     <Button
                       variant="primary"
                       size="small"
