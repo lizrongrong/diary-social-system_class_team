@@ -1,6 +1,6 @@
 const db = require('../config/db');
 const crypto = require('crypto');
-const { generateAvatar } = require('../services/avatarGenerator');
+const { generateAvatar, generateAvatarFile } = require('../services/avatarGenerator');
 
 const DEFAULT_SIGNATURE = '這個人有點神秘還沒有個性簽名喔~';
 
@@ -49,7 +49,7 @@ class User {
     }
     const finalProfileImage = typeof userData.profile_image === 'string' && userData.profile_image.trim().length > 0
       ? userData.profile_image.trim()
-      : generateAvatar(userData.username || userId);
+      : generateAvatarFile(userData.username || userId);
 
     await User.ensureSignatureColumnSupport();
 
