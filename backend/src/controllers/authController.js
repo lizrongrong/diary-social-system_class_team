@@ -3,6 +3,10 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const emailVerification = require('../services/emailVerification');
+const { generateAvatar, generateAvatarFile } = require('../services/avatarGenerator');
+const fs = require('fs');
+const path = require('path');
+const { v4: uuidv4 } = require('uuid');
 // const { generateAvatar } = require('../services/avatarGenerator');
 const { isValidEmail } = require('../middleware/validation');
 
@@ -70,8 +74,7 @@ exports.register = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const normalizedProfileImage = typeof profile_image === 'string' && profile_image.trim().length > 0 ? profile_image.trim() : null;
-    // Remove backend avatar generation to ensure consistency with frontend fallback
-    const finalProfileImage = normalizedProfileImage || null;
+    const finalProfileImage = normalizedProfileImage || generateAvatar(username);
     const createdUserId = await User.create({ user_id, email, password_hash: hashedPassword, username, gender, birth_date, profile_image: finalProfileImage });
     const token = jwt.sign({ user_id: createdUserId, email, role: 'member' }, process.env.JWT_SECRET || 'dev_secret', { expiresIn: process.env.JWT_EXPIRES_IN || '7d' });
     return res.status(201).json({ message: 'Registration successful', token, user: { user_id: createdUserId, email, username, role: 'member', profile_image: finalProfileImage } });

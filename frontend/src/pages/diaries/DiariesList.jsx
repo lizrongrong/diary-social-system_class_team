@@ -9,6 +9,10 @@ import { useToast } from '../../components/ui/Toast'
 import { buildTagStyle, getEmotionPalette, getWeatherPalette } from '../../utils/tagPalettes'
 import '../HomePage.css'
 import './DiariesList.css'
+import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js'
+import { Pie } from 'react-chartjs-2'
+
+ChartJS.register(ArcElement, Tooltip, Legend)
 
 const normalizeMediaArray = (media) => {
   if (!media) return []
@@ -74,6 +78,9 @@ function DiariesList() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [filter, setFilter] = useState('all') // all, public, private, draft
+  const [loadingAnalyses, setLoadingAnalyses] = useState(() => ({}))
+  const [aiResults, setAiResults] = useState(() => ({}))
+  const [aiExpanded, setAiExpanded] = useState(() => ({}))
   const navigate = useNavigate()
   const { addToast } = useToast()
   const [likePendingIds, setLikePendingIds] = useState(() => new Set())
@@ -95,6 +102,8 @@ function DiariesList() {
         is_liked: Boolean(item?.is_liked)
       }))
       setDiaries(normalized)
+      // 預先檢查哪些日記已有 AI 分析，這樣按鈕可以正確顯示「查看 AI 分析」
+      prefetchAnalyses(normalized)
       setLikePendingIds(new Set())
     } catch (e) {
       setError(e.response?.data?.message || '無法取得日記列表')
@@ -103,14 +112,43 @@ function DiariesList() {
     }
   }
 
+  // 輕量的 prefetch：為前幾篇日記嘗試 GET /diaries/:id/analysis，若存在則填入 aiResults
+  // 目的：減少大量 GET /analysis 的 noise（404 是預期情況，因為大多數日記尚未分析）
+  const prefetchAnalyses = (diaryArray = [], limit = 8) => {
+    if (!Array.isArray(diaryArray) || diaryArray.length === 0) return
+    const slice = diaryArray.slice(0, limit)
+    const tasks = slice.map((d) => {
+      const id = d.diary_id || d.id
+      if (!id) return Promise.resolve(null)
+      return diaryAPI.getAnalysis(id)
+        .then((res) => {
+          const analysis = (res && res.analysis) ? res.analysis : res
+          if (analysis) {
+            setAiResults(prev => ({ ...prev, [id]: analysis }))
+          }
+          return null
+        })
+        .catch((err) => {
+          // 404 = not found（正常），只在其他狀態碼時記錄
+          if (err?.response && err.response.status && err.response.status !== 404) {
+            console.debug('prefetchAnalyses error for', id, err?.response?.status)
+          }
+          return null
+        })
+    })
+
+    // 以 Promise.allSettled 執行整批請求，避免未處理例外
+    Promise.allSettled(tasks).catch((e) => console.debug('prefetchAnalyses batch failed', e))
+  }
+
   const isLikePending = (diaryId) => likePendingIds.has(diaryId)
 
   const syncDiaryLikeState = (diaryId, liked, count) => {
     setDiaries(prev => {
       if (!Array.isArray(prev) || prev.length === 0) return prev
       return prev.map((entry) => {
-        const entryId = entry.diary_id || entry.id
-        if (entryId !== diaryId) return entry
+        const entryId = entry.diary_id || entry.id || entry.diaryId || null
+        if (String(entryId) !== String(diaryId)) return entry
         const baseCount = Number(entry.like_count) || 0
         let nextCount = baseCount
 
@@ -144,7 +182,7 @@ function DiariesList() {
     }
 
     const currentDiary = (Array.isArray(diaries) ? diaries : []).find(
-      (entry) => (entry.diary_id || entry.id) === diaryId
+      (entry) => String(entry.diary_id || entry.id || entry.diaryId) === String(diaryId)
     )
 
     if (!currentDiary) {
@@ -170,6 +208,12 @@ function DiariesList() {
       const rawCount = Number(response?.count)
       const serverCount = Number.isFinite(rawCount) ? rawCount : NaN
       syncDiaryLikeState(diaryId, serverLiked, serverCount)
+      // Broadcast like update so other pages can sync
+      try {
+        window.dispatchEvent(new CustomEvent('diaryLikeUpdated', { detail: { diaryId, liked: serverLiked, count: serverCount } }))
+      } catch (e) {
+        console.debug('Failed to dispatch diaryLikeUpdated event', e)
+      }
     } catch (err) {
       const message = err?.response?.data?.message || err?.response?.data?.error || err?.message || '按讚失敗'
       addToast(message, 'error')
@@ -182,6 +226,40 @@ function DiariesList() {
       })
     }
   }
+
+  // Listen for global like updates from other pages
+  useEffect(() => {
+    const handler = (e) => {
+      try {
+        const { diaryId, liked, count } = e.detail || {}
+        if (diaryId) syncDiaryLikeState(diaryId, liked, count)
+      } catch (err) {
+        console.debug('DiariesList diaryLikeUpdated handler error', err)
+      }
+    }
+    window.addEventListener('diaryLikeUpdated', handler)
+    const commentHandler = (ev) => {
+      try {
+        const { diaryId, count } = ev.detail || {}
+        if (!diaryId) return
+        setDiaries(prev => {
+          if (!Array.isArray(prev) || prev.length === 0) return prev
+          return prev.map(entry => {
+            const entryId = entry.diary_id || entry.id || entry.diaryId
+            if (String(entryId) !== String(diaryId)) return entry
+            return { ...entry, comment_count: Number(count ?? entry.comment_count ?? 0), comments: Number(count ?? entry.comments ?? 0) }
+          })
+        })
+      } catch (err) {
+        console.debug('DiariesList diaryCommentUpdated handler error', err)
+      }
+    }
+    window.addEventListener('diaryCommentUpdated', commentHandler)
+    return () => {
+      window.removeEventListener('diaryLikeUpdated', handler)
+      window.removeEventListener('diaryCommentUpdated', commentHandler)
+    }
+  }, [diaries])
 
   const handleDelete = async (event, diaryId) => {
     if (event) {
@@ -246,6 +324,91 @@ function DiariesList() {
       fallbackCopy()
     }
   }
+
+  const handleGenerateAnalysis = async (event, diaryId) => {
+    if (event) {
+      event.preventDefault()
+      event.stopPropagation()
+    }
+
+    if (!diaryId) return
+    if (loadingAnalyses[diaryId]) return
+
+    // Expand UI immediately for preview
+    setAiExpanded(prev => ({ ...prev, [diaryId]: true }))
+    setLoadingAnalyses(prev => ({ ...prev, [diaryId]: true }))
+
+    // Provide placeholder UI-only content immediately so user sees layout
+    setAiResults(prev => ({
+      ...prev,
+      [diaryId]: prev[diaryId] || {
+        summary: '（範例）AI 摘要將在此顯示。若已串接後端，完成後會自動替換。',
+        suggestion: '（範例）AI 建議或提醒：若感到不適，考慮與親友或專業人士討論。',
+        emotion_score: {
+          開心: 30,
+          難過: 10,
+          生氣: 5,
+          焦慮: 15,
+          平靜: 15,
+          興奮: 10,
+          疲累: 10,
+          感動: 5
+        }
+      }
+    }))
+
+    try {
+      const res = await diaryAPI.generateAnalysis(diaryId)
+      if (res && res.analysis) {
+        setAiResults(prev => ({ ...prev, [diaryId]: res.analysis }))
+        addToast('AI 分析已完成', 'success')
+      }
+    } catch (err) {
+      // If server returns 409 (already completed), use returned analysis and expand
+      if (err?.response?.status === 409 && err?.response?.data?.analysis) {
+        setAiResults(prev => ({ ...prev, [diaryId]: err.response.data.analysis }))
+        setAiExpanded(prev => ({ ...prev, [diaryId]: true }))
+        addToast('分析已存在，顯示現有結果', 'info')
+      } else if (err?.response?.status === 504) {
+        // don't spam user when backend not available; show warning only for timeout
+        addToast('生成逾時，請稍後再試一次。', 'warning')
+      } else {
+        addToast(err?.response?.data?.error || '生成失敗，請稍後再試', 'error')
+      }
+    } finally {
+      setLoadingAnalyses(prev => ({ ...prev, [diaryId]: false }))
+    }
+  }
+
+  const toggleAiPanel = (diaryId) => {
+    setAiExpanded(prev => ({ ...prev, [diaryId]: !prev[diaryId] }))
+  }
+
+  const getEmotionChartData = (diaryId) => {
+    const labels = ['開心', '難過', '生氣', '焦慮', '平靜', '興奮', '疲累', '感動']
+    const defaultScores = [30, 10, 5, 15, 15, 10, 10, 5]
+    let scoresObj = aiResults[diaryId]?.emotion_score || {}
+    // if backend returned a JSON string, parse it
+    if (typeof scoresObj === 'string') {
+      try { scoresObj = JSON.parse(scoresObj) } catch (e) { scoresObj = {} }
+    }
+    const data = labels.map((l, i) => {
+      const v = Number(scoresObj[l])
+      return Number.isFinite(v) ? v : defaultScores[i]
+    })
+    return {
+      labels,
+      datasets: [
+        {
+          data,
+          backgroundColor: ['#FFD166', '#6C6CFF', '#FF6B6B', '#F0A500', '#74C69D', '#8E63FF', '#A9A9A9', '#FF9CC3'],
+          hoverOffset: 6
+        }
+      ]
+    }
+  }
+
+  // no emoji mapping needed — labels will show colored dots
 
   const handleCardClick = (event, diaryId) => {
     if (!diaryId) return
@@ -370,9 +533,13 @@ function DiariesList() {
             const authorInitial = authorName.charAt(0).toUpperCase()
             const profileLink = user?.user_id ? `/users/${user.user_id}` : '#'
             const tags = Array.isArray(diary.tags) ? diary.tags : []
-            const emotionTags = tags.filter(t => t.tag_type === 'emotion').slice(0, 2)
+            const emotionTags = tags.filter(t => t.tag_type === 'emotion').slice(0, 3)
             const weatherTag = tags.find(t => t.tag_type === 'weather')
             const keywordTags = tags.filter(t => t.tag_type === 'keyword').slice(0, 3)
+
+            const likeCount = Number(diary.like_count ?? diary.likes ?? diary.likeCount ?? 0) || 0
+            const commentCount = Number(diary.comment_count ?? diary.comments ?? diary.commentCount ?? 0) || 0
+            const isLiked = Boolean(diary.is_liked ?? diary.liked ?? false)
 
             return (
               <article
@@ -447,6 +614,8 @@ function DiariesList() {
                   </div>
                 </div>
 
+                {/* AI Analysis expanded panel is rendered after the post content (moved below) */}
+
                 <div className="post-content" role="presentation">
                   <Link
                     to={`/diaries/${diaryId}`}
@@ -507,6 +676,98 @@ function DiariesList() {
                   )}
                 </div>
 
+                {/* AI Analysis expanded panel (render below the post content) */}
+                {aiExpanded[diaryId] && (
+                  <div
+                    className="ai-analysis-panel"
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'row',
+                      gap: '24px',
+                      marginTop: '12px',
+                      padding: '12px',
+                      borderTop: '1px solid rgba(0,0,0,0.06)'
+                    }}
+                  >
+                    <div className="ai-left" style={{ flex: 1 }}>
+                      <h4 style={{ margin: '0 0 8px 0' }}>日記摘要</h4>
+                      <div style={{ marginBottom: '12px' }}>
+                        <textarea
+                          readOnly
+                          value={loadingAnalyses[diaryId] ? 'loading...' : (aiResults[diaryId]?.summary || '')}
+                          placeholder="AI 生成的日記摘要會顯示在此"
+                          style={{
+                            width: '100%',
+                            minHeight: 96,
+                            resize: 'vertical',
+                            padding: '10px',
+                            borderRadius: 8,
+                            border: '1px solid rgba(0,0,0,0.08)',
+                            background: '#fff',
+                            color: '#111'
+                          }}
+                        />
+                      </div>
+
+                      <h4 style={{ margin: '0 0 8px 0' }}>建議或提醒</h4>
+                      <div>
+                        <textarea
+                          readOnly
+                          value={loadingAnalyses[diaryId] ? 'loading...' : (aiResults[diaryId]?.suggestion || '')}
+                          placeholder="AI 針對此篇日記的建議或心理提醒會顯示在此"
+                          style={{
+                            width: '100%',
+                            minHeight: 96,
+                            resize: 'vertical',
+                            padding: '10px',
+                            borderRadius: 8,
+                            border: '1px solid rgba(0,0,0,0.08)',
+                            background: '#fff',
+                            color: '#111'
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="ai-right" style={{ flex: 1.6, display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                      <h4 style={{ marginTop: 0, alignSelf: 'flex-start' }}>日記情緒比例</h4>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, width: '100%' }}>
+                        {/* Larger centered pie */}
+                        <div style={{ width: 260, height: 260, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          {
+                            (() => {
+                              const chartData = getEmotionChartData(diaryId)
+                              return <Pie data={chartData} options={{ plugins: { legend: { display: false } }, maintainAspectRatio: false }} />
+                            })()
+                          }
+                        </div>
+
+                        {/* Emotion labels in two rows under the pie, 4 columns */}
+                        <div style={{ width: '100%', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px 12px', marginTop: 8 }}>
+                          {
+                            (() => {
+                              const chartData = getEmotionChartData(diaryId)
+                              const data = chartData.datasets[0].data
+                              const colors = chartData.datasets[0].backgroundColor
+                              const total = data.reduce((a, b) => a + b, 0) || 1
+                              return chartData.labels.map((label, idx) => {
+                                const value = Number(data[idx]) || 0
+                                const pct = Math.round((value / total) * 100)
+                                return (
+                                  <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <div aria-hidden style={{ width: 14, height: 14, borderRadius: 7, background: colors[idx] }} />
+                                    <div style={{ fontSize: 13 }}>{label} <span style={{ color: '#666', marginLeft: 6 }}>{pct}%</span></div>
+                                  </div>
+                                )
+                              })
+                            })()
+                          }
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div
                   className="post-footer"
                   role="presentation"
@@ -514,18 +775,18 @@ function DiariesList() {
                 >
                   <button
                     type="button"
-                    className={`post-action ${diary.is_liked ? 'liked' : ''}`}
+                    className={`post-action ${isLiked ? 'liked' : ''}`}
                     onClick={(event) => handleToggleLike(event, diaryId)}
                     disabled={isLikePending(diaryId)}
-                    aria-pressed={Boolean(diary.is_liked)}
+                    aria-pressed={isLiked}
                     aria-busy={isLikePending(diaryId)}
                   >
                     <Heart
                       size={20}
-                      color={diary.is_liked ? '#CD79D5' : undefined}
-                      fill={diary.is_liked ? '#CD79D5' : 'none'}
+                      color={isLiked ? '#CD79D5' : undefined}
+                      fill={isLiked ? '#CD79D5' : 'none'}
                     />
-                    <span>{diary.like_count || 0} 個讚</span>
+                    <span>{likeCount} 個讚</span>
                   </button>
                   <Link
                     to={`/diaries/${diaryId}`}
@@ -533,7 +794,7 @@ function DiariesList() {
                     onClick={(event) => event.stopPropagation()}
                   >
                     <MessageCircle size={20} />
-                    <span>{diary.comment_count || 0} 則留言</span>
+                    <span>{commentCount} 則留言</span>
                   </Link>
                   <button
                     type="button"
@@ -541,8 +802,40 @@ function DiariesList() {
                     onClick={(event) => handleShare(event, diaryId)}
                   >
                     <Share2 size={20} />
-                    <span>複製連結</span>
+                    <span>日記分享</span>
                   </button>
+                  {diary.visibility === 'public' && diary.status !== 'draft' && (
+                    <Button
+                      variant="primary"
+                      size="small"
+                      className="post-action post-action-ai"
+                      style={{ marginLeft: 'auto' }}
+                      onClick={(event) => {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        // If analysis exists and is completed, just toggle view (no regeneration)
+                        const existing = aiResults[diaryId]
+                        if (aiExpanded[diaryId]) {
+                          toggleAiPanel(diaryId)
+                        } else if (existing && existing.status === 'completed') {
+                          // just show existing analysis
+                          toggleAiPanel(diaryId)
+                        } else {
+                          handleGenerateAnalysis(event, diaryId)
+                        }
+                      }}
+                      disabled={!!loadingAnalyses[diaryId]}
+                    >
+                      {loadingAnalyses[diaryId]
+                        ? '生成中...'
+                        : (() => {
+                          const existing = aiResults[diaryId]
+                          if (aiExpanded[diaryId]) return '收合 AI 分析'
+                          if (existing && existing.status === 'completed') return '查看 AI 分析'
+                          return '生成 AI 分析'
+                        })()}
+                    </Button>
+                  )}
                 </div>
               </article>
             )

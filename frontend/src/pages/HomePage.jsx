@@ -337,8 +337,8 @@ function HomePage() {
       return
     }
 
-    const currentPost = (Array.isArray(posts) ? posts : []).find(p => p.diary_id === diaryId) ||
-      (Array.isArray(filteredPosts) ? filteredPosts : []).find(p => p.diary_id === diaryId)
+    const currentPost = (Array.isArray(posts) ? posts : []).find(p => String(p.diary_id || p.id || p.diaryId) === String(diaryId)) ||
+      (Array.isArray(filteredPosts) ? filteredPosts : []).find(p => String(p.diary_id || p.id || p.diaryId) === String(diaryId))
 
     if (!currentPost) {
       console.warn('找不到指定日記，無法處理按讚：', diaryId)
@@ -364,6 +364,12 @@ function HomePage() {
       const serverCount = Number.isFinite(rawCount) ? rawCount : NaN
 
       syncLikeState(diaryId, serverLiked, serverCount)
+      // Broadcast like update so other pages can sync their state
+      try {
+        window.dispatchEvent(new CustomEvent('diaryLikeUpdated', { detail: { diaryId, liked: serverLiked, count: serverCount } }))
+      } catch (e) {
+        console.debug('Failed to dispatch diaryLikeUpdated event', e)
+      }
     } catch (err) {
       const serverMessage = err?.response?.data?.message || err?.response?.data?.error
       console.error('Error toggling like:', serverMessage || err)
@@ -379,6 +385,38 @@ function HomePage() {
       })
     }
   }
+
+  // Listen for global like updates from other pages
+  useEffect(() => {
+    const handler = (e) => {
+      try {
+        const { diaryId, liked, count } = e.detail || {}
+        if (diaryId) syncLikeState(diaryId, liked, count)
+      } catch (err) {
+        console.debug('diaryLikeUpdated handler error', err)
+      }
+    }
+    window.addEventListener('diaryLikeUpdated', handler)
+    const commentHandler = (ev) => {
+      try {
+        const { diaryId, count } = ev.detail || {}
+        if (!diaryId) return
+        setPosts(prev => {
+          if (!Array.isArray(prev) || prev.length === 0) return prev
+          const updated = prev.map(p => String(p.diary_id || p.id || p.diaryId) === String(diaryId) ? { ...p, comment_count: Number(count ?? p.comment_count ?? 0) } : p)
+          setFilteredPosts(applyFilters(updated))
+          return updated
+        })
+      } catch (err) {
+        console.debug('diaryCommentUpdated handler error', err)
+      }
+    }
+    window.addEventListener('diaryCommentUpdated', commentHandler)
+    return () => {
+      window.removeEventListener('diaryLikeUpdated', handler)
+      window.removeEventListener('diaryCommentUpdated', commentHandler)
+    }
+  }, [posts, filteredPosts])
 
   const performFollowMutation = async ({ targetUserId, alreadyFriend }) => {
     if (isFollowLoading(targetUserId)) {
@@ -805,7 +843,7 @@ function HomePage() {
                       gap: '6px',
                       marginBottom: '12px'
                     }}>
-                      {post.tags.filter(t => t.tag_type === 'emotion').slice(0, 2).map((t, i) => (
+                      {post.tags.filter(t => t.tag_type === 'emotion').slice(0, 3).map((t, i) => (
                         <span
                           key={i}
                           style={{
