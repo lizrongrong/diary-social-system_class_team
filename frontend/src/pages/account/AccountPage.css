@@ -88,7 +88,7 @@
     height: 100%;
     border-radius: 50%;
     background: #ffffff;
-    border: 5px solid #fdfdfd;
+    border: 3px solid #c1a8a8;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -316,7 +316,7 @@
     height: 120px;
     border-radius: 50%;
     background: #ffffff;
-    border: 5px solid #fdfdfd;
+    border: 3px solid #c1a8a8;
     display: flex;
     align-items: center;
     justify-content: center;
