@@ -6,7 +6,7 @@ import { useToast } from '../components/ui/Toast'
 import useAuthStore from '../store/authStore'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
-import { Calendar, Heart, MessageCircle, Share2, PencilLine, Trash2, PenTool, Eye, Users, TrendingUp } from 'lucide-react'
+import { Calendar, Heart, MessageCircle, Share2, PencilLine, Trash2, PenTool, Eye, Users, TrendingUp, Settings, ChevronDown, BarChart2 } from 'lucide-react'
 import './DashboardPage.css'
 import { Bar, Pie } from 'react-chartjs-2'
 import 'chart.js/auto'
@@ -31,9 +31,10 @@ function DashboardPage() {
     const load = async () => {
       setLoading(true)
       try {
-        // 主要抓取：使用者自己的公開日記（個人頁面與儀表板的資料來源）
+        // 主要抓取：使用者自己的所有日記（個人頁面與儀表板的資料來源）
         if (user && user.user_id) {
-          const res = await diaryAPI.getUserPublicDiaries(user.user_id, { limit: 500 })
+          // 改用 getAll 取得自己的所有日記 (包含 private)
+          const res = await diaryAPI.getAll({ limit: 500 })
           const raw = res?.diaries || []
           const normalized = (Array.isArray(raw) ? raw : []).map(d => ({
             ...d,
@@ -643,52 +644,141 @@ function DashboardPage() {
   )
 
   const MonthlyPanel = () => (
-    <div>
-      <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr', gap:16 }}>
-        <Card>
-          <h3>圖表與分析結果</h3>
-          <div ref={chartRef} style={{ minHeight: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', color:'#888' }}>
-            {!chartData && <div>按「分析」以產生圖表</div>}
-            {chartData && chartData.type === 'bar' && (
-              <div style={{ width: '100%' }}>
-                <Bar data={chartData.data} />
-              </div>
-            )}
-            {chartData && chartData.type === 'pie' && (
-              <div style={{ width: 400 }}>
-                <Pie data={chartData.data} />
-              </div>
+    <div className="monthly-panel">
+      <div style={{ display: 'grid', gridTemplateColumns: '3fr 1fr', gap: 'var(--spacing-lg)' }}>
+        <Card className="chart-card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <TrendingUp size={20} />
+              圖表與分析結果
+            </h3>
+            {chartData && (
+              <Button variant="outline" size="small" onClick={exportPdf} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Share2 size={16} />
+                匯出 PDF
+              </Button>
             )}
           </div>
-          {chartData && (
-            <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
-              <Button variant="primary" onClick={exportPdf}>下載 PDF</Button>
-            </div>
-          )}
+          
+          <div ref={chartRef} style={{ 
+            minHeight: 400, 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            background: 'var(--gray-50)', 
+            borderRadius: 'var(--radius-md)',
+            padding: 'var(--spacing-lg)',
+            border: '1px dashed var(--gray-200)'
+          }}>
+            {!chartData ? (
+              <div style={{ textAlign: 'center', color: 'var(--gray-400)' }}>
+                <BarChart2 size={48} style={{ marginBottom: '1rem', opacity: 0.5 }} />
+                <p>請選擇條件並點擊「開始分析」以產生圖表</p>
+              </div>
+            ) : (
+              <>
+                {chartData.type === 'bar' && (
+                  <div style={{ width: '100%', height: '100%' }}>
+                    <Bar data={chartData.data} options={{ maintainAspectRatio: false, responsive: true }} />
+                  </div>
+                )}
+                {chartData.type === 'pie' && (
+                  <div style={{ width: '100%', maxWidth: 400 }}>
+                    <Pie data={chartData.data} />
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </Card>
 
-        <Card>
-          <h3>統計控制面板</h3>
-          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-            <label>選擇年</label>
-            <select value={year} onChange={e=>setYear(Number(e.target.value))}>
-              {years.map(y=> <option key={y} value={y}>{y}</option>)}
-            </select>
+        <Card className="controls-card">
+          <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Settings size={20} />
+            分析設定
+          </h3>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div className="form-group">
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', fontWeight: 500, color: 'var(--gray-700)' }}>年份</label>
+              <div style={{ position: 'relative' }}>
+                <select 
+                  value={year} 
+                  onChange={e => setYear(Number(e.target.value))}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--gray-200)',
+                    backgroundColor: '#fff',
+                    fontSize: '1rem',
+                    appearance: 'none'
+                  }}
+                >
+                  {years.map(y => <option key={y} value={y}>{y} 年</option>)}
+                </select>
+                <ChevronDown size={16} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--gray-400)' }} />
+              </div>
+            </div>
 
-            <label>選擇月</label>
-            <select value={month} onChange={e=>setMonth(Number(e.target.value))}>
-              {[...Array(12)].map((_,i)=><option key={i+1} value={i+1}>{i+1}</option>)}
-            </select>
+            <div className="form-group">
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', fontWeight: 500, color: 'var(--gray-700)' }}>月份</label>
+              <div style={{ position: 'relative' }}>
+                <select 
+                  value={month} 
+                  onChange={e => setMonth(Number(e.target.value))}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--gray-200)',
+                    backgroundColor: '#fff',
+                    fontSize: '1rem',
+                    appearance: 'none'
+                  }}
+                >
+                  {[...Array(12)].map((_, i) => <option key={i + 1} value={i + 1}>{i + 1} 月</option>)}
+                </select>
+                <ChevronDown size={16} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--gray-400)' }} />
+              </div>
+            </div>
 
-            <label>圖表類型</label>
-            <select value={chartType} onChange={e=>setChartType(e.target.value)}>
-              <option value="diary_count">日記數量（長條圖）</option>
-              <option value="weather_pie">天氣統計（圓餅圖）</option>
-              <option value="mood_pie">心情統計（圓餅圖）</option>
-            </select>
+            <div className="form-group">
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', fontWeight: 500, color: 'var(--gray-700)' }}>圖表類型</label>
+              <div style={{ position: 'relative' }}>
+                <select 
+                  value={chartType} 
+                  onChange={e => setChartType(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--gray-200)',
+                    backgroundColor: '#fff',
+                    fontSize: '1rem',
+                    appearance: 'none'
+                  }}
+                >
+                  <option value="diary_count">日記數量趨勢</option>
+                  <option value="weather_pie">天氣分佈統計</option>
+                  <option value="mood_pie">心情分佈統計</option>
+                </select>
+                <ChevronDown size={16} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--gray-400)' }} />
+              </div>
+            </div>
 
-            <Button variant="primary" onClick={handleAnalyze}>分析</Button>
-            <Button variant="ghost" onClick={exportPdf}>下載 PDF（若已產生圖表）</Button>
+            <Button 
+              variant="primary" 
+              onClick={handleAnalyze}
+              style={{ 
+                marginTop: '0.5rem', 
+                width: '100%', 
+                justifyContent: 'center',
+                padding: '0.75rem'
+              }}
+            >
+              開始分析
+            </Button>
           </div>
         </Card>
       </div>
