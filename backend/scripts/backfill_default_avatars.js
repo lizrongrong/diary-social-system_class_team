@@ -6,7 +6,7 @@
  */
 
 const db = require('../src/config/db');
-const { generateAvatar } = require('../src/services/avatarGenerator');
+const { generateAvatarFile } = require('../src/services/avatarGenerator');
 
 const SELECT_USERS_SQL = `
   SELECT user_id, username
@@ -33,9 +33,10 @@ async function backfill() {
 
     for (const user of users) {
         const seed = user.username || user.user_id;
-        const avatar = generateAvatar(seed);
-        await db.execute(UPDATE_USER_SQL, [avatar, user.user_id]);
-        console.log(`  • Updated ${user.user_id} (${seed})`);
+        // Use generateAvatarFile to create a file on disk and get the URL path
+        const avatarPath = generateAvatarFile(seed);
+        await db.execute(UPDATE_USER_SQL, [avatarPath, user.user_id]);
+        console.log(`  • Updated ${user.user_id} (${seed}) -> ${avatarPath}`);
     }
 
     console.log('✅ Backfill completed successfully.');
