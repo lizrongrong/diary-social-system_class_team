@@ -87,8 +87,8 @@ function FeedbackManagement() {
                     <div style={{ fontSize: '0.9rem', color: 'var(--primary-purple)', marginBottom: 4, fontWeight: 500 }}>
                       來自: {f.username ? `${f.username} (${f.user_id})` : (f.user_id || '未知使用者')}
                     </div>
-                    <div style={{ fontWeight: 600, whiteSpace: 'pre-wrap' }}>{f.subject || f.title || '使用者回饋'}</div>
-                    <div className="text-tiny" style={{ color: 'var(--gray-500)', marginTop: 6, whiteSpace: 'pre-wrap' }}>{f.message || f.body || f.description}</div>
+                    <div style={{ fontWeight: 600, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{f.subject || f.title || '使用者回饋'}</div>
+                    <div className="text-tiny" style={{ color: 'var(--gray-500)', marginTop: 6, whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowWrap: 'break-word' }}>{f.message || f.body || f.description}</div>
                     {f.admin_reply && (
                       <div style={{ marginTop: 8, color: 'var(--gray-600)', whiteSpace: 'pre-wrap' }}>
                         管理者回覆：{f.admin_reply}
