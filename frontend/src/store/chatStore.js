@@ -20,6 +20,8 @@ const useChatStore = create((set, get) => ({
         from: m.from || m.sender_id || m.user_id || null,
         to: m.to || m.receiver_id || null,
         text: m.text || m.content || m.body || '',
+        message_type: m.message_type || m.type || 'text',
+        is_read: m.is_read || false,
         created_at: m.created_at || m.createdAt || m.created_at
       }))
       // normalize to oldest-first so newest messages render at the bottom
@@ -45,11 +47,16 @@ const useChatStore = create((set, get) => ({
 
   close: () => set({ open: false, otherId: null, messages: [], otherMeta: null }),
 
-  sendMessage: async (text) => {
+  sendMessage: async (content, type = 'text') => {
     const { otherId, messages } = get()
     const user = useAuthStore.getState().user
-    if (!otherId || !text || !text.trim()) return
-    const payload = { text: text.trim() }
+    if (!otherId || !content) return
+    
+    const payload = { 
+      type,
+      content: type === 'text' ? content.trim() : content
+    }
+
     try {
       const res = await messageAPI.sendMessageTo(otherId, payload)
       const savedRaw = res?.message || res
@@ -58,7 +65,9 @@ const useChatStore = create((set, get) => ({
         from: savedRaw.from || savedRaw.sender_id || (useAuthStore.getState().user?.user_id),
         to: savedRaw.to || savedRaw.receiver_id || otherId,
         text: savedRaw.text || savedRaw.content || '',
-        created_at: savedRaw.created_at || new Date().toISOString()
+        message_type: savedRaw.message_type || savedRaw.type || 'text',
+        created_at: savedRaw.created_at || new Date().toISOString(),
+        is_read: false
       }
       // append to end (oldest-first ordering)
       const next = [...messages, saved]
@@ -70,20 +79,12 @@ const useChatStore = create((set, get) => ({
         id: Date.now(),
         from: user?.id || user?.user_id || 'me',
         to: otherId,
-        text: text.trim(),
-        created_at: new Date().toISOString()
+        text: type === 'text' ? content.trim() : content,
+        message_type: type,
+        created_at: new Date().toISOString(),
+        is_read: false
       }
-  set({ messages: [...messages, optimistic] })
-      // persist to localStorage as fallback
-      try {
-        const a = String(user?.id || user?.user_id || '')
-        const b = String(otherId)
-        const key = `chat_${[a, b].sort().join('_')}`
-        const raw = localStorage.getItem(key)
-  const arr = raw ? JSON.parse(raw) : []
-  arr.push(optimistic)
-        localStorage.setItem(key, JSON.stringify(arr))
-      } catch (e2) { /* ignore */ }
+      set({ messages: [...messages, optimistic] })
       return optimistic
     }
   }

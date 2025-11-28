@@ -286,6 +286,10 @@ export const uploadAPI = {
   uploadImage: async (file, options = {}) => {
     const [uploaded] = await uploadFiles([file], options)
     return uploaded || null
+  },
+  uploadFile: async (file) => {
+    const [uploaded] = await uploadFiles([file])
+    return uploaded || null
   }
 }
 
