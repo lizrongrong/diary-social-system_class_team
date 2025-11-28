@@ -76,7 +76,29 @@ export default function ChatPopup() {
       case 'emoji':
         return <span style={{fontSize: '1.5rem'}}>{content}</span>
       default:
-        return <span>{content}</span>
+        // Detect URLs and make them clickable
+        const parts = content.split(/(https?:\/\/[^\s]+)/g);
+        return (
+            <span>
+                {parts.map((part, i) => {
+                    if (part.match(/^https?:\/\//)) {
+                        return (
+                            <a 
+                                key={i} 
+                                href={part} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                style={{ color: '#4a90e2', textDecoration: 'underline', wordBreak: 'break-all' }}
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                {part}
+                            </a>
+                        )
+                    }
+                    return part
+                })}
+            </span>
+        )
     }
   }
 
