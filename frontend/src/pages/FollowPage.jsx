@@ -352,7 +352,7 @@ function FollowPage() {
                           type="button"
                           className="friend-icon-button"
                           aria-label="私訊好友"
-                          onClick={() => { useChatStore.getState().openConversation(friendId, { username: displayName }); setMessageFriend(null) }}
+                          onClick={() => { useChatStore.getState().openConversation(friendId, { username: displayName, avatar: follow.avatar_url }); setMessageFriend(null) }}
                         >
                           <FaCommentDots size={26} />
                         </button>
@@ -492,7 +492,7 @@ function FollowPage() {
                     type="button"
                     className="friend-icon-button"
                     aria-label="私訊好友"
-                    onClick={() => { useChatStore.getState().openConversation(friendId, { username: displayName }); setMessageFriend(null) }}
+                    onClick={() => { useChatStore.getState().openConversation(friendId, { username: displayName, avatar: follow.avatar_url }); setMessageFriend(null) }}
                   >
                     <FaCommentDots size={26} />
                   </button>

@@ -38,7 +38,17 @@ exports.getConversations = async (req, res) => {
       )
       const unread_count = (unreadRows && unreadRows[0] && unreadRows[0].unread_count) || 0
 
-      conversations.push({ otherId, latest, unread_count })
+      // fetch user info
+      const [userRows] = await db.query('SELECT username, profile_image FROM users WHERE user_id = ?', [otherId])
+      const userInfo = userRows[0] || {}
+
+      conversations.push({ 
+        otherId, 
+        latest, 
+        unread_count,
+        username: userInfo.username,
+        avatar: userInfo.profile_image
+      })
     }
 
     res.json({ conversations })
