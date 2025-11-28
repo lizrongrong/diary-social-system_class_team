@@ -139,13 +139,16 @@ class Diary {
     const offsetNum = Math.max(0, toSafeInt(offset, 0))
 
     let query = `
-   SELECT d.*, u.username, u.profile_image AS avatar_url
+   SELECT d.*, u.username, u.profile_image AS avatar_url,
+      (SELECT COUNT(*) FROM likes l WHERE l.target_id = d.diary_id AND l.target_type = 'diary') AS like_count,
+      (SELECT COUNT(*) FROM comments c WHERE c.diary_id = d.diary_id AND c.status != 'deleted') AS comment_count,
+      (SELECT COUNT(*) > 0 FROM likes l WHERE l.target_id = d.diary_id AND l.target_type = 'diary' AND l.user_id = ?) AS is_liked
       FROM diaries d
       JOIN users u ON d.user_id = u.user_id
       WHERE d.user_id = ?
     `;
 
-    const params = [userId];
+    const params = [userId, userId];
 
     // only add status filter if the column exists in schema
     const hasStatus = await checkStatusColumn()
@@ -566,7 +569,9 @@ class Diary {
     // --- 修正點 (4) ---
     // 將 limit/offset 變數直接寫入 SQL 字串
     const query = `
-      SELECT d.*, u.username, u.profile_image AS avatar_url
+      SELECT d.*, u.username, u.profile_image AS avatar_url,
+      (SELECT COUNT(*) FROM likes l WHERE l.target_id = d.diary_id AND l.target_type = 'diary') AS like_count,
+      (SELECT COUNT(*) FROM comments c WHERE c.diary_id = d.diary_id AND c.status != 'deleted') AS comment_count
       FROM diaries d
       JOIN users u ON d.user_id = u.user_id
       WHERE d.user_id = ? AND d.visibility = 'public'${statusClause}
