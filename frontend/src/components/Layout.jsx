@@ -87,16 +87,18 @@ function Layout({ children }) {
   return (
     <div className="app-layout">
       <header className="top-header">
-        {/* 漢堡選單按鈕（僅手機版顯示） */}
-        <button
-          className="hamburger-btn"
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          aria-label="Toggle menu"
-        >
-          {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
+        <div className="header-brand">
+          {/* 漢堡選單按鈕（僅手機版顯示） */}
+          <button
+            className="hamburger-btn"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            aria-label="Toggle menu"
+          >
+            {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
 
-        <h1 className="site-title">Resonote</h1>
+          <h1 className="site-title">Resonote</h1>
+        </div>
 
         {/* 右側使用者功能區 */}
         <div className="header-actions">
