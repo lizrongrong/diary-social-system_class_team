@@ -84,6 +84,9 @@ function FeedbackManagement() {
               <Card key={f.id || f.feedback_id}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
                   <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '0.9rem', color: 'var(--primary-purple)', marginBottom: 4, fontWeight: 500 }}>
+                      來自: {f.username ? `${f.username} (${f.user_id})` : (f.user_id || '未知使用者')}
+                    </div>
                     <div style={{ fontWeight: 600, whiteSpace: 'pre-wrap' }}>{f.subject || f.title || '使用者回饋'}</div>
                     <div className="text-tiny" style={{ color: 'var(--gray-500)', marginTop: 6, whiteSpace: 'pre-wrap' }}>{f.message || f.body || f.description}</div>
                     {f.admin_reply && (
@@ -95,10 +98,6 @@ function FeedbackManagement() {
                     {openReplyFor === (f.id || f.feedback_id) && !f.admin_reply && (
                       <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
                         <div style={{ fontSize: 14, fontWeight: 600 }}>回覆問題</div>
-                        <div style={{ whiteSpace: 'pre-wrap', color: 'var(--gray-700)' }}>
-                          <div><strong>標題：</strong>{f.subject || f.title}</div>
-                          <div style={{ marginTop: 6 }}><strong>內容：</strong>{f.message || f.body || f.description}</div>
-                        </div>
                         <textarea
                           value={replyText}
                           onChange={(e) => setReplyText(e.target.value)}
