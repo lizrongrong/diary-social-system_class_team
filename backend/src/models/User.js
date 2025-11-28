@@ -416,6 +416,7 @@ class User {
       SELECT user_id, username, status, profile_image
       FROM users
       WHERE status != 'deleted'
+        AND role != 'admin'
         AND (username LIKE ? OR user_id LIKE ?)
     `;
 
