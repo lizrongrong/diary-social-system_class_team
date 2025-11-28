@@ -90,7 +90,7 @@ function FeedbackManagement() {
                     <div style={{ fontWeight: 600, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{f.subject || f.title || '使用者回饋'}</div>
                     <div className="text-tiny" style={{ color: 'var(--gray-500)', marginTop: 6, whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowWrap: 'break-word' }}>{f.message || f.body || f.description}</div>
                     {f.admin_reply && (
-                      <div style={{ marginTop: 8, color: 'var(--gray-600)', whiteSpace: 'pre-wrap' }}>
+                      <div style={{ marginTop: 8, color: 'var(--gray-600)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                         管理者回覆：{f.admin_reply}
                       </div>
                     )}

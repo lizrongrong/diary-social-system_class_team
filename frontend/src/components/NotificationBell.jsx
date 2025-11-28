@@ -179,7 +179,7 @@ function NotificationBell({ iconColor = '#FFFFFF' }) {
 
     return (
       <div>
-        <div style={{ whiteSpace: 'pre-wrap' }}>{display}</div>
+        <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowWrap: 'break-word' }}>{display}</div>
         {isDifferentAndHasCJK(orig, fixed) && (
           <button
             onClick={() => toggleShowOriginal(id)}
@@ -434,7 +434,7 @@ function NotificationBell({ iconColor = '#FFFFFF' }) {
                         style={{ cursor: n.is_read ? 'default' : 'pointer' }}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                          <strong style={{ fontSize: 16, color: n.is_read ? '#666' : '#333' }}>
+                          <strong style={{ fontSize: 16, color: n.is_read ? '#666' : '#333', flex: 1, wordBreak: 'break-word', overflowWrap: 'break-word', marginRight: 8 }}>
                             {tryFixEncoding(n.title)}
                           </strong>
                           {!n.is_read && (
