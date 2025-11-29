@@ -330,6 +330,29 @@ class User {
         return false;
       }
 
+      // 1. 找出該使用者所有的日記 ID
+      const [diaries] = await connection.query('SELECT diary_id FROM diaries WHERE user_id = ?', [userId]);
+      const diaryIds = diaries.map(d => d.diary_id);
+
+      if (diaryIds.length > 0) {
+        const placeholders = diaryIds.map(() => '?').join(',');
+        // 2. 刪除這些日記下所有留言的按讚紀錄
+        await connection.query(`
+          DELETE FROM likes 
+          WHERE target_type = 'comment' 
+          AND target_id IN (
+            SELECT comment_id FROM comments WHERE diary_id IN (${placeholders})
+          )
+        `, diaryIds);
+
+        // 3. 刪除這些日記本身的按讚紀錄
+        await connection.query(`
+          DELETE FROM likes 
+          WHERE target_type = 'diary' 
+          AND target_id IN (${placeholders})
+        `, diaryIds);
+      }
+
       await connection.query(`DELETE FROM users WHERE user_id = ?`, [userId]);
 
       await connection.commit();
@@ -448,6 +471,8 @@ class User {
     const [rows] = await db.query(query, [userId]);
     return rows[0]?.count || 0;
   }
+
+
 }
 
 module.exports = User;
