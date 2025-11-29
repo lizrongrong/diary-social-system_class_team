@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import useAuthStore from '../store/authStore'
 import useChatStore from '../store/chatStore'
-import { messageAPI } from '../services/api'
+import { messageAPI, ensureAbsoluteUrl } from '../services/api'
 
 export default function MessageDropdown({ visible, onClose }) {
   const { user } = useAuthStore()
@@ -101,25 +101,34 @@ export default function MessageDropdown({ visible, onClose }) {
               onClose()
             }} style={{ display: 'block', padding: '12px 16px', borderBottom: '1px solid #f5f5f5', color: '#333', textDecoration: 'none', cursor: 'pointer' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{ width: 40, height: 40, borderRadius: '50%', background: c.avatar ? `url(${c.avatar}) center/cover` : 'linear-gradient(135deg,#667eea,#764ba2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
+                  <div style={{ width: 40, height: 40, borderRadius: '50%', background: c.avatar ? `url(${ensureAbsoluteUrl(c.avatar)}) center/cover` : 'linear-gradient(135deg,#667eea,#764ba2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, flexShrink: 0 }}>
                     {!c.avatar && (c.displayName || `U`).charAt(0).toUpperCase()}
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <div style={{ fontSize: 14, fontWeight: c.unread_count > 0 ? 700 : 600 }}>
-                      {c.displayName || `${c.otherId}`}
+                  <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: c.unread_count > 0 ? 700 : 600, display: 'flex', alignItems: 'center' }}>
+                      <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.displayName || `${c.otherId}`}</span>
                       {c.unread_count > 0 && (
-                        <span style={{ marginLeft: 8, background: '#CD79D5', color: '#fff', borderRadius: 10, padding: '2px 6px', fontSize: 12, fontWeight: 700 }}>
+                        <span style={{ marginLeft: 8, background: '#CD79D5', color: '#fff', borderRadius: 10, padding: '2px 6px', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
                           {c.unread_count > 9 ? '9+' : c.unread_count}
                         </span>
                       )}
                     </div>
-                    <div style={{ marginTop: 6, fontSize: 13, color: '#666', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 200 }}>
-                      {c.latest?.text || c.latest?.content || c.latest?.message || ''}
+                    <div style={{ marginTop: 4, fontSize: 13, color: '#666', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {c.latest?.text || c.latest?.content || (c.latest?.message_type === 'image' ? '[圖片]' : c.latest?.message_type === 'file' ? '[檔案]' : '') || '...'}
                     </div>
                   </div>
                 </div>
-                <div style={{ fontSize: 12, color: '#999' }}>{new Date(c.latest?.created_at || c.latest?.createdAt || 0).toLocaleString()}</div>
+                <div style={{ fontSize: 12, color: '#999', flexShrink: 0, marginLeft: 8, textAlign: 'right' }}>
+                    {(() => {
+                        const d = new Date(c.latest?.created_at || c.latest?.createdAt || 0);
+                        const now = new Date();
+                        if (d.toDateString() === now.toDateString()) {
+                            return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                        }
+                        return d.toLocaleDateString([], { month: 'numeric', day: 'numeric' });
+                    })()}
+                </div>
               </div>
             </div>
           ))

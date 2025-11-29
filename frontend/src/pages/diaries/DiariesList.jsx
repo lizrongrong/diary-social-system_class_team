@@ -804,7 +804,7 @@ function DiariesList() {
                     <Share2 size={20} />
                     <span>日記分享</span>
                   </button>
-                  {diary.visibility === 'public' && diary.status !== 'draft' && (
+                  {(diary.status !== 'draft' && (diary.visibility === 'public' || diary.visibility === 'private')) && (
                     <Button
                       variant="primary"
                       size="small"

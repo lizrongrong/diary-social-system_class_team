@@ -100,9 +100,10 @@ class Feedback {
     const offset = Math.max(0, Number(options.offset) || 0);
 
     const query = `
-      SELECT feedback_id, user_id, category, subject, description, status, admin_reply, created_at, updated_at, resolved_at
-      FROM feedbacks
-      ORDER BY created_at DESC
+      SELECT f.feedback_id, f.user_id, f.category, f.subject, f.description, f.status, f.admin_reply, f.created_at, f.updated_at, f.resolved_at, u.username
+      FROM feedbacks f
+      LEFT JOIN users u ON f.user_id = u.user_id
+      ORDER BY f.created_at DESC
     `;
 
     // Interpolate numeric LIMIT/OFFSET to avoid prepared-statement parameter issues

@@ -55,14 +55,22 @@ const storage = multer.diskStorage({
 
 const fileFilter = (req, file, cb) => {
   const ext = path.extname(file.originalname).toLowerCase();
-  const isAllowedExt = ['.jpg', '.jpeg', '.png', '.svg'].includes(ext);
-  const mime = (file.mimetype || '').toLowerCase();
-  const isAllowedMime = ['image/jpeg', 'image/png', 'image/svg+xml'].includes(mime);
+  // 擴充允許的檔案格式：圖片、文件、音訊、影片、壓縮檔
+  const allowedExts = [
+    // Images
+    '.jpg', '.jpeg', '.png', '.svg', '.gif', '.webp',
+    // Documents
+    '.pdf', '.doc', '.docx', '.txt', '.xls', '.xlsx', '.ppt', '.pptx', '.csv',
+    // Archives
+    '.zip', '.rar', '.7z',
+    // Audio/Video
+    '.mp3', '.wav', '.ogg', '.m4a', '.mp4', '.webm'
+  ];
 
-  if (isAllowedExt && isAllowedMime) {
+  if (allowedExts.includes(ext)) {
     cb(null, true);
   } else {
-    cb(new Error('僅支援副檔名 .jpg .jpeg .png .svg 的圖片'));
+    cb(new Error(`不支援的檔案格式: ${ext}`));
   }
 };
 

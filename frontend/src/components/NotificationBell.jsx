@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect, useRef } from 'react'
 import { Bell, MessageSquare, UserPlus } from 'lucide-react'
 import notificationAPI from '../services/notificationAPI'
-import { ensureAbsoluteUrl, followAPI } from '../services/api'
+import { ensureAbsoluteUrl, followAPI, messageAPI } from '../services/api'
 import useAuthStore from '../store/authStore'
 import { Link } from 'react-router-dom'
 import { useToast } from './ui/Toast'
@@ -35,6 +35,17 @@ function NotificationBell({ iconColor = '#FFFFFF' }) {
       }
     }
 
+    const fetchMessageUnread = async () => {
+      try {
+        const data = await messageAPI.getConversations()
+        const convs = data?.conversations || []
+        const total = convs.reduce((acc, c) => acc + (c.unread_count || 0), 0)
+        setMessageUnread(total)
+      } catch (e) {
+        // console.error('Failed to fetch message unread:', e)
+      }
+    }
+
     const fetchFollowing = async () => {
       try {
         const data = await followAPI.getAll()
@@ -48,6 +59,7 @@ function NotificationBell({ iconColor = '#FFFFFF' }) {
     }
 
     fetchNotifications()
+    fetchMessageUnread()
     fetchFollowing()
     // preload recent chats from localStorage
     const loadRecentChats = () => {
@@ -79,6 +91,7 @@ function NotificationBell({ iconColor = '#FFFFFF' }) {
     loadRecentChats()
     const interval = setInterval(() => {
       fetchNotifications()
+      fetchMessageUnread()
       fetchFollowing()
     }, 30000) // Poll every 30s
 
@@ -166,7 +179,7 @@ function NotificationBell({ iconColor = '#FFFFFF' }) {
 
     return (
       <div>
-        <div style={{ whiteSpace: 'pre-wrap' }}>{display}</div>
+        <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowWrap: 'break-word' }}>{display}</div>
         {isDifferentAndHasCJK(orig, fixed) && (
           <button
             onClick={() => toggleShowOriginal(id)}
@@ -421,7 +434,7 @@ function NotificationBell({ iconColor = '#FFFFFF' }) {
                         style={{ cursor: n.is_read ? 'default' : 'pointer' }}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                          <strong style={{ fontSize: 16, color: n.is_read ? '#666' : '#333' }}>
+                          <strong style={{ fontSize: 16, color: n.is_read ? '#666' : '#333', flex: 1, wordBreak: 'break-word', overflowWrap: 'break-word', marginRight: 8 }}>
                             {tryFixEncoding(n.title)}
                           </strong>
                           {!n.is_read && (

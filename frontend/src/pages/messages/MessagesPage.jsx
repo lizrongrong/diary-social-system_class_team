@@ -1,10 +1,9 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useLocation, Link } from 'react-router-dom'
 import useAuthStore from '../../store/authStore'
-import { userAPI } from '../../services/api'
+import { userAPI, messageAPI, uploadAPI, ensureAbsoluteUrl } from '../../services/api'
 import Button from '../../components/ui/Button'
-import Card from '../../components/ui/Card'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Image as ImageIcon, Mic, FileText, Smile, Send, Paperclip, Check, CheckCheck } from 'lucide-react'
 import './MessagesPage.css'
 
 function MessagesPage() {
@@ -13,123 +12,197 @@ function MessagesPage() {
   const location = useLocation()
   const followFromState = location.state?.follow
   const [follow, setFollow] = useState(followFromState || null)
-  const [loading, setLoading] = useState(!friendFromState)
+  const [loading, setLoading] = useState(true)
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const listRef = useRef()
+  const fileInputRef = useRef()
 
-  // chat key to save to localStorage: deterministic by user ids
-  const chatKey = (() => {
-    if (!user || !userId) return null
-    const a = String(user.id)
-    const b = String(userId)
-    return `chat_${[a, b].sort().join('_')}`
-  })()
-
+  // Polling for messages
   useEffect(() => {
-    const load = async () => {
-      if (!follow) {
-        try {
-          setLoading(true)
-          const data = await userAPI.getPublicById(userId)
-          setFollow(data?.user || data || null)
-        } catch (err) {
-          console.error('Failed to load friend profile', err)
-          setFollow({ username: userId })
-        } finally {
-          setLoading(false)
-        }
-      }
-
-      // load local messages
-      if (chatKey) {
-        try {
-          const raw = localStorage.getItem(chatKey)
-          const arr = raw ? JSON.parse(raw) : []
-          // normalize to newest-first by sorting descending on created_at
-          arr.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-          setMessages(arr)
-        } catch (e) {
-          setMessages([])
-        }
+    let interval
+    const fetchMessages = async () => {
+      try {
+        const data = await messageAPI.getMessagesWith(userId)
+        setMessages(data.messages || [])
+      } catch (err) {
+        console.error('Failed to fetch messages', err)
       }
     }
-    load()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId])
+
+    const loadProfile = async () => {
+      if (!follow) {
+        try {
+          const data = await userAPI.getPublicById(userId)
+          setFollow(data?.user || data || { username: 'User' })
+        } catch (err) {
+          console.error('Failed to load profile', err)
+          setFollow({ username: 'User' })
+        }
+      }
+      setLoading(false)
+    }
+
+    loadProfile().then(() => {
+        fetchMessages()
+        interval = setInterval(fetchMessages, 3000) // Poll every 3s
+    })
+
+    return () => clearInterval(interval)
+  }, [userId, follow])
 
   useEffect(() => {
-    // for newest-first layout, scroll to top when messages change
+    // Scroll to bottom on new messages
     if (listRef.current) {
-      listRef.current.scrollTop = 0
+      listRef.current.scrollTop = listRef.current.scrollHeight
     }
   }, [messages])
 
-  const persist = (next) => {
-    setMessages(next)
-    if (chatKey) localStorage.setItem(chatKey, JSON.stringify(next))
-  }
+  const handleSend = async (type = 'text', content = null) => {
+    const textToSend = content || input.trim()
+    if (!textToSend && type === 'text') return
 
-  const handleSend = () => {
-    if (!input.trim()) return
-    const msg = {
-      id: Date.now(),
-      from: user.id,
-      to: Number(userId),
-      text: input.trim(),
-      created_at: new Date().toISOString()
+    try {
+      const payload = {
+        type,
+        content: textToSend
+      }
+      
+      await messageAPI.sendMessageTo(userId, payload)
+      
+      if (type === 'text') setInput('')
+      if (type === 'emoji') setShowEmojiPicker(false)
+      
+      // Refresh immediately
+      const data = await messageAPI.getMessagesWith(userId)
+      setMessages(data.messages || [])
+    } catch (err) {
+      console.error('Send failed', err)
+      alert('發送失敗')
     }
-    // newest-first: put new message at the beginning
-    const next = [msg, ...messages]
-    persist(next)
-    setInput('')
   }
 
-  if (loading) return (
-    <div className="page messages-page" style={{ padding: 'var(--spacing-xl)' }}>
-      <div>載入中...</div>
-    </div>
-  )
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+
+    try {
+      const res = await uploadAPI.uploadFile(file)
+      const fileUrl = res.url
+      
+      let type = 'file'
+      if (file.type.startsWith('image/')) type = 'image'
+      else if (file.type.startsWith('audio/')) type = 'audio'
+      
+      await handleSend(type, fileUrl)
+    } catch (err) {
+      console.error('Upload failed', err)
+      alert('上傳失敗')
+    } finally {
+      e.target.value = '' // reset
+    }
+  }
+
+  const formatTime = (isoString) => {
+    const date = new Date(isoString)
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  }
+
+  const renderMessageContent = (msg) => {
+    switch (msg.message_type) {
+      case 'image':
+        return <img src={ensureAbsoluteUrl(msg.content)} alt="image" className="msg-image" style={{maxWidth: '200px', borderRadius: '8px'}} />
+      case 'audio':
+        return <audio controls src={ensureAbsoluteUrl(msg.content)} className="msg-audio" />
+      case 'file':
+        return (
+            <a href={ensureAbsoluteUrl(msg.content)} target="_blank" rel="noopener noreferrer" className="msg-file">
+                <FileText size={20} />
+                <span>附件檔案</span>
+            </a>
+        )
+      case 'emoji':
+        return <span style={{fontSize: '2rem'}}>{msg.content}</span>
+      default:
+        return <p>{msg.content}</p>
+    }
+  }
+
+  if (loading) return <div className="page-loading">載入中...</div>
 
   return (
-    <div className="page messages-page" style={{ padding: 'var(--spacing-xl)', maxWidth: 900, margin: '0 auto' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-md)' }}>
-        <Link to="/follows">
-          <Button variant="ghost"><ArrowLeft size={16} /> 返回好友</Button>
+    <div className="page messages-page">
+      <header className="chat-header">
+        <Link to="/follows" className="back-link">
+          <ArrowLeft size={20} />
         </Link>
-        <h2 className="text-h3">與 {follow?.username}</h2>
+        <div className="chat-user-info">
+            <div className="chat-avatar" style={{backgroundImage: `url(${follow?.avatar_url || follow?.profile_image || '/default-avatar.png'})`}}></div>
+            <h3>{follow?.username || follow?.display_name}</h3>
+        </div>
+      </header>
+
+      <div className="message-list" ref={listRef}>
+        {messages.map((msg) => {
+            const isMe = String(msg.sender_id) === String(user.user_id)
+            return (
+                <div key={msg.message_id} className={`message-row ${isMe ? 'me' : 'other'}`}>
+                    {!isMe && <div className="msg-avatar" style={{backgroundImage: `url(${follow?.avatar_url || follow?.profile_image || '/default-avatar.png'})`}}></div>}
+                    <div className="message-bubble">
+                        {renderMessageContent(msg)}
+                        <div className="message-meta">
+                            <span className="message-time">{formatTime(msg.created_at)}</span>
+                            {isMe && (
+                                <span className="read-status">
+                                    {msg.is_read ? '已讀' : '未讀'}
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )
+        })}
       </div>
 
-      <Card style={{ padding: 0, display: 'flex', flexDirection: 'column', height: 500 }}>
-        <div ref={listRef} style={{ flex: 1, overflowY: 'auto', padding: 'var(--spacing-md)' }}>
-          {messages.length === 0 ? (
-            <div style={{ color: 'var(--gray-600)', textAlign: 'center', marginTop: 'var(--spacing-lg)' }}>尚無訊息，來打個招呼吧！</div>
-          ) : (
-            messages.map(m => (
-              <div key={m.id} style={{ display: 'flex', justifyContent: m.from === user.id ? 'flex-end' : 'flex-start', marginBottom: 'var(--spacing-sm)' }}>
-                <div style={{ maxWidth: '70%', padding: 'var(--spacing-xs) var(--spacing-sm)', borderRadius: 8, background: m.from === user.id ? 'var(--primary-purple)' : 'var(--gray-100)', color: m.from === user.id ? '#fff' : 'inherit' }}>
-                  <div style={{ fontSize: '0.9rem' }}>{m.text}</div>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--gray-500)', marginTop: '4px', textAlign: 'right' }}>{new Date(m.created_at).toLocaleTimeString('zh-TW')}</div>
+      <div className="chat-input-area">
+        <input 
+            type="file" 
+            ref={fileInputRef} 
+            style={{display: 'none'}} 
+            onChange={handleFileUpload}
+        />
+        
+        <button className="icon-btn" onClick={() => fileInputRef.current.click()}>
+            <Paperclip size={20} />
+        </button>
+        
+        <div className="emoji-wrapper">
+            <button className="icon-btn" onClick={() => setShowEmojiPicker(!showEmojiPicker)}>
+                <Smile size={20} />
+            </button>
+            {showEmojiPicker && (
+                <div className="emoji-picker">
+                    {['😀','😂','😍','🥺','😎','👍','👎','❤️','🎉','🔥'].map(emoji => (
+                        <span key={emoji} onClick={() => handleSend('emoji', emoji)}>{emoji}</span>
+                    ))}
                 </div>
-              </div>
-            ))
-          )}
+            )}
         </div>
 
-        <div style={{ display: 'flex', gap: 'var(--spacing-xs)', padding: 'var(--spacing-md)', borderTop: '1px solid var(--gray-100)' }}>
-          <input
-            name="message"
-            id="chat-input"
-            autoComplete="off"
+        <input 
+            type="text" 
+            className="text-input" 
+            placeholder="輸入訊息..." 
             value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleSend() }}
-            placeholder={`傳送訊息給 ${follow?.username}`}
-            style={{ flex: 1, padding: 'var(--spacing-sm)', borderRadius: 6, border: '1px solid var(--gray-200)' }}
-          />
-          <Button variant="primary" onClick={handleSend}>送出</Button>
-        </div>
-      </Card>
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleSend()}
+        />
+        
+        <button className="send-btn" onClick={() => handleSend()}>
+            <Send size={20} />
+        </button>
+      </div>
     </div>
   )
 }
