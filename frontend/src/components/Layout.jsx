@@ -97,7 +97,7 @@ function Layout({ children }) {
             {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
 
-          <h1 className="site-title">Resonote</h1>
+          <Link to="/" className="site-title" onClick={() => setIsMobileMenuOpen(false)}>Resonote</Link>
         </div>
 
         {/* 右側使用者功能區 */}
