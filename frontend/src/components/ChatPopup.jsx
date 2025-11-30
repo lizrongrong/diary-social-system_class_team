@@ -106,7 +106,7 @@ export default function ChatPopup() {
     <div className="chat-popup" role="dialog" aria-label="聊天視窗">
       <div className="chat-header">
         <div className="chat-title">
-            <div className="chat-avatar-small" style={{backgroundImage: `url(${otherMeta?.avatar || '/default-avatar.png'})`}}></div>
+            <div className="chat-avatar-small" style={{backgroundImage: `url(${otherMeta?.avatar ? ensureAbsoluteUrl(otherMeta.avatar) : '/default-avatar.png'})`}}></div>
             <span>{otherMeta?.username || `使用者 ${otherId}`}</span>
         </div>
         <button onClick={close} className="chat-close"><X size={18} /></button>

@@ -280,6 +280,21 @@ class Diary {
     * @returns {Promise<boolean>}
     */
   static async delete(diaryId) {
+    // 先清理相關的按讚紀錄 (避免孤兒資料)
+    // 1. 刪除該日記下所有留言的按讚紀錄
+    await db.execute(`
+      DELETE FROM likes 
+      WHERE target_type = 'comment' 
+      AND target_id IN (SELECT comment_id FROM comments WHERE diary_id = ?)
+    `, [diaryId]);
+
+    // 2. 刪除該日記本身的按讚紀錄
+    await db.execute(`
+      DELETE FROM likes 
+      WHERE target_type = 'diary' 
+      AND target_id = ?
+    `, [diaryId]);
+
     const hasStatus = await checkStatusColumn();
     if (hasStatus) {
       const query = `

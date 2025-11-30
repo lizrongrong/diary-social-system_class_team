@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import useAuthStore from '../store/authStore'
 import useChatStore from '../store/chatStore'
-import { messageAPI } from '../services/api'
+import { messageAPI, ensureAbsoluteUrl } from '../services/api'
 
 export default function MessageDropdown({ visible, onClose }) {
   const { user } = useAuthStore()
@@ -102,7 +102,7 @@ export default function MessageDropdown({ visible, onClose }) {
             }} style={{ display: 'block', padding: '12px 16px', borderBottom: '1px solid #f5f5f5', color: '#333', textDecoration: 'none', cursor: 'pointer' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
-                  <div style={{ width: 40, height: 40, borderRadius: '50%', background: c.avatar ? `url(${c.avatar}) center/cover` : 'linear-gradient(135deg,#667eea,#764ba2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, flexShrink: 0 }}>
+                  <div style={{ width: 40, height: 40, borderRadius: '50%', background: c.avatar ? `url(${ensureAbsoluteUrl(c.avatar)}) center/cover` : 'linear-gradient(135deg,#667eea,#764ba2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, flexShrink: 0 }}>
                     {!c.avatar && (c.displayName || `U`).charAt(0).toUpperCase()}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>

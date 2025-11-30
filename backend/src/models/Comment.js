@@ -28,6 +28,9 @@ class Comment {
   }
 
   static async delete(commentId) {
+    // Manually delete likes for this comment to ensure stats are correct
+    await db.execute(`DELETE FROM likes WHERE target_type = 'comment' AND target_id = ?`, [commentId]);
+
     const [result] = await db.execute(
       'UPDATE comments SET status = ? WHERE comment_id = ?',
       ['deleted', commentId]

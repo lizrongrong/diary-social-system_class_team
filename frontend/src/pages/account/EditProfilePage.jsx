@@ -98,42 +98,51 @@ function EditProfilePage() {
 
     const handleAvatarSelect = async (event) => {
         const file = event.target.files?.[0]
-        event.target.value = ''
+        if (!file) return
 
-        if (!file) {
-            return
-        }
-
-        const allowedTypes = ['image/jpeg', 'image/png', 'image/svg+xml']
-        if (!allowedTypes.includes(file.type)) {
-            addToast('僅支援 JPG、PNG、SVG 圖片', 'warning')
-            return
-        }
-
+        // 檢查檔案大小 (9MB)
         if (file.size > 9 * 1024 * 1024) {
-            addToast('圖片大小不可超過 9MB', 'warning')
+            addToast('圖片大小不能超過 9MB', 'error')
             return
         }
-
-        setUploading(true)
 
         try {
-            const uploaded = await uploadAPI.uploadAvatar(file)
-
-            if (!uploaded?.url) {
-                throw new Error('UPLOAD_FAILED')
+            setUploading(true)
+            const result = await uploadAPI.uploadImage(file)
+            if (result && result.absoluteUrl) {
+                setForm((prev) => ({ ...prev, profile_image: result.absoluteUrl }))
+                setAvatarPreview(result.absoluteUrl)
+                addToast('頭像上傳成功', 'success')
+            } else {
+                throw new Error('Upload failed')
             }
-
-            const previewUrl = ensureAbsoluteUrl(uploaded?.absoluteUrl || uploaded.url)
-            setForm((prev) => ({ ...prev, profile_image: uploaded.url }))
-            setAvatarPreview(previewUrl)
-            addToast('頭貼已更新，請記得儲存', 'success')
         } catch (error) {
             console.error('Avatar upload failed', error)
-            const message = error.response?.data?.error || '上傳失敗，請稍後再試'
-            addToast(message, 'error')
+            addToast('頭像上傳失敗，請稍後再試', 'error')
         } finally {
             setUploading(false)
+            // Reset input
+            if (fileInputRef.current) {
+                fileInputRef.current.value = ''
+            }
+        }
+    }
+
+    const handleDeleteAccount = async () => {
+        if (window.confirm('確定要刪除帳號嗎？此動作無法復原！\n\n刪除後您的所有日記、留言、按讚紀錄都將被永久移除。')) {
+            try {
+                setSaving(true)
+                await userAPI.deleteAccount()
+                addToast('帳號已刪除', 'success')
+                // Clear auth and redirect
+                useAuthStore.getState().logout()
+                navigate('/login')
+            } catch (error) {
+                console.error('Delete account failed', error)
+                addToast('刪除帳號失敗，請稍後再試', 'error')
+            } finally {
+                setSaving(false)
+            }
         }
     }
 
@@ -342,6 +351,25 @@ function EditProfilePage() {
                         </button>
                     </div>
                 </form>
+            </section>
+
+            <section className="account-edit-section" style={{ marginTop: '2rem', borderTop: '1px solid #eee', paddingTop: '2rem' }}>
+                <h3 style={{ color: '#dc3545', marginBottom: '1rem' }}>危險區域</h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                        <h4 style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>刪除帳號</h4>
+                        <p style={{ color: '#666', fontSize: '0.9rem' }}>刪除後將無法復原，所有資料將被永久移除。</p>
+                    </div>
+                    <button
+                        type="button"
+                        className="account-link-button"
+                        style={{ color: '#dc3545', border: '1px solid #dc3545', padding: '0.5rem 1rem', borderRadius: '4px' }}
+                        onClick={handleDeleteAccount}
+                        disabled={saving || uploading}
+                    >
+                        刪除帳號
+                    </button>
+                </div>
             </section>
 
             <div className="account-return-link">
