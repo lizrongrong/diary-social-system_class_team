@@ -23,9 +23,11 @@ exports.authMiddleware = async (req, res, next) => {
     // 3. 驗證 Token
     let decoded;
     try {
-      // Use the same default dev secret as the auth controller to avoid
-      // invalid-token 401s in development when JWT_SECRET is not set.
-      decoded = jwt.verify(token, process.env.JWT_SECRET || 'dev_secret');
+      if (!process.env.JWT_SECRET) {
+        console.error('JWT_SECRET is not defined');
+        return res.status(500).json({ error: 'Server configuration error' });
+      }
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
     } catch (error) {
       if (error.name === 'TokenExpiredError') {
         return res.status(401).json({
