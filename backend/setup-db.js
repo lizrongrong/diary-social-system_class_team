@@ -1,14 +1,15 @@
-// 建立資料庫並匯入 Schema（直接使用密碼）
+// 建立資料庫並匯入 Schema
 const mysql = require('mysql2/promise');
 const fs = require('fs');
 const path = require('path');
+require('dotenv').config();
 
-// 直接設定資料庫配置
+// 設定資料庫配置
 const DB_CONFIG = {
-  host: 'localhost',
-  user: 'root',
-  password: 'your_password',
-  database_name: 'diary_app'
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD,
+  database_name: process.env.DB_NAME || 'diary_app'
 };
 
 async function setupDatabase() {
