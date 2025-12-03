@@ -21,8 +21,9 @@ exports.generateAnalysis = async (req, res) => {
     if (!diary) return res.status(404).json({ error: 'Diary not found' })
 
     // If an analysis exists and is completed, do not allow regeneration
+    // Unless the previous result was "失敗" (failed content)
     const existing = await AIAnalysis.findByDiaryId(id)
-    if (existing && existing.status === 'completed') {
+    if (existing && existing.status === 'completed' && existing.summary !== '失敗') {
       return res.status(409).json({ error: 'Analysis already completed', analysis: existing })
     }
 
@@ -42,7 +43,7 @@ exports.generateAnalysis = async (req, res) => {
     try {
       const { id } = req.params
       await AIAnalysis.markFailed(id)
-    } catch (e) {}
+    } catch (e) { }
     res.status(500).json({ error: 'Generation failed' })
   }
 }
