@@ -24,7 +24,7 @@ function LoginPage() {
     try {
       await login(formData);
       addToast('登入成功！', 'success');
-      navigate('/dashboard');
+      navigate('/');
     } catch (err) {
       const errorMsg = err.response?.data?.message || '登入失敗，請檢查您的帳號密碼';
       addToast(errorMsg, 'error');

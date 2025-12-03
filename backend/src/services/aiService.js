@@ -4,8 +4,9 @@ require('dotenv').config();
 async function generateSummary({ diary }) {
   const text = diary.content || '';
   const apiKey = process.env.GEMINI_API_KEY;
-  
+
   if (!apiKey || !text) {
+    console.error('[aiService] Missing apiKey or text. API Key present:', !!apiKey, 'Text length:', text ? text.length : 0);
     return { summary: '失敗', suggestion: '', model_version: 'none' };
   }
 
@@ -14,10 +15,10 @@ async function generateSummary({ diary }) {
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ 
-        model: modelName,
-        // 雖然開了 JSON mode，但有時 AI 還是會包 Markdown，我們在下面處理
-        generationConfig: { responseMimeType: "application/json" }
+    const model = genAI.getGenerativeModel({
+      model: modelName,
+      // 雖然開了 JSON mode，但有時 AI 還是會包 Markdown，我們在下面處理
+      generationConfig: { responseMimeType: "application/json" }
     });
 
     const prompt = `
@@ -92,7 +93,10 @@ async function generateSummary({ diary }) {
     };
 
   } catch (error) {
-    console.error('[aiService] Error:', error.message);
+    console.error('[aiService] Error generating content:', error);
+    if (error.response) {
+      console.error('[aiService] Error response:', JSON.stringify(error.response, null, 2));
+    }
     // 如果解析失敗，印出原始文字幫助除錯
     return { summary: '失敗', suggestion: '', model_version: 'error' };
   }

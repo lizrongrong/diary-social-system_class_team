@@ -22,7 +22,7 @@ function ForgotPasswordPage() {
     setLoading(true)
     try {
       await authAPI.sendResetCode(email)
-      addToast('已寄出驗證碼（請查看後端 terminal）', 'success')
+      addToast('已寄出驗證碼', 'success')
       setStep(2)
     } catch (err) {
       addToast(err.response?.data?.error || '寄送失敗', 'error')

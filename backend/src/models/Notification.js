@@ -21,7 +21,7 @@ class Notification {
     // Ensure numeric limit/offset to avoid prepared-statement execution errors
     const l = Number.isFinite(Number(limit)) ? Math.max(0, parseInt(limit, 10)) : 20;
     const o = Number.isFinite(Number(offset)) ? Math.max(0, parseInt(offset, 10)) : 0;
-    const finalQuery = `SELECT n.*, u.username FROM notifications n LEFT JOIN users u ON n.source_user_id = u.user_id WHERE n.user_id = ? ORDER BY n.created_at DESC LIMIT ${l} OFFSET ${o}`;
+    const finalQuery = `SELECT n.*, u.username, u.profile_image as avatar_url FROM notifications n LEFT JOIN users u ON n.source_user_id = u.user_id WHERE n.user_id = ? ORDER BY n.created_at DESC LIMIT ${l} OFFSET ${o}`;
     const [rows] = await db.query(finalQuery, [userId]);
     return rows;
   }
