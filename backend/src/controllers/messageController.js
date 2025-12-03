@@ -38,7 +38,17 @@ exports.getConversations = async (req, res) => {
       )
       const unread_count = (unreadRows && unreadRows[0] && unreadRows[0].unread_count) || 0
 
-      conversations.push({ otherId, latest, unread_count })
+      // fetch user info
+      const [userRows] = await db.query('SELECT username, profile_image FROM users WHERE user_id = ?', [otherId])
+      const userInfo = userRows[0] || {}
+
+      conversations.push({ 
+        otherId, 
+        latest, 
+        unread_count,
+        username: userInfo.username,
+        avatar: userInfo.profile_image
+      })
     }
 
     res.json({ conversations })
@@ -78,14 +88,26 @@ exports.getMessagesWith = async (req, res) => {
 exports.sendMessageTo = async (req, res) => {
   const from = req.user.user_id
   const to = req.params.otherId
-  const { text } = req.body || {}
-  if (!text || !text.trim()) return res.status(400).json({ error: 'text_required' })
+  // Support both legacy 'text' field and new 'type'/'content' fields
+  const { text, type, content } = req.body || {}
+  
+  let messageType = type || 'text'
+  let messageContent = content || text
+
+  if (!messageContent || !String(messageContent).trim()) {
+    return res.status(400).json({ error: 'content_required' })
+  }
+
+  const allowedTypes = ['text', 'image', 'audio', 'file', 'emoji']
+  if (!allowedTypes.includes(messageType)) {
+    return res.status(400).json({ error: 'invalid_message_type' })
+  }
 
   try {
     // Debug logs to help trace issues in environments where requests fail
     console.log('[sendMessageTo] user:', req.user ? { user_id: req.user.user_id, username: req.user.username } : null)
     console.log('[sendMessageTo] params.otherId:', to)
-    console.log('[sendMessageTo] body:', { text })
+    console.log('[sendMessageTo] payload:', { type: messageType, content: messageContent })
 
     // Validate both users exist to provide clearer errors (prevents FK errors)
     const [fromRows] = await db.query('SELECT user_id FROM users WHERE user_id = ? LIMIT 1', [from])
@@ -102,15 +124,15 @@ exports.sendMessageTo = async (req, res) => {
     const [result] = await db.execute(
       `INSERT INTO messages (message_id, sender_id, receiver_id, message_type, content, is_read, created_at)
        VALUES (?, ?, ?, ?, ?, FALSE, NOW())`,
-      [messageId, from, to, 'text', text.trim()]
+      [messageId, from, to, messageType, messageContent]
     )
 
     const message = {
       message_id: messageId,
       sender_id: from,
       receiver_id: to,
-      message_type: 'text',
-      content: text.trim(),
+      message_type: messageType,
+      content: messageContent,
       is_read: false,
       created_at: new Date().toISOString()
     }

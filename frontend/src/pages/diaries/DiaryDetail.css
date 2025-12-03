@@ -215,6 +215,9 @@
     font-size: 1rem;
     color: #333333;
     margin-bottom: var(--spacing-xl);
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: break-word;
 }
 
 .diary-detail-actions {
@@ -381,6 +384,9 @@
     line-height: 1.6;
     color: #444444;
     white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: break-word;
 }
 
 .diary-detail-comment-footer {
@@ -591,6 +597,9 @@
     line-height: 1.5;
     color: #444444;
     white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: break-word;
 }
 
 .diary-detail-reply-like-count {

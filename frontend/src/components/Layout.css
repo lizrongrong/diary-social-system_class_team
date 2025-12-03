@@ -28,6 +28,12 @@
   right: 0;
 }
 
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
 .site-title {
   font-family: 'Italianno', cursive;
   font-size: 96px;
@@ -50,18 +56,19 @@
   /* 桌面版隱藏 */
   width: 44px;
   height: 44px;
-  border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%; /* Make it circular hover */
+  background: transparent; /* Remove background */
   border: none;
   color: #FFFFFF;
   cursor: pointer;
   transition: all var(--transition-base);
   flex-shrink: 0;
+  padding: 0;
 }
 
 .hamburger-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
-  transform: scale(1.05);
+  background: rgba(255, 255, 255, 0.1);
+  transform: none; /* Remove scale transform for cleaner feel */
 }
 
 .hamburger-btn svg {

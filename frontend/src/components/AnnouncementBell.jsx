@@ -331,10 +331,10 @@ function AnnouncementBell({ iconColor = '#FFFFFF' }) {
               {announcements.filter(a => !readIds.includes(a.announcement_id)).map(a => (
                 <div key={a.announcement_id} style={{ padding: '12px 16px', borderBottom: '1px solid #f5f5f5', cursor: 'pointer' }} onClick={() => handleMarkReadClick(a.announcement_id)}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <strong style={{ fontSize: 16 }}>{a.title}</strong>
+                    <strong style={{ fontSize: 16, flex: 1, wordBreak: 'break-word', overflowWrap: 'break-word', marginRight: 8 }}>{a.title}</strong>
                     {a.priority === 'high' && <span style={{ fontSize: 12, color: '#fff', background: '#e74c3c', padding: '2px 6px', borderRadius: 10 }}>重要</span>}
                   </div>
-                  <div style={{ fontSize: 15, color: '#666', marginTop: 6, whiteSpace: 'normal', overflowWrap: 'break-word', wordBreak: 'break-word' }}>{a.content}</div>
+                  <div style={{ fontSize: 15, color: '#666', marginTop: 6, whiteSpace: 'pre-wrap', overflowWrap: 'break-word', wordBreak: 'break-word' }}>{a.content}</div>
                   <div style={{ fontSize: 13, color: '#999', marginTop: 8 }}>
                     {a.published_at ? new Date(a.published_at).toLocaleString() : new Date(a.created_at).toLocaleString()}
                     {(a.published_at && a.created_at && (new Date(a.published_at).getTime() !== new Date(a.created_at).getTime())) ? ' (已編輯)' : ''}
@@ -351,10 +351,10 @@ function AnnouncementBell({ iconColor = '#FFFFFF' }) {
               {announcements.filter(a => readIds.includes(a.announcement_id)).map(a => (
                 <div key={a.announcement_id} style={{ padding: '12px 16px', borderBottom: '1px solid #f5f5f5', cursor: 'default', background: '#f7fff8' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <strong style={{ fontSize: 16, color: '#666' }}>{a.title}</strong>
+                    <strong style={{ fontSize: 16, color: '#666', flex: 1, wordBreak: 'break-word', overflowWrap: 'break-word', marginRight: 8 }}>{a.title}</strong>
                     {a.priority === 'high' && <span style={{ fontSize: 12, color: '#fff', background: '#e74c3c', padding: '2px 6px', borderRadius: 10 }}>重要</span>}
                   </div>
-                  <div style={{ fontSize: 15, color: '#666', marginTop: 6, whiteSpace: 'normal', overflowWrap: 'break-word', wordBreak: 'break-word' }}>{a.content}</div>
+                  <div style={{ fontSize: 15, color: '#666', marginTop: 6, whiteSpace: 'pre-wrap', overflowWrap: 'break-word', wordBreak: 'break-word' }}>{a.content}</div>
                   <div style={{ fontSize: 13, color: '#999', marginTop: 8 }}>
                     {a.published_at ? new Date(a.published_at).toLocaleString() : new Date(a.created_at).toLocaleString()}
                     {(a.published_at && a.created_at && (new Date(a.published_at).getTime() !== new Date(a.created_at).getTime())) ? ' (已編輯)' : ''}
