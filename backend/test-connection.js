@@ -1,5 +1,6 @@
-// 測試 MySQL 連線（直接使用密碼）
+// 測試 MySQL 連線
 const mysql = require('mysql2/promise');
+require('dotenv').config();
 
 async function testConnection() {
   try {
