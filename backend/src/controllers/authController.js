@@ -101,7 +101,12 @@ exports.register = async (req, res) => {
     const finalProfileImage = normalizedProfileImage || generateAvatarFile(username);
 
     const createdUserId = await User.create({ user_id, email, password_hash: hashedPassword, username, gender, birth_date, profile_image: finalProfileImage });
-    const token = jwt.sign({ user_id: createdUserId, email, role: 'member' }, process.env.JWT_SECRET || 'dev_secret', { expiresIn: process.env.JWT_EXPIRES_IN || '7d' });
+    
+    if (!process.env.JWT_SECRET) {
+      throw new Error('JWT_SECRET is not defined in environment variables');
+    }
+    
+    const token = jwt.sign({ user_id: createdUserId, email, role: 'member' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '7d' });
     return res.status(201).json({ message: 'Registration successful', token, user: { user_id: createdUserId, email, username, role: 'member', profile_image: finalProfileImage } });
   } catch (err) {
     return serverError(res, err);
