@@ -22,9 +22,13 @@ function LoginPage() {
     setIsLoading(true);
 
     try {
-      await login(formData);
+      const data = await login(formData);
       addToast('登入成功！', 'success');
-      navigate('/');
+      if (data.user && data.user.role === 'admin') {
+        navigate('/admin');
+      } else {
+        navigate('/');
+      }
     } catch (err) {
       const errorMsg = err.response?.data?.message || '登入失敗，請檢查您的帳號密碼';
       addToast(errorMsg, 'error');
