@@ -174,7 +174,7 @@ function RegisterPage() {
       const { password_confirm, ...registerData } = formData;
       await register(registerData);
       addToast('註冊成功！歡迎加入 Resonote', 'success');
-      navigate('/dashboard');
+      navigate('/');
     } catch (error) {
       if (error.response?.data?.details) {
         setErrors(error.response.data.details);
