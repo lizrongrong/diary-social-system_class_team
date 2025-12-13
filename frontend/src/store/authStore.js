@@ -4,9 +4,9 @@ import announcementAPI from '../services/announcementAPI';
 
 export const useAuthStore = create((set) => ({
   user: null,
-  // Use sessionStorage for token (cleared on tab/window close). Remember-me/localStorage removed.
-  token: sessionStorage.getItem('token'),
-  isAuthenticated: !!sessionStorage.getItem('token'),
+  // Persist token in localStorage so new tabs/windows stay logged in
+  token: localStorage.getItem('token'),
+  isAuthenticated: !!localStorage.getItem('token'),
   isLoading: false,
   error: null,
 
@@ -18,8 +18,8 @@ export const useAuthStore = create((set) => ({
     try {
       const response = await api.post('/auth/login', credentials);
       const { token, user } = response.data;
-      // Always store token in sessionStorage (no remember-me persistence).
-      sessionStorage.setItem('token', token);
+      // Store token in localStorage to persist across tabs/windows
+      localStorage.setItem('token', token);
       set({
         user,
         token,
@@ -70,7 +70,7 @@ export const useAuthStore = create((set) => ({
       const response = await api.post('/auth/register', userData);
       const { token, user } = response.data;
       
-  sessionStorage.setItem('token', token);
+      localStorage.setItem('token', token);
       set({
         user,
         token,
@@ -123,6 +123,8 @@ export const useAuthStore = create((set) => ({
           }
         }
         // Clear storages
+        // Remove only the auth token; preserve other keys handled below
+        try { localStorage.removeItem('token') } catch (e) {}
         sessionStorage.clear();
         localStorage.clear();
         // Restore preserved announcement keys
@@ -155,8 +157,8 @@ export const useAuthStore = create((set) => ({
    * 取得當前使用者資料
    */
   fetchUser: async () => {
-  // Read token from sessionStorage only (remember-me removed)
-  const token = sessionStorage.getItem('token');
+  // Read token from localStorage to persist across tabs/windows
+  const token = localStorage.getItem('token');
     if (!token) {
       set({ isAuthenticated: false });
       return;
@@ -213,7 +215,7 @@ export const useAuthStore = create((set) => ({
       const code = error.response?.data?.code;
       const authFailureCodes = ['TOKEN_EXPIRED', 'INVALID_TOKEN', 'NO_TOKEN', 'USER_NOT_FOUND'];
       if (code && authFailureCodes.includes(code)) {
-        sessionStorage.removeItem('token');
+        localStorage.removeItem('token');
         set({
           user: null,
           token: null,
@@ -265,8 +267,8 @@ export const useAuthStore = create((set) => ({
       document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
     });
     
-    // 清除 sessionStorage
-    sessionStorage.clear();
+    // 清除 sessionStorage（非主要來源）
+    try { sessionStorage.clear(); } catch (e) {}
     
     set({
       user: null,

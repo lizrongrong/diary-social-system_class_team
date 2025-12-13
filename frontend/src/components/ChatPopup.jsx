@@ -106,8 +106,21 @@ export default function ChatPopup() {
     <div className="chat-popup" role="dialog" aria-label="聊天視窗">
       <div className="chat-header">
         <div className="chat-title">
-            <div className="chat-avatar-small" style={{backgroundImage: `url(${otherMeta?.avatar ? ensureAbsoluteUrl(otherMeta.avatar) : '/default-avatar.png'})`}}></div>
-            <span>{otherMeta?.username || `使用者 ${otherId}`}</span>
+            {(() => {
+              const avatarCandidate = otherMeta?.avatar || otherMeta?.avatar_url || otherMeta?.profile_image || otherMeta?.profileImage
+              const resolved = avatarCandidate ? ensureAbsoluteUrl(avatarCandidate) : ''
+              const name = otherMeta?.username || otherMeta?.name || ''
+              const initial = (name || '').trim().charAt(0).toUpperCase()
+              return (
+                <div
+                  className="chat-avatar-small"
+                  style={resolved ? { backgroundImage: `url(${resolved})`, backgroundSize: 'cover', backgroundPosition: 'center', color: 'transparent' } : undefined}
+                >
+                  {!resolved && (initial || ' ')}
+                </div>
+              )
+            })()}
+            <span className="chat-name">{otherMeta?.username || otherMeta?.name || `使用者 ${otherId}`}</span>
         </div>
         <button onClick={close} className="chat-close"><X size={18} /></button>
       </div>

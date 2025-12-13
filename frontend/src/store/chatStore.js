@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { messageAPI } from '../services/api'
+import { messageAPI, userAPI } from '../services/api'
 import useAuthStore from './authStore'
 
 const useChatStore = create((set, get) => ({
@@ -12,6 +12,27 @@ const useChatStore = create((set, get) => ({
   openConversation: async (otherId, meta = null) => {
     set({ open: true, otherId, otherMeta: meta, loading: true })
     try {
+      // If meta is missing avatar fields, try to fetch public user profile
+      if (!meta || (!meta.avatar && !meta.avatar_url && !meta.profile_image && !meta.profileImage)) {
+        try {
+          const profile = await userAPI.getPublicById(otherId)
+          const u = profile?.user || profile
+          if (u) {
+            const enriched = {
+              ...(meta || {}),
+              username: (meta && meta.username) || u.username || u.name || undefined,
+              avatar: u.avatar || undefined,
+              avatar_url: u.avatar_url || undefined,
+              profile_image: u.profile_image || undefined,
+              profileImage: u.profileImage || undefined
+            }
+            set({ otherMeta: enriched })
+          }
+        } catch (e) {
+          // ignore fetch meta failures
+        }
+      }
+
       const res = await messageAPI.getMessagesWith(otherId)
       const raw = res?.messages || res || []
       // normalize to a consistent shape used by the UI: { id, from, to, text, created_at }
