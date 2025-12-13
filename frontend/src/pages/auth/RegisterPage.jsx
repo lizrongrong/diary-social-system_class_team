@@ -12,6 +12,7 @@ import './RegisterPage.css';
 function RegisterPage() {
   const navigate = useNavigate();
   const register = useAuthStore((state) => state.register);
+  const logout = useAuthStore((state) => state.logout);
   const { addToast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -172,9 +173,16 @@ function RegisterPage() {
         return;
       }
       const { password_confirm, ...registerData } = formData;
-      await register(registerData);
-      addToast('註冊成功！歡迎加入 Resonote', 'success');
-      navigate('/');
+
+      // 直接呼叫 API 進行註冊，不透過 store，避免自動登入
+      await authAPI.register(registerData);
+
+      addToast('註冊成功！請登入', 'success');
+
+      // 延遲 1.5 秒後跳轉，確保使用者能看清楚成功訊息
+      setTimeout(() => {
+        navigate('/login');
+      }, 1500);
     } catch (error) {
       if (error.response?.data?.details) {
         setErrors(error.response.data.details);
