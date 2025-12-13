@@ -39,7 +39,7 @@ const api = axios.create({
 // 請求攔截器 - 自動添加 token
 api.interceptors.request.use(
   (config) => {
-    const token = sessionStorage.getItem('token')
+    const token = localStorage.getItem('token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
@@ -79,7 +79,7 @@ api.interceptors.response.use(
 
       if (code && authFailureCodes.includes(code)) {
         // clear token and redirect to login
-        sessionStorage.removeItem('token')
+        localStorage.removeItem('token')
         if (window.location.pathname !== '/login') {
           window.location.href = '/login'
         }
@@ -143,7 +143,7 @@ export const authAPI = {
   },
 
   logout: () => {
-    sessionStorage.removeItem('token')
+    localStorage.removeItem('token')
   },
 
   getCurrentUser: async () => {
