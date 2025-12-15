@@ -6,9 +6,7 @@ import { Pie, Bar, Line } from 'react-chartjs-2'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import useAuthStore from '../../store/authStore'
-import axios from 'axios'
-import html2canvas from 'html2canvas'
-import { jsPDF } from 'jspdf'
+import api from '../../services/api'
 
 const API_URL = 'http://localhost:3000/api/v1'
 
@@ -54,20 +52,9 @@ function AdminDashboard() {
   }, [user])
 
   const loadAdminData = async () => {
-    const token = sessionStorage.getItem('token')
-    if (!token) {
-      console.warn('No auth token found in sessionStorage')
-      setErrorMessage('尚未登入或逾時，請先登入管理員帳號。')
-      setRecentUsers([])
-      setRecentDiaries([])
-      setLoading(false)
-      return
-    }
-    const config = { headers: { Authorization: `Bearer ${token}` } }
-
     // Load stats, users, diaries independently and fail gracefully per-call
     try {
-      const statsResponse = await axios.get(`${API_URL}/admin/stats`, config)
+      const statsResponse = await api.get('/admin/stats')
       setStats(statsResponse.data.stats || {})
     } catch (err) {
       console.error('Failed to load admin stats:', err)
@@ -78,7 +65,7 @@ function AdminDashboard() {
 
     try {
       // fetch latest 3 users for the "最近新增" tab
-      const usersResponse = await axios.get(`${API_URL}/admin/users?limit=3`, config)
+      const usersResponse = await api.get('/admin/users?limit=3')
       setRecentUsers(usersResponse.data.users || [])
     } catch (err) {
       console.error('Failed to load recent users:', err)
@@ -90,7 +77,7 @@ function AdminDashboard() {
 
     try {
       // fetch latest 3 diaries for the "最近新增" tab
-      const diariesResponse = await axios.get(`${API_URL}/admin/diaries?limit=3`, config)
+      const diariesResponse = await api.get('/admin/diaries?limit=3')
       setRecentDiaries(diariesResponse.data.diaries || [])
     } catch (err) {
       console.error('Failed to load recent diaries:', err)

@@ -142,9 +142,8 @@ function DiaryEditor() {
     validImages.forEach((file) => formData.append('files', file))
 
     try {
-      const token = sessionStorage.getItem('token')
-      const res = await axios.post('http://localhost:3000/api/v1/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${token}` }
+      const res = await api.post('/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
       })
       const uploaded = res.data.files.map(f => ({ url: f.url, type: 'image', size: f.size }))
       setMedia(prev => [...prev, ...uploaded])

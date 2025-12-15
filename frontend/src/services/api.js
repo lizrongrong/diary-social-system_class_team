@@ -28,6 +28,20 @@ export const ensureAbsoluteUrl = (value = '') => {
 
 const API_URL = parsedApiUrl.href.replace(/\/+$/, '')
 
+// Token 管理工具 (使用 Session Cookie)
+export const tokenUtils = {
+  set: (token) => {
+    document.cookie = `token=${token}; path=/; SameSite=Lax`
+  },
+  get: () => {
+    const match = document.cookie.match(new RegExp('(^| )token=([^;]+)'))
+    return match ? match[2] : null
+  },
+  remove: () => {
+    document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+  }
+}
+
 // 建立 axios 實例
 const api = axios.create({
   baseURL: API_URL,
@@ -39,7 +53,7 @@ const api = axios.create({
 // 請求攔截器 - 自動添加 token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token')
+    const token = tokenUtils.get()
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
@@ -79,7 +93,7 @@ api.interceptors.response.use(
 
       if (code && authFailureCodes.includes(code)) {
         // clear token and redirect to login
-        localStorage.removeItem('token')
+        tokenUtils.remove()
         if (window.location.pathname !== '/login') {
           window.location.href = '/login'
         }
@@ -143,7 +157,7 @@ export const authAPI = {
   },
 
   logout: () => {
-    localStorage.removeItem('token')
+    tokenUtils.remove()
   },
 
   getCurrentUser: async () => {

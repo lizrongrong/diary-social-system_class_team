@@ -47,10 +47,9 @@ function AnnouncementForm() {
     }
     setIsPublishing(true)
     try {
-      const token = sessionStorage.getItem('token')
       let updatedAnnouncement = null
       if (isEdit) {
-        const r = await axios.put(`${API_URL}/admin/announcements/${id}`, { title, content }, { headers: { Authorization: `Bearer ${token}` } })
+        const r = await api.put(`/admin/announcements/${id}`, { title, content })
         updatedAnnouncement = r.data?.announcement || null
         // clear local read marks for this announcement across any ann_reads_v1 keys
         try {
@@ -69,7 +68,7 @@ function AnnouncementForm() {
           // ignore storage errors
         }
       } else {
-        const r = await axios.post(`${API_URL}/admin/announcements`, { title, content }, { headers: { Authorization: `Bearer ${token}` } })
+        const r = await api.post('/admin/announcements', { title, content })
         updatedAnnouncement = r.data?.announcement || null
       }
       // dispatch an event so header bell refreshes immediately

@@ -21,9 +21,8 @@ function UserManagement() {
   const loadUsers = async () => {
     try {
       setLoading(true)
-      const token = sessionStorage.getItem('token')
-      const resp = await axios.get(`${API_URL}/admin/users?limit=50`, { headers: { Authorization: `Bearer ${token}` } })
-      setUsers((resp.data.users || []).map(u => {
+      const resp = await adminAPI.getUsers(searchTerm)
+      setUsers((resp.users || []).map(u => {
         const statusNorm = normalizeStatus(u.status)
         return { ...u, statusNormalized: statusNorm, _selectedStatus: statusNorm }
       }))

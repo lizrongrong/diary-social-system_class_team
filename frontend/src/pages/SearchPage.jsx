@@ -102,9 +102,6 @@ function SearchPage() {
     setSearched(true)
 
     try {
-      const token = sessionStorage.getItem('token')
-      const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {}
-
       const params = new URLSearchParams()
       if (criteria.keyword) params.append('keyword', criteria.keyword)
       if (criteria.emotion) params.append('emotion', criteria.emotion)
@@ -113,7 +110,7 @@ function SearchPage() {
       if (criteria.dateTo) params.append('dateTo', criteria.dateTo)
       params.append('sortBy', criteria.sortBy || 'created_at')
 
-      const response = await axios.get(`${API_URL}/diaries/search?${params.toString()}`, config)
+      const response = await api.get(`/diaries/search?${params.toString()}`)
       setDiaries(response.data.diaries || [])
     } catch (err) {
       setError(err.response?.data?.message || '搜尋失敗')
