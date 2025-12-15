@@ -108,8 +108,6 @@ function FeedbackManagement() {
                           <Button variant="primary" disabled={submitting || !replyText.trim()} onClick={async () => {
                             try {
                               setSubmitting(true)
-                              const token = sessionStorage.getItem('token')
-                              const config = { headers: { Authorization: `Bearer ${token}` } }
                               const id = f.id || f.feedback_id
                                 await api.put(`/admin/feedbacks/${id}/reply`, { admin_reply: replyText.trim(), status: 'resolved' })
                               // update local state

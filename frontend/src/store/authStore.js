@@ -1,12 +1,12 @@
 ﻿import { create } from 'zustand';
-import api from '../services/api';
+import api, { tokenUtils } from '../services/api';
 import announcementAPI from '../services/announcementAPI';
 
 export const useAuthStore = create((set) => ({
   user: null,
-  // Persist token in localStorage so new tabs/windows stay logged in
-  token: localStorage.getItem('token'),
-  isAuthenticated: !!localStorage.getItem('token'),
+  // Persist token in cookie so new tabs stay logged in, but browser restart logs out
+  token: tokenUtils.get(),
+  isAuthenticated: !!tokenUtils.get(),
   isLoading: false,
   error: null,
 
@@ -18,8 +18,8 @@ export const useAuthStore = create((set) => ({
     try {
       const response = await api.post('/auth/login', credentials);
       const { token, user } = response.data;
-      // Store token in localStorage to persist across tabs/windows
-      localStorage.setItem('token', token);
+      // Store token in cookie
+      tokenUtils.set(token);
       set({
         user,
         token,
@@ -70,7 +70,7 @@ export const useAuthStore = create((set) => ({
       const response = await api.post('/auth/register', userData);
       const { token, user } = response.data;
       
-      localStorage.setItem('token', token);
+      tokenUtils.set(token);
       set({
         user,
         token,
@@ -124,6 +124,7 @@ export const useAuthStore = create((set) => ({
         }
         // Clear storages
         // Remove only the auth token; preserve other keys handled below
+        tokenUtils.remove();
         try { localStorage.removeItem('token') } catch (e) {}
         sessionStorage.clear();
         localStorage.clear();
@@ -157,8 +158,8 @@ export const useAuthStore = create((set) => ({
    * 取得當前使用者資料
    */
   fetchUser: async () => {
-  // Read token from localStorage to persist across tabs/windows
-  const token = localStorage.getItem('token');
+  // Read token from cookie
+  const token = tokenUtils.get();
     if (!token) {
       set({ isAuthenticated: false });
       return;

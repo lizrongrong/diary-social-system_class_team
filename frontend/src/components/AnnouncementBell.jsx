@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Megaphone } from 'lucide-react'
 import announcementAPI from '../services/announcementAPI'
+import { tokenUtils } from '../services/api'
 import useAuthStore from '../store/authStore'
 import './AnnouncementBell.css'
 
@@ -179,7 +180,7 @@ function AnnouncementBell({ iconColor = '#FFFFFF' }) {
   // Use auth store user_id when available; otherwise try to decode JWT token; fallback to 'guest'.
   const userIdFromToken = () => {
     try {
-      const t = sessionStorage.getItem('token')
+      const t = tokenUtils.get()
       if (!t) return null
       const parts = t.split('.')
       if (parts.length < 2) return null

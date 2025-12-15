@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import useAuthStore from '../../store/authStore'
-import axios from 'axios'
+import api from '../../services/api'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 
@@ -22,12 +22,11 @@ function Announcements() {
       setLoading(true)
       if (user && user.role === 'admin') {
         // admin view -> admin list
-        const token = sessionStorage.getItem('token')
-        const resp = await axios.get(`${API_URL}/admin/announcements`, { headers: { Authorization: `Bearer ${token}` } })
+        const resp = await api.get('/admin/announcements')
         setAnnouncements(resp.data.announcements || [])
       } else {
         // public view -> active announcements
-        const resp = await axios.get(`${API_URL}/announcements/active`)
+        const resp = await api.get('/announcements/active')
         // backend returns { announcements: [...] }
         setAnnouncements(resp.data.announcements || [])
       }
@@ -43,8 +42,7 @@ function Announcements() {
   const handleDelete = async (id) => {
     if (!window.confirm('確定要刪除此公告？此操作無法復原。')) return
     try {
-      const token = sessionStorage.getItem('token')
-      await axios.delete(`${API_URL}/admin/announcements/${id}`, { headers: { Authorization: `Bearer ${token}` } })
+      await api.delete(`/admin/announcements/${id}`)
       // reload
       await loadAnnouncements()
       try { window.dispatchEvent(new Event('announcements:updated')) } catch (e) {}
