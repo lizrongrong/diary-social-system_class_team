@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import useAuthStore from '../../store/authStore'
-import axios from 'axios'
+import api from '../../services/api'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
 
@@ -20,8 +20,7 @@ function AnnouncementForm() {
     const load = async () => {
       if (!isEdit) return
       try {
-        const token = sessionStorage.getItem('token')
-        const resp = await axios.get(`${API_URL}/admin/announcements/${id}`, { headers: { Authorization: `Bearer ${token}` } })
+        const resp = await api.get(`/admin/announcements/${id}`)
         const ann = resp.data.announcement
         if (ann) {
           setTitle(ann.title || '')

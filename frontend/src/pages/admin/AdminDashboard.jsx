@@ -328,15 +328,13 @@ function AdminDashboard() {
                   <Button onClick={async () => {
                     setAnalyticsLoading(true);
                     try {
-                      const token = sessionStorage.getItem('token');
-                      const cfg = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
                       let resp = null;
                       const qs = new URLSearchParams({ period });
                       if (startDate) qs.append('start', startDate);
                       if (endDate) qs.append('end', endDate);
-                      if (chartType === 'members') resp = await axios.get(`${API_URL}/admin/analytics/members?${qs.toString()}`, cfg);
-                      else if (chartType === 'diaries') resp = await axios.get(`${API_URL}/admin/analytics/diaries?${qs.toString()}`, cfg);
-                      else resp = await axios.get(`${API_URL}/admin/analytics/cards?${qs.toString()}`, cfg);
+                      if (chartType === 'members') resp = await api.get(`/admin/analytics/members?${qs.toString()}`);
+                      else if (chartType === 'diaries') resp = await api.get(`/admin/analytics/diaries?${qs.toString()}`);
+                      else resp = await api.get(`/admin/analytics/cards?${qs.toString()}`);
                       // Normalize response data to ensure charts receive numbers and matching lengths
                       const raw = resp.data || {};
                       const normalized = { ...raw };
