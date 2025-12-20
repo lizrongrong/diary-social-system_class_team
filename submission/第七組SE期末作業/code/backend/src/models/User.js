@@ -321,7 +321,7 @@ class User {
       await connection.beginTransaction();
 
       const [existing] = await connection.query(
-        `SELECT user_id FROM users WHERE user_id = ? AND status != 'deleted'`,
+        `SELECT user_id FROM users WHERE user_id = ?`,
         [userId]
       );
 
@@ -351,8 +351,18 @@ class User {
           WHERE target_type = 'diary' 
           AND target_id IN (${placeholders})
         `, diaryIds);
+
+        // 4. 刪除與這些日記相關的通知
+        await connection.query(`
+          DELETE FROM notifications
+          WHERE related_diary_id IN (${placeholders})
+        `, diaryIds);
       }
 
+      // 5. 刪除該使用者發出的通知 (作為來源者)
+      await connection.query(`DELETE FROM notifications WHERE source_user_id = ?`, [userId]);
+
+      // 6. 刪除使用者 (觸發 CASCADE 刪除日記、留言、按讚、接收的通知等)
       await connection.query(`DELETE FROM users WHERE user_id = ?`, [userId]);
 
       await connection.commit();

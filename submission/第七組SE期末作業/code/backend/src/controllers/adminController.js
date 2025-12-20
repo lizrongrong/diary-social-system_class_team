@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const User = require('../models/User');
 
 // 獲取系統統計數據
 exports.getStats = async (req, res) => {
@@ -201,6 +202,15 @@ exports.updateUserStatus = async (req, res) => {
 
     if (!['active', 'suspended', 'banned', 'deleted'].includes(status)) {
       return res.status(400).json({ message: 'Invalid status' });
+    }
+
+    if (status === 'deleted') {
+      // 執行硬刪除 (Hard Delete)
+      const success = await User.deleteAccount(userId);
+      if (!success) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      return res.json({ message: 'User account and associated data permanently deleted' });
     }
 
     await db.execute(
