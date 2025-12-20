@@ -1,4 +1,0 @@
-{
-  "deprecated": "migrated_to_db",
-  "note": "Message storage migrated to database. This file is kept as a harmless placeholder for compatibility/backups. Safe to delete if desired."
-}
