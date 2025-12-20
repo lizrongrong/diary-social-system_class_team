@@ -1,0 +1,506 @@
+.dashboard-page {
+  min-height: calc(100vh - 64px);
+  background: #f5f7fa;
+  padding: var(--spacing-xl);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.dashboard-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 1.5rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--spacing-xl);
+}
+
+.dashboard-header h1 {
+  font-size: 1.8rem;
+  margin: 0;
+}
+
+.dashboard-header nav {
+  display: flex;
+  gap: 1rem;
+}
+
+.nav-btn {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.nav-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+.logout-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.dashboard-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0;
+  width: 100%;
+}
+
+.welcome-banner {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 3rem;
+  border-radius: 16px;
+  text-align: center;
+  margin-bottom: 2rem;
+  box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+}
+
+.welcome-banner h2 {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.welcome-banner p {
+  font-size: 1.2rem;
+  opacity: 0.9;
+}
+
+.quick-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 3rem;
+}
+
+.action-card {
+  background: white;
+  border: 2px solid #e0e0e0;
+  padding: 2rem;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.action-card:hover {
+  border-color: #667eea;
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+.action-icon {
+  font-size: 3rem;
+}
+
+.recent-diaries {
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.recent-diaries h3 {
+  color: #333;
+  margin-bottom: 1.5rem;
+  font-size: 1.5rem;
+}
+
+.diary-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.diary-preview {
+  padding: 2rem;
+  border: 2px dashed #e0e0e0;
+  border-radius: 8px;
+  text-align: center;
+  color: #999;
+}
+
+.diary-date {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.diary-hint {
+  font-size: 0.9rem;
+}
+
+/* Tab / 標籤樣式（專屬日記風格） */
+.dashboard-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.dashboard-tab {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid var(--gray-200);
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--gray-800);
+  box-shadow: 0 4px 10px rgba(16,24,40,0.04);
+  transition: all 0.18s ease;
+}
+
+.dashboard-tab.primary {
+  background: linear-gradient(90deg, var(--primary-purple), var(--primary-pink));
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 8px 26px rgba(99, 102, 241, 0.14);
+}
+
+.dashboard-tab:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(16,24,40,0.06); }
+
+.tag-pill {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #f0f4ff;
+  color: #2b2b2b;
+  border: 1px solid #e6ecff;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.chart-area {
+  padding: 12px;
+  background: #fff;
+  border-radius: 8px;
+}
+
+/* 與個人檔案顯示風格更接近的頁面標題 */
+.page-title {
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: #3d2132;
+  margin: 0;
+}
+
+/* Dashboard-specific override to ensure diary texts are visible inside dashboard cards */
+.dashboard-content .user-profile-diary-card .diary-card-title {
+  color: #2f1d2b !important;
+}
+.dashboard-content .user-profile-diary-card .diary-card-content {
+  color: #4c3a48 !important;
+}
+.dashboard-content .user-profile-diary-card .diary-author-name,
+.dashboard-content .user-profile-diary-card .diary-post-date {
+  color: inherit !important;
+}
+
+/* Top5 list styling reused for emotion/weather panels */
+.top5-list { display:flex; flex-direction:column; gap:12px; }
+.top5-item { display:flex; flex-direction:column; }
+.top5-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px }
+.top5-label { font-weight:700; color:#3d2132 }
+.top5-count { color:#666; font-size:0.95rem }
+.top5-bar-outer { height:10px; background:#eee; border-radius:999px; overflow:hidden }
+.top5-bar-inner { height:100%; background:linear-gradient(90deg, var(--primary-purple), var(--primary-pink)); transition:width 0.36s cubic-bezier(.2,.8,.2,1) }
+
+/* Prevent featured diary negative margin from overlapping dashboard heading */
+.dashboard-content .user-profile-diary-card.is-featured { margin-top: 0 !important }
+/* Also cover dashboard page root (DashboardPage uses .dashboard-page) */
+.dashboard-page .user-profile-diary-card.is-featured { margin-top: 0 !important }
+
+/* Ensure section header sits above any avatar / card content */
+.dashboard-page .recent-diaries .section-header { position: relative; z-index: 6 }
+
+/* Prevent diary author avatar overlapping the section header */
+.dashboard-page .recent-diaries .diary-author-avatar { position: relative; z-index: 1 }
+
+/* Ensure recent-diaries card heading is above any overlapping visuals */
+.recent-diaries { position: relative; z-index: 1 }
+.recent-diaries h3 { position: relative; z-index: 2 }
+
+/* make top5 two columns on larger screens */
+@media (min-width: 880px) {
+  .top5-row { display:flex; gap:16px; align-items:flex-start; }
+  .top5-row > .card { flex: 1; min-width: 0; }
+}
+
+/* ensure on small screens the top5 stack */
+@media (max-width: 879px) {
+  .top5-row { display:flex; flex-direction:column; gap:12px }
+}
+
+/* section header used for Recent Diaries */
+.section-header {
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+  background:#fff;
+  padding:8px 12px;
+  border-radius:10px;
+  box-shadow: 0 6px 18px rgba(16,24,40,0.04);
+  margin-bottom:12px;
+}
+.section-header .icon {
+  width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; background:linear-gradient(90deg,var(--primary-purple),var(--primary-pink)); color:#fff;
+}
+
+.recent-diaries { margin-top: 24px }
+.section-header { margin-bottom: 8px }
+
+/* Footer / action buttons (match HomePage) */
+.dashboard-content .user-profile-diary-card .post-footer {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md, 16px);
+  padding-top: var(--spacing-md, 16px);
+  border-top: 1px solid #F0F0F0;
+  margin-top: 12px;
+}
+
+.dashboard-content .user-profile-diary-card .post-action {
+  background: transparent;
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs, 8px);
+  cursor: pointer;
+  font-family: "Inter", sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  color: #666666;
+  padding: var(--spacing-xs, 6px) var(--spacing-sm, 8px);
+  border-radius: var(--radius-md, 8px);
+  transition: all var(--transition-base, 0.18s);
+}
+
+.dashboard-content .user-profile-diary-card .post-action:hover {
+  background: #F5F5F5;
+  color: var(--primary-purple);
+}
+
+.dashboard-content .user-profile-diary-card .post-action svg { flex-shrink: 0 }
+.dashboard-content .user-profile-diary-card .post-action span { min-width: 20px }
+
+/* Ensure share button looks like other actions (no special bordered style) */
+.dashboard-content .user-profile-diary-card .post-action.share-btn,
+.dashboard-content .user-profile-diary-card button.post-action.share-btn {
+  background: transparent !important;
+  border: none !important;
+  color: inherit !important;
+  padding: var(--spacing-xs, 6px) var(--spacing-sm, 8px) !important;
+  margin-left: 0 !important;
+}
+
+.dashboard-content .user-profile-diary-card .post-action.liked {
+  color: var(--primary-purple);
+}
+
+.dashboard-content .user-profile-diary-card .post-action.liked:hover { color: var(--dark-purple); }
+
+
+/* Sync diary card header / author / title spacing with HomePage */
+.dashboard-content .user-profile-diary-card .diary-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-lg, 24px);
+  padding-bottom: var(--spacing-md, 16px);
+  border-bottom: 1px solid #F0F0F0;
+}
+
+.dashboard-content .user-profile-diary-card .diary-author {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md, 16px);
+}
+
+.dashboard-content .user-profile-diary-card .author-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dashboard-content .user-profile-diary-card .diary-author-name,
+.dashboard-content .user-profile-diary-card .author-name {
+  font-family: "Inter", sans-serif;
+  font-weight: 600;
+  font-size: 18px;
+  color: #1F1F1F;
+  margin: 0;
+}
+
+.dashboard-content .user-profile-diary-card .diary-post-date,
+.dashboard-content .user-profile-diary-card .post-date {
+  font-family: "Inter", sans-serif;
+  font-weight: 400;
+  font-size: 14px;
+  color: #999999;
+  margin: 0;
+}
+
+.dashboard-content .user-profile-diary-card .diary-card-title {
+  margin: 0 0 var(--spacing-md, 16px) 0;
+  line-height: 1.4;
+}
+
+/* Keep owner actions on the right without pushing author content */
+.dashboard-content .user-profile-diary-card .post-owner-actions {
+  margin-left: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm, 8px);
+  flex-shrink: 0;
+}
+
+/* Also apply the same rules to post-card elements (HomePage class names) used in Dashboard */
+.dashboard-content .post-card .post-footer,
+.dashboard-content .user-profile-diary-card .post-footer {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md, 16px);
+  padding-top: var(--spacing-md, 16px);
+  border-top: 1px solid #F0F0F0;
+  margin-top: 12px;
+}
+
+.dashboard-content .post-card .post-action,
+.dashboard-content .user-profile-diary-card .post-action {
+  background: transparent;
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs, 8px);
+  cursor: pointer;
+  font-family: "Inter", sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  color: #666666;
+  padding: var(--spacing-xs, 6px) var(--spacing-sm, 8px);
+  border-radius: var(--radius-md, 8px);
+  transition: all var(--transition-base, 0.18s);
+}
+
+.dashboard-content .post-card .post-action:hover,
+.dashboard-content .user-profile-diary-card .post-action:hover {
+  background: #F5F5F5;
+  color: var(--primary-purple);
+}
+
+.dashboard-content .post-card .post-action svg,
+.dashboard-content .user-profile-diary-card .post-action svg { flex-shrink: 0 }
+.dashboard-content .post-card .post-action span,
+.dashboard-content .user-profile-diary-card .post-action span { min-width: 20px }
+
+.dashboard-content .post-card .post-action.share-btn,
+.dashboard-content .user-profile-diary-card .post-action.share-btn,
+.dashboard-content .post-card button.post-action.share-btn,
+.dashboard-content .user-profile-diary-card button.post-action.share-btn {
+  background: transparent !important;
+  border: none !important;
+  color: inherit !important;
+  padding: var(--spacing-xs, 6px) var(--spacing-sm, 8px) !important;
+  margin-left: 0 !important;
+}
+
+.dashboard-content .post-card .post-action.liked,
+.dashboard-content .user-profile-diary-card .post-action.liked {
+  color: var(--primary-purple);
+}
+
+.dashboard-content .post-card .post-action.liked:hover,
+.dashboard-content .user-profile-diary-card .post-action.liked:hover { color: var(--dark-purple); }
+
+.dashboard-content .post-card .post-header,
+.dashboard-content .user-profile-diary-card .diary-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-lg, 24px);
+  padding-bottom: var(--spacing-md, 16px);
+  border-bottom: 1px solid #F0F0F0;
+}
+
+.dashboard-content .post-card .author-info,
+.dashboard-content .user-profile-diary-card .diary-author {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md, 16px);
+}
+
+.dashboard-content .post-card .author-details,
+.dashboard-content .user-profile-diary-card .author-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px; /* keep very small vertical gap to match HomePage */
+  line-height: 1;
+}
+
+.dashboard-content .post-card .author-name,
+.dashboard-content .user-profile-diary-card .diary-author-name {
+  font-family: "Inter", sans-serif;
+  font-weight: 600;
+  font-size: 18px;
+  color: #1F1F1F;
+  margin: 0;
+}
+
+.dashboard-content .post-card .post-date,
+.dashboard-content .user-profile-diary-card .diary-post-date {
+  font-family: "Inter", sans-serif;
+  font-weight: 400;
+  font-size: 14px;
+  color: #999999;
+  margin: 0;
+}
+
+.dashboard-content .post-card .post-title,
+.dashboard-content .user-profile-diary-card .diary-card-title {
+  margin: 0 0 var(--spacing-md, 16px) 0;
+  line-height: 1.4;
+}
+
+.dashboard-content .post-card .post-owner-actions,
+.dashboard-content .user-profile-diary-card .post-owner-actions {
+  margin-left: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm, 8px);
+  flex-shrink: 0;
+}
+
+/* Avatar styling to match HomePage */
+.dashboard-content .user-profile-diary-card .author-avatar,
+.dashboard-content .post-card .author-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 2px solid var(--primary-purple);
+  background-size: cover;
+  background-position: center;
+  background-color: var(--gray-200);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* small screen adjustments (same as HomePage) */
+@media (max-width: 768px) {
+  .dashboard-content .user-profile-diary-card .author-avatar { width: 40px; height: 40px; }
+  .dashboard-content .user-profile-diary-card .author-name { font-size: 16px; }
+  .dashboard-content .user-profile-diary-card .post-date { font-size: 12px; }
+  .dashboard-content .user-profile-diary-card { padding: var(--spacing-lg, 24px); }
+}

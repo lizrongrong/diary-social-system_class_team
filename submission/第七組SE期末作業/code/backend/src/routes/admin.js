@@ -1,0 +1,44 @@
+const express = require('express');
+const router = express.Router();
+const adminController = require('../controllers/adminController');
+const announcementController = require('../controllers/announcementController');
+const feedbackController = require('../controllers/feedbackController');
+const { authMiddleware, adminMiddleware } = require('../middleware/auth');
+
+// 所有路由都需要管理員權限
+router.use(authMiddleware);
+router.use(adminMiddleware);
+
+// GET /api/v1/admin/stats - 獲取系統統計
+router.get('/stats', adminController.getStats);
+
+// GET /api/v1/admin/users - 獲取用戶列表
+router.get('/users', adminController.getUsers);
+
+// Analytics endpoints
+router.get('/analytics/members', adminController.getMemberAnalytics);
+router.get('/analytics/diaries', adminController.getDiaryAnalytics);
+router.get('/analytics/cards', adminController.getCardAnalytics);
+
+// GET /api/v1/admin/diaries - 獲取日記列表
+router.get('/diaries', adminController.getDiaries);
+
+// PUT /api/v1/admin/users/:userId/status - 更新用戶狀態
+router.put('/users/:userId/status', adminController.updateUserStatus);
+
+// DELETE /api/v1/admin/diaries/:diaryId - 刪除日記
+router.delete('/diaries/:diaryId', adminController.deleteDiary);
+
+// Announcement 管理
+router.get('/announcements', announcementController.listAll);
+router.post('/announcements', announcementController.create);
+router.delete('/announcements/:id', announcementController.delete);
+// 取得單一公告、更新公告 (編輯)
+router.get('/announcements/:id', announcementController.getById);
+router.put('/announcements/:id', announcementController.update);
+
+// Feedback 管理
+router.get('/feedbacks', feedbackController.adminList);
+router.put('/feedbacks/:id/reply', feedbackController.adminReply);
+
+module.exports = router;
