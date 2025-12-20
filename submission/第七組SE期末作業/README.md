@@ -3,7 +3,7 @@
 一個現代化的日記互動平台，支援情緒追蹤、社交分享等功能。
 
 ## 系統 Demo 影片連結
-[請在此處貼上您的 Demo 影片連結]
+https://youtube.com/playlist?list=PLbSYttgT48qt8Zm6S2AIjRjF5_hkuJqv8&si=CEBjgZ7KZ7GsavTp
 
 ## 🚀 快速開始
 
@@ -35,7 +35,6 @@ npm install
 ```bash
 cd ../frontend
 npm install
-npm run dev
 ```
 
 #### 4. 設定資料庫
@@ -82,6 +81,7 @@ mysql -u root -p diary_app < backend/sql/schema.sql
 **後端配置**
 
 ```bash
+cd code
 cd backend
 cp .env.example .env
 ```
@@ -113,7 +113,7 @@ GEMINI_MODEL=gemini-1.5-flash
 #### 6. 啟動專案
 
 **啟動後端**
-
+開啟一個新的終端機視窗
 ```bash
 cd code
 cd backend
@@ -204,14 +204,3 @@ diary_sys/
 - ✅ CORS 配置
 - ✅ 速率限制
 
-## 🤝 貢獻
-
-歡迎提交 Pull Request！
-
-## 📄 授權
-
-MIT License
-
-## 📧 聯絡方式
-
-如有問題請開 Issue
