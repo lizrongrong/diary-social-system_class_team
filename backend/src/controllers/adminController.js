@@ -69,12 +69,12 @@ exports.getUsers = async (req, res) => {
     const offset = Number.isFinite(parsedOffset) && !isNaN(parsedOffset) ? Math.max(0, parsedOffset) : 0;
     const search = (req.query.search || '').toString().trim();
 
-    let query = `SELECT user_id, username, email, role, status, profile_image, created_at FROM users`;
+    let query = `SELECT user_id, username, email, role, status, profile_image, created_at FROM users WHERE role != 'admin'`;
     const params = [];
 
     if (search) {
       // Allow searching by username, email or user_id to support admin searches
-      query += ' WHERE username LIKE ? OR email LIKE ? OR user_id LIKE ?';
+      query += ' AND (username LIKE ? OR email LIKE ? OR user_id LIKE ?)';
       const searchPattern = `%${search}%`;
       params.push(searchPattern, searchPattern, searchPattern);
     }
@@ -91,9 +91,9 @@ exports.getUsers = async (req, res) => {
       console.log(`admin.getUsers: fetched ${users.length} users (limit=${limit} offset=${offset})`);
 
       // 獲取總數
-      let countQuery = 'SELECT COUNT(*) as count FROM users';
+      let countQuery = "SELECT COUNT(*) as count FROM users WHERE role != 'admin'";
       if (search) {
-        countQuery += ' WHERE username LIKE ? OR email LIKE ? OR user_id LIKE ?';
+        countQuery += ' AND (username LIKE ? OR email LIKE ? OR user_id LIKE ?)';
         const [countResult] = await db.execute(countQuery, [`%${search}%`, `%${search}%`, `%${search}%`]);
         total = (countResult && countResult[0] && countResult[0].count) || users.length;
       } else {
